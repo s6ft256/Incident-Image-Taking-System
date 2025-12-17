@@ -1,13 +1,14 @@
 /**
- * Airtable OAuth Callback Server
+ * Airtable OAuth Callback Server & Static File Server
  * 
- * This is a standalone Node.js server.
- * Do not import this into the React app.
- * Deploy this file + package.json to Render.com.
+ * This server handles:
+ * 1. Serving the compiled React Frontend (dist/ folder)
+ * 2. OAuth Callback logic for Airtable
  */
 
 const express = require('express');
 const axios = require('axios');
+const path = require('path');
 const Buffer = require('buffer').Buffer;
 const crypto = require('crypto');
 
@@ -17,25 +18,23 @@ const port = process.env.PORT || 3000;
 // Environment variables (Set these in Render Dashboard)
 const CLIENT_ID = process.env.AIRTABLE_CLIENT_ID;
 const CLIENT_SECRET = process.env.AIRTABLE_CLIENT_SECRET;
-const REDIRECT_URI = process.env.REDIRECT_URI; // e.g., https://your-app.onrender.com/callback
+const REDIRECT_URI = process.env.REDIRECT_URI; 
 
-// Basic health check
-app.get('/', (req, res) => {
-  res.send('Airtable OAuth Server is running. Use /auth to start login.');
-});
+// --- 1. Serve Static Frontend ---
+// Serve static files from the React app build directory
+app.use(express.static(path.join(__dirname, 'dist')));
 
-// 1. Redirect user to Airtable Login
+// --- 2. OAuth Routes ---
+
+// Redirect user to Airtable Login
 app.get('/auth', (req, res) => {
-  const state = crypto.randomUUID(); // In production, store this in a cookie to verify later
-  // Scopes: data.records:read, data.records:write, schema.bases:read
+  const state = crypto.randomUUID();
   const scope = 'data.records:read data.records:write schema.bases:read';
-  
   const authUrl = `https://airtable.com/oauth2/v1/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=code&scope=${encodeURIComponent(scope)}&state=${state}`;
-  
   res.redirect(authUrl);
 });
 
-// 2. Handle Callback
+// Handle Callback
 app.get('/callback', async (req, res) => {
   const { code, state, error } = req.query;
 
@@ -48,7 +47,6 @@ app.get('/callback', async (req, res) => {
   }
 
   try {
-    // Exchange code for tokens
     const credentials = Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString('base64');
     
     const tokenResponse = await axios.post('https://airtable.com/oauth2/v1/token', 
@@ -65,13 +63,8 @@ app.get('/callback', async (req, res) => {
       }
     );
 
-    const { access_token, refresh_token, expires_in } = tokenResponse.data;
+    const { access_token, refresh_token } = tokenResponse.data;
 
-    // SECURITY NOTE:
-    // In a real app, DO NOT display tokens to the user.
-    // Store them in a database associated with the user's session.
-    // For this helper tool, we display them so you can copy them to your Google AI Studio project.
-    
     res.send(`
       <html>
         <body style="font-family: sans-serif; padding: 20px;">
@@ -81,7 +74,7 @@ app.get('/callback', async (req, res) => {
             <p><strong>Access Token:</strong> ${access_token}</p>
             <p><strong>Refresh Token:</strong> ${refresh_token}</p>
           </div>
-          <p>You can close this window.</p>
+          <p>You can close this window and return to the Incident Reporter.</p>
         </body>
       </html>
     `);
@@ -90,6 +83,12 @@ app.get('/callback', async (req, res) => {
     console.error('Token Exchange Error:', err.response?.data || err.message);
     res.status(500).send('Failed to exchange token. Check server logs.');
   }
+});
+
+// --- 3. SPA Fallback ---
+// For any request that doesn't match an API route or static file, send index.html
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
 app.listen(port, () => {

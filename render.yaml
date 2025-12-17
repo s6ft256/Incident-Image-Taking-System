@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: incident-reporter
+    env: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: 20.11.0
+      - key: API_KEY
+        sync: false
+      - key: VITE_AIRTABLE_BASE_ID
+        sync: false
+      - key: VITE_AIRTABLE_API_KEY
+        sync: false
+      - key: VITE_SUPABASE_URL
+        sync: false
+      - key: VITE_SUPABASE_ANON_KEY
+        sync: false
+      - key: VITE_SUPABASE_BUCKET
+        sync: false
+      - key: AIRTABLE_CLIENT_ID
+        sync: false
+      - key: AIRTABLE_CLIENT_SECRET
+        sync: false
+      - key: REDIRECT_URI
+        fromService:
+          type: web
+          name: incident-reporter
+          property: url
+          path: /callback
