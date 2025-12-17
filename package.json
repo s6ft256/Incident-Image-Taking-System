@@ -14,7 +14,7 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "@supabase/supabase-js": "^2.39.0",
-    "@google/genai": "^0.0.12",
+    "@google/genai": "^0.1.0",
     "recharts": "^2.12.0"
   },
   "devDependencies": {
