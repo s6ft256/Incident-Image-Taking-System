@@ -248,6 +248,7 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
             value={formData.name} 
             onChange={handleInputChange} 
             required
+            placeholder="Enter full name"
           />
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -256,7 +257,7 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
               label="Role / Position" 
               value={formData.role} 
               onChange={handleInputChange} 
-              placeholder="e.g. Site Supervisor"
+              placeholder="Site Supervisor"
               required
             />
             
@@ -265,7 +266,7 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
               label="Site / Location" 
               value={formData.site} 
               onChange={handleInputChange} 
-              placeholder="e.g. Warehouse A"
+              placeholder="Warehouse A"
               required
             />
           </div>

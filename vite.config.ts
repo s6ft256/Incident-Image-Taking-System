@@ -11,7 +11,10 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     define: {
       // Polyfill process.env.API_KEY for the Google GenAI SDK
-      'process.env.API_KEY': JSON.stringify(env.API_KEY),
+      // Checks for API_KEY, VITE_API_KEY, or VITE_GOOGLE_API_KEY to ensure Vercel deployment works
+      // regardless of how the user names the variable in the dashboard.
+      // Defaults to '' to prevent "process is not defined" error in browser.
+      'process.env.API_KEY': JSON.stringify(env.API_KEY || env.VITE_API_KEY || env.VITE_GOOGLE_API_KEY || ''),
     }
   };
 });
