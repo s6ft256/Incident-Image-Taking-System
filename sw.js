@@ -1,4 +1,4 @@
-const CACHE_NAME = 'incident-reporter-v1';
+const CACHE_NAME = 'hse-guardian-v1';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',

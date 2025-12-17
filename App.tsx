@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AIRTABLE_CONFIG } from './constants';
+import { AIRTABLE_CONFIG, SAFETY_QUOTES } from './constants';
 import { CreateReportForm } from './components/CreateReportForm';
 import { RecentReports } from './components/RecentReports';
 import { HSEAssistant } from './components/HSEAssistant';
@@ -13,11 +13,15 @@ function App() {
   const [baseId, setBaseId] = useState(AIRTABLE_CONFIG.BASE_ID);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [syncCount, setSyncCount] = useState(0);
+  const [quote, setQuote] = useState('');
   
   // Check if configuration is needed
   const needsConfig = baseId.includes('YourBaseId') || !baseId;
 
   useEffect(() => {
+    // Select a random safety quote
+    setQuote(SAFETY_QUOTES[Math.floor(Math.random() * SAFETY_QUOTES.length)]);
+
     const handleStatus = () => {
       const online = navigator.onLine;
       setIsOnline(online);
@@ -80,7 +84,7 @@ function App() {
           <div className="max-w-3xl mx-auto px-4 py-5 flex items-center justify-between">
              <div className="flex items-center gap-3">
                <h1 className="text-3xl font-extrabold text-white tracking-wide drop-shadow-md" onClick={() => setView('dashboard')} style={{cursor: 'pointer'}}>
-                 Incident Reporter
+                 HSE Guardian
                </h1>
              </div>
              
@@ -137,9 +141,18 @@ function App() {
           {renderContent()}
         </main>
 
-        <footer className="py-6 px-4 max-w-3xl mx-auto w-full flex justify-between items-center text-slate-500 text-xs">
-           <p>Secure • Mobile-First • {isOnline ? 'Cloud-Synced' : 'Offline Mode'}</p>
-           <p>© 2025 Elius</p>
+        <footer className="py-6 px-4 max-w-3xl mx-auto w-full flex flex-col items-center gap-4">
+           {quote && (
+             <div className="w-full max-w-xl text-center px-4 py-3 rounded-lg bg-slate-800/40 border border-slate-700/50 backdrop-blur-sm">
+                <p className="text-slate-300 italic font-medium text-sm">
+                  {quote}
+                </p>
+             </div>
+           )}
+           <div className="w-full flex justify-between items-center text-slate-500 text-xs border-t border-slate-800 pt-4">
+             <p>Secure • Mobile-First • {isOnline ? 'Cloud-Synced' : 'Offline Mode'}</p>
+             <p>© 2025 Elius</p>
+           </div>
         </footer>
         
         {/* Floating HSE Assistant - Always available */}
