@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { InputField } from './InputField';
 import { ImageGrid } from './ImageGrid';
 import { IncidentForm, UploadedImage } from '../types';
-import { MIN_IMAGES } from '../constants';
+import { MIN_IMAGES, INCIDENT_TYPES } from '../constants';
 import { submitIncidentReport } from '../services/airtableService';
 import { uploadImageToStorage } from '../services/storageService';
 import { compressImage } from '../utils/imageCompression';
@@ -17,6 +17,7 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
     name: '',
     role: '',
     site: '',
+    category: '',
     observation: '',
     actionTaken: '' // Will remain empty for new reports
   });
@@ -120,7 +121,7 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
       return;
     }
 
-    if (!formData.name || !formData.role || !formData.site || !formData.observation) {
+    if (!formData.name || !formData.role || !formData.site || !formData.category || !formData.observation) {
       setErrorMessage("Please fill in all required fields.");
       setSubmitStatus('error');
       return;
@@ -173,7 +174,7 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
       await submitIncidentReport(formData, finalAttachments, { baseId });
       
       setSubmitStatus('success');
-      setFormData({ name: '', role: '', site: '', observation: '', actionTaken: '' });
+      setFormData({ name: '', role: '', site: '', category: '', observation: '', actionTaken: '' });
       setImages([]);
     } catch (error: any) {
       setSubmitStatus('error');
@@ -255,6 +256,8 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
               label="Role / Position" 
               value={formData.role} 
               onChange={handleInputChange} 
+              type="select"
+              options={['Site Supervisor', 'Safety Officer', 'Engineer', 'Technician', 'Contractor', 'Visitor', 'Other']}
               required
             />
             
@@ -263,7 +266,22 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
               label="Site / Location" 
               value={formData.site} 
               onChange={handleInputChange} 
+              type="select"
+              options={['Headquarters', 'Warehouse A', 'Warehouse B', 'Construction Site North', 'Construction Site South', 'Remote Facility', 'Other']}
               required
+            />
+          </div>
+
+          <div className="border-t border-slate-700/50 pt-4">
+            <InputField 
+              id="category" 
+              label="Incident Category" 
+              value={formData.category} 
+              onChange={handleInputChange} 
+              type="select"
+              options={INCIDENT_TYPES}
+              required
+              placeholder="Select Category"
             />
           </div>
 

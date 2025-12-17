@@ -42,6 +42,7 @@ export const submitIncidentReport = async (
       "Name": form.name,
       "Role / Position": form.role,
       "Site / Location": form.site,
+      "Incident Type": form.category,
       "Observation": form.observation,
       "Action taken": form.actionTaken,
       // Only include Open observations field if there are images

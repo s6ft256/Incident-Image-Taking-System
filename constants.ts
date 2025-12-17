@@ -41,3 +41,15 @@ export const SITES = [
   'Remote Facility',
   'Other'
 ];
+
+export const INCIDENT_TYPES = [
+  'Respiratory Hazard',
+  'Unsafe Act',
+  'Unsafe Condition',
+  'Near Miss',
+  'Fire Risk',
+  'Chemical Spill',
+  'Equipment Failure',
+  'Environmental',
+  'Other'
+];

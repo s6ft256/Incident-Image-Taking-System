@@ -304,7 +304,14 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack }) 
                         </span>
                     )}
                   </h3>
-                  <p className="text-xs text-blue-400 font-medium">{report.fields["Role / Position"]}</p>
+                  <div className="flex flex-wrap gap-2 mt-1">
+                      <p className="text-xs text-blue-400 font-medium">{report.fields["Role / Position"]}</p>
+                      {report.fields["Incident Type"] && (
+                          <span className="text-[10px] bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded border border-slate-600">
+                              {report.fields["Incident Type"]}
+                          </span>
+                      )}
+                  </div>
                 </div>
                 <div className="flex flex-col items-end gap-1">
                   <span className={`text-xs px-2 py-1 rounded font-mono ${isOverdue ? 'text-red-300 bg-red-950/50 border border-red-900/50' : 'text-slate-400 bg-slate-900/50'}`}>

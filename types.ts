@@ -2,6 +2,7 @@ export interface IncidentForm {
   name: string;
   role: string;
   site: string;
+  category: string;
   observation: string;
   actionTaken: string;
 }
@@ -11,6 +12,7 @@ export interface IncidentRecord {
     "Name": string;
     "Role / Position": string;
     "Site / Location": string;
+    "Incident Type"?: string;
     "Observation": string;
     "Action taken": string;
     "Open observations"?: Array<{ 
@@ -31,6 +33,7 @@ export interface FetchedIncident {
     "Name": string;
     "Role / Position": string;
     "Site / Location": string;
+    "Incident Type"?: string;
     "Observation": string;
     "Action taken": string;
     "Open observations"?: Array<{ 
