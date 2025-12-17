@@ -33,6 +33,9 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack }) 
   // State to track expanded card in Open view
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
+  // Per-report error messages for resolution actions
+  const [resolveErrors, setResolveErrors] = useState<Record<string, string>>({});
+
   useEffect(() => {
     fetchReports();
   }, [baseId]);
@@ -51,6 +54,10 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack }) 
 
   const handleActionInputChange = (id: string, value: string) => {
     setActionInputs(prev => ({ ...prev, [id]: value }));
+    // Clear error when user types
+    if (resolveErrors[id]) {
+        setResolveErrors(prev => { const n = {...prev}; delete n[id]; return n; });
+    }
   };
 
   const handleRowClick = (id: string) => {
@@ -86,6 +93,11 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack }) 
         [reportId]: [...(prev[reportId] || []), newImage]
       }));
       
+      // Clear specific error if it was about images
+      if (resolveErrors[reportId]) {
+         setResolveErrors(prev => { const n = {...prev}; delete n[reportId]; return n; });
+      }
+
       e.target.value = '';
 
       try {
@@ -110,6 +122,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack }) 
               : img
           )
         }));
+        // Optional: Set an inline error here if needed, but visual indicator on image is usually enough
       }
     }
   };
@@ -125,19 +138,32 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack }) 
         [reportId]: reportImages.filter(img => img.id !== imageId)
       };
     });
+    // Clear error on removal (e.g. if removing a failed image allowed submission)
+    if (resolveErrors[reportId]) {
+       setResolveErrors(prev => { const n = {...prev}; delete n[reportId]; return n; });
+    }
   };
 
   const handleResolve = async (id: string) => {
+    // Clear previous errors
+    setResolveErrors(prev => { const n = {...prev}; delete n[id]; return n; });
+
     const actionTaken = actionInputs[id];
     if (!actionTaken || !actionTaken.trim()) return;
 
     const currentImages = closingImages[id] || [];
+    
+    // Validation: Check for active uploads
     if (currentImages.some(img => img.status === 'uploading')) {
-        alert("Please wait for images to finish uploading.");
+        setResolveErrors(prev => ({...prev, [id]: "Please wait for all images to finish uploading."}));
         return;
     }
-    if (currentImages.some(img => img.status === 'error')) {
-        alert("Please remove failed images before submitting.");
+    
+    // Validation: Check for failed uploads
+    const failedImages = currentImages.filter(img => img.status === 'error');
+    if (failedImages.length > 0) {
+        const names = failedImages.map(i => i.file.name).join(', ');
+        setResolveErrors(prev => ({...prev, [id]: `Cannot submit. The following images failed to upload: ${names}. Please remove or retry them.`}));
         return;
     }
 
@@ -180,9 +206,10 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack }) 
       });
       setExpandedId(null);
 
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to resolve incident", err);
-      alert("Failed to update report. Please try again.");
+      const msg = err.message || "Unknown error occurred.";
+      setResolveErrors(prev => ({...prev, [id]: `Submission failed: ${msg}`}));
     } finally {
       setSubmittingIds(prev => {
         const next = new Set(prev);
@@ -497,6 +524,14 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack }) 
                                     </>
                                   ) : "MARK AS RESOLVED"}
                                 </button>
+                                
+                                {/* Error Message Area */}
+                                {resolveErrors[report.id] && (
+                                  <div className="mt-3 bg-red-900/40 border border-red-800/50 text-red-200 text-xs p-2 rounded animate-in fade-in flex items-start gap-2">
+                                    <svg className="w-4 h-4 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                    <span>{resolveErrors[report.id]}</span>
+                                  </div>
+                                )}
                              </div>
                           )}
                        </div>

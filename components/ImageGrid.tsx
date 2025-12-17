@@ -189,11 +189,10 @@ export const ImageGrid: React.FC<ImageGridProps> = ({ images, onRemove, onAdd, o
                   <circle cx="12" cy="13" r="4"></circle>
                 </svg>
               </div>
-              <span className="text-xs font-bold text-slate-500 group-hover:text-blue-200 z-10 uppercase tracking-wide">Take Photo</span>
+              <span className="text-xs font-bold text-slate-500 group-hover:text-blue-200 z-10 uppercase tracking-wide">Add Photo</span>
               <input 
                 type="file" 
                 accept="image/*" 
-                capture="environment" 
                 className="hidden" 
                 onChange={onAdd}
               />

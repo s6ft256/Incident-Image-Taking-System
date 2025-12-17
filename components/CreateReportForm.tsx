@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { InputField } from './InputField';
 import { ImageGrid } from './ImageGrid';
 import { IncidentForm, UploadedImage } from '../types';
-import { MIN_IMAGES, INCIDENT_TYPES } from '../constants';
+import { MIN_IMAGES, INCIDENT_TYPES, ROLES, SITES } from '../constants';
 import { submitIncidentReport } from '../services/airtableService';
 import { uploadImageToStorage } from '../services/storageService';
 import { compressImage } from '../utils/imageCompression';
@@ -93,13 +93,14 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
         ));
         resolve(publicUrl);
 
-      } catch (error) {
+      } catch (error: any) {
         clearInterval(interval);
         console.error("Upload failed", error);
         setImages(prev => prev.map(img => 
           img.id === imageId ? { ...img, status: 'error', progress: 0 } : img
         ));
-        reject(error);
+        // Provide specific file name in error
+        reject(new Error(`"${imageRecord.file.name}" failed: ${error.message || 'Unknown error'}`));
       }
     });
   };
@@ -133,8 +134,11 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
       return;
     }
 
-    if (images.some(img => img.status === 'error')) {
-        setErrorMessage("Please resolve upload errors before submitting.");
+    // Check for any images that are already in error state
+    const failedImages = images.filter(img => img.status === 'error');
+    if (failedImages.length > 0) {
+        const failedNames = failedImages.map(img => img.file.name).join(', ');
+        setErrorMessage(`Please resolve upload errors for: ${failedNames} before submitting.`);
         setSubmitStatus('error');
         return;
     }
@@ -150,8 +154,9 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
 
       const rejectedUploads = uploadResults.filter((r): r is PromiseRejectedResult => r.status === 'rejected');
       if (rejectedUploads.length > 0) {
-          const firstError = rejectedUploads[0].reason?.message || "Unknown error occurred during upload";
-          throw new Error(firstError);
+          // Aggregate all unique error messages
+          const uniqueErrors = Array.from(new Set(rejectedUploads.map(r => r.reason.message)));
+          throw new Error(`One or more images failed to upload: ${uniqueErrors.join('; ')}`);
       }
 
       const finalAttachments: { url: string; filename: string }[] = [];
@@ -249,6 +254,7 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
             onChange={handleInputChange} 
             required
             placeholder="Enter full name"
+            autoComplete="name"
           />
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -259,6 +265,8 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
               onChange={handleInputChange} 
               placeholder="Site Supervisor"
               required
+              list={ROLES}
+              autoComplete="organization-title"
             />
             
             <InputField 
@@ -268,19 +276,22 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
               onChange={handleInputChange} 
               placeholder="Warehouse A"
               required
+              list={SITES}
+              autoComplete="on"
             />
           </div>
 
           <div className="border-t border-slate-700/50 pt-4">
+            {/* Changed from type="select" to text with list for autocomplete suggestions */}
             <InputField 
               id="category" 
               label="Incident Category" 
               value={formData.category} 
               onChange={handleInputChange} 
-              type="select"
-              options={INCIDENT_TYPES}
+              list={INCIDENT_TYPES}
               required
-              placeholder="Select Category"
+              placeholder="Select or type Category"
+              autoComplete="on"
             />
           </div>
 
@@ -292,6 +303,7 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
             type="textarea"
             placeholder="Describe the unsafe act, condition, or incident..."
             required
+            autoComplete="off"
           />
         </div>
 
@@ -305,7 +317,7 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
         </div>
 
         {submitStatus === 'error' && (
-          <div className="bg-red-900/30 border border-red-800 text-red-200 px-4 py-3 rounded-lg flex items-center gap-2 text-sm justify-center">
+          <div className="bg-red-900/30 border border-red-800 text-red-200 px-4 py-3 rounded-lg flex items-center gap-2 text-sm justify-center text-center">
             <span>{errorMessage}</span>
           </div>
         )}

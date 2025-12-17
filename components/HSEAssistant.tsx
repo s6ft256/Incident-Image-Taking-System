@@ -23,8 +23,14 @@ export const HSEAssistant: React.FC = () => {
 
   const initializeChat = () => {
     if (!chatSessionRef.current) {
+      const apiKey = process.env.API_KEY;
+      
+      if (!apiKey) {
+        throw new Error("API Key is missing. Please configure VITE_GOOGLE_API_KEY in your environment variables.");
+      }
+
       try {
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        const ai = new GoogleGenAI({ apiKey });
         chatSessionRef.current = ai.chats.create({
           model: 'gemini-2.5-flash',
           config: {
@@ -55,6 +61,7 @@ You must STRICTLY focus on HSE and HSECES topics. If a user asks about unrelated
         });
       } catch (error) {
         console.error("Failed to initialize Gemini:", error);
+        throw error;
       }
     }
   };
@@ -70,7 +77,7 @@ You must STRICTLY focus on HSE and HSECES topics. If a user asks about unrelated
 
     try {
       initializeChat();
-      if (!chatSessionRef.current) throw new Error("Chat not initialized");
+      if (!chatSessionRef.current) throw new Error("Chat could not be initialized.");
 
       const result = await chatSessionRef.current.sendMessageStream({ message: userMessage });
       
@@ -89,9 +96,20 @@ You must STRICTLY focus on HSE and HSECES topics. If a user asks about unrelated
           return newMessages;
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error sending message:", error);
-      setMessages(prev => [...prev, { role: 'model', text: "I'm having trouble connecting to the safety database right now. Please try again." }]);
+      
+      let errorMessage = "I'm having trouble connecting to the safety database right now. Please try again.";
+      
+      // Provide more specific feedback for common deployment issues
+      if (error.message && (error.message.includes("API Key") || error.message.includes("401") || error.message.includes("403"))) {
+        errorMessage = "System Error: API Configuration is missing or invalid. Please check your application settings.";
+      } else if (error.message) {
+         // Display the actual error for debugging
+         errorMessage = `Connection Error: ${error.message}`;
+      }
+
+      setMessages(prev => [...prev, { role: 'model', text: errorMessage }]);
     } finally {
       setIsLoading(false);
     }

@@ -7,9 +7,11 @@ interface InputFieldProps {
   onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
   placeholder?: string;
   type?: 'text' | 'select' | 'textarea';
-  options?: string[];
+  options?: string[]; // For select dropdowns
+  list?: string[];    // For text input datalists
   required?: boolean;
   rows?: number;
+  autoComplete?: string;
 }
 
 export const InputField: React.FC<InputFieldProps> = ({ 
@@ -20,9 +22,13 @@ export const InputField: React.FC<InputFieldProps> = ({
   placeholder, 
   type = 'text', 
   options = [],
+  list = [],
   required = false,
-  rows = 3
+  rows = 3,
+  autoComplete = 'on'
 }) => {
+  const dataListId = list && list.length > 0 ? `${id}-list` : undefined;
+
   return (
     <div className="flex flex-col gap-1.5">
       <label htmlFor={id} className="text-sm font-semibold text-slate-300">
@@ -37,6 +43,7 @@ export const InputField: React.FC<InputFieldProps> = ({
             onChange={onChange}
             className="w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2.5 text-slate-100 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 appearance-none"
             required={required}
+            autoComplete={autoComplete}
           >
             <option value="" disabled className="text-slate-500">Select {label}</option>
             {options.map((opt) => (
@@ -58,17 +65,29 @@ export const InputField: React.FC<InputFieldProps> = ({
           rows={rows}
           className="w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2.5 text-slate-100 placeholder:text-slate-500 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 resize-none"
           required={required}
+          autoComplete={autoComplete}
         />
       ) : (
-        <input
-          type="text"
-          id={id}
-          value={value}
-          onChange={onChange}
-          placeholder={placeholder}
-          className="w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2.5 text-slate-100 placeholder:text-slate-500 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
-          required={required}
-        />
+        <>
+          <input
+            type="text"
+            id={id}
+            value={value}
+            onChange={onChange}
+            placeholder={placeholder}
+            list={dataListId}
+            autoComplete={autoComplete}
+            className="w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2.5 text-slate-100 placeholder:text-slate-500 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+            required={required}
+          />
+          {dataListId && (
+            <datalist id={dataListId}>
+              {list.map((item) => (
+                <option key={item} value={item} />
+              ))}
+            </datalist>
+          )}
+        </>
       )}
     </div>
   );
