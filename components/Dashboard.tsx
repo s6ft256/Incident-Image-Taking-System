@@ -1,11 +1,37 @@
 import React, { useEffect, useState } from 'react';
 import { getAllReports } from '../services/airtableService';
 import { FetchedIncident } from '../types';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Cell,
+  TooltipProps
+} from 'recharts';
 
 interface DashboardProps {
   baseId: string;
   onNavigate: (view: 'create' | 'recent') => void;
 }
+
+// Custom Tooltip for Recharts
+const CustomTooltip = ({ active, payload, label }: TooltipProps<number, string>) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-slate-800 border border-slate-700 p-2 rounded shadow-lg text-xs z-50">
+        <p className="text-slate-200 font-semibold">{label}</p>
+        <p className="text-blue-400">
+          Incidents: {payload[0].value}
+        </p>
+      </div>
+    );
+  }
+  return null;
+};
 
 export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate }) => {
   const [reports, setReports] = useState<FetchedIncident[]>([]);
@@ -36,9 +62,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate }) => {
     return acc;
   }, {} as Record<string, number>);
 
-  const sortedSites = Object.entries(siteCounts)
-    .sort(([,a], [,b]) => (b as number) - (a as number))
-    .slice(0, 5); // Top 5
+  const siteChartData = Object.entries(siteCounts)
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10); // Show top 10 sites
+
+  const BAR_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#6366f1'];
 
   // --- SVG Chart Helpers ---
   const renderPieChart = () => {
@@ -50,7 +79,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate }) => {
     const r = 40;
     const c = 2 * Math.PI * r;
     const openOffset = c * (1 - openPercent);
-    const closedOffset = 0; // Full circle base
 
     return (
       <div className="relative h-48 w-48 mx-auto flex items-center justify-center">
@@ -75,8 +103,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate }) => {
       </div>
     );
   };
-
-  const maxSiteCount = sortedSites.length > 0 ? (sortedSites[0][1] as number) : 1;
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -110,43 +136,57 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate }) => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Status Pie Chart */}
-            <div className="bg-slate-800/80 p-6 rounded-xl border border-slate-700 shadow-lg">
+            <div className="bg-slate-800/80 p-6 rounded-xl border border-slate-700 shadow-lg flex flex-col">
                 <h3 className="text-sm font-semibold text-slate-300 mb-4 border-b border-slate-700/50 pb-2">Status Distribution</h3>
-                {renderPieChart()}
-                <div className="flex justify-center gap-6 mt-4">
-                    <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 bg-amber-500 rounded-full"></div>
-                        <span className="text-xs text-slate-300">Open ({openCount})</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 bg-emerald-500 rounded-full"></div>
-                        <span className="text-xs text-slate-300">Closed ({closedCount})</span>
-                    </div>
+                <div className="flex-grow flex flex-col justify-center">
+                  {renderPieChart()}
+                  <div className="flex justify-center gap-6 mt-4">
+                      <div className="flex items-center gap-2">
+                          <div className="w-3 h-3 bg-amber-500 rounded-full"></div>
+                          <span className="text-xs text-slate-300">Open ({openCount})</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                          <div className="w-3 h-3 bg-emerald-500 rounded-full"></div>
+                          <span className="text-xs text-slate-300">Closed ({closedCount})</span>
+                      </div>
+                  </div>
                 </div>
             </div>
 
-            {/* Sites Bar Chart */}
-            <div className="bg-slate-800/80 p-6 rounded-xl border border-slate-700 shadow-lg">
+            {/* Sites Bar Chart (Vertical Layout) */}
+            <div className="bg-slate-800/80 p-6 rounded-xl border border-slate-700 shadow-lg flex flex-col min-h-[300px]">
                 <h3 className="text-sm font-semibold text-slate-300 mb-4 border-b border-slate-700/50 pb-2">Incidents by Location</h3>
-                <div className="space-y-3 pt-2">
-                    {sortedSites.length === 0 && <p className="text-xs text-slate-500">No location data available.</p>}
-                    {sortedSites.map(([site, count], idx) => {
-                        const widthPercent = ((count as number) / maxSiteCount) * 100;
-                        return (
-                            <div key={idx} className="w-full">
-                                <div className="flex justify-between text-[10px] text-slate-400 mb-1">
-                                    <span>{site}</span>
-                                    <span>{count}</span>
-                                </div>
-                                <div className="h-2 w-full bg-slate-700/50 rounded-full overflow-hidden">
-                                    <div 
-                                        className="h-full bg-blue-500 rounded-full transition-all duration-700 ease-out" 
-                                        style={{ width: `${widthPercent}%` }}
-                                    ></div>
-                                </div>
-                            </div>
-                        )
-                    })}
+                <div className="flex-1 w-full min-h-[250px]">
+                  {siteChartData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart 
+                        data={siteChartData} 
+                        layout="vertical" 
+                        margin={{ top: 5, right: 30, left: 40, bottom: 5 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" stroke="#334155" horizontal={false} />
+                        <XAxis type="number" stroke="#94a3b8" fontSize={10} allowDecimals={false} hide />
+                        <YAxis 
+                          dataKey="name" 
+                          type="category" 
+                          stroke="#94a3b8" 
+                          fontSize={11} 
+                          width={80} 
+                          tick={{fill: '#cbd5e1'}} 
+                        />
+                        <Tooltip content={<CustomTooltip />} cursor={{fill: '#334155', opacity: 0.4}} />
+                        <Bar dataKey="count" name="Incidents" radius={[0, 4, 4, 0]} barSize={20}>
+                          {siteChartData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={BAR_COLORS[index % BAR_COLORS.length]} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-full flex items-center justify-center text-slate-500 text-xs">
+                      No location data available
+                    </div>
+                  )}
                 </div>
             </div>
           </div>

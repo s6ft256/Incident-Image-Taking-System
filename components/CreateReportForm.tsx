@@ -256,8 +256,7 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
               label="Role / Position" 
               value={formData.role} 
               onChange={handleInputChange} 
-              type="select"
-              options={['Site Supervisor', 'Safety Officer', 'Engineer', 'Technician', 'Contractor', 'Visitor', 'Other']}
+              placeholder="e.g. Site Supervisor"
               required
             />
             
@@ -266,8 +265,7 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
               label="Site / Location" 
               value={formData.site} 
               onChange={handleInputChange} 
-              type="select"
-              options={['Headquarters', 'Warehouse A', 'Warehouse B', 'Construction Site North', 'Construction Site South', 'Remote Facility', 'Other']}
+              placeholder="e.g. Warehouse A"
               required
             />
           </div>
