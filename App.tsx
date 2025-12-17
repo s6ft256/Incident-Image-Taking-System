@@ -36,11 +36,11 @@ function App() {
 
       {/* Content Wrapper */}
       <div className="relative z-10 flex flex-col min-h-screen">
-        <header className="sticky top-0 z-20 bg-blue-950/90 backdrop-blur border-b border-blue-800 shadow-md">
-          <div className="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between">
+        <header className="sticky top-0 z-20 bg-[#172554] border-b border-blue-700/50 shadow-xl">
+          <div className="max-w-3xl mx-auto px-4 py-5 flex items-center justify-between">
              <div className="flex items-center gap-3">
                {/* Icon removed */}
-               <h1 className="text-3xl font-extrabold text-white tracking-wide" onClick={() => setView('dashboard')} style={{cursor: 'pointer'}}>
+               <h1 className="text-3xl font-extrabold text-white tracking-wide drop-shadow-md" onClick={() => setView('dashboard')} style={{cursor: 'pointer'}}>
                  Incident Reporter
                </h1>
              </div>
@@ -48,7 +48,7 @@ function App() {
              {view !== 'dashboard' && (
                 <button 
                   onClick={() => setView('dashboard')}
-                  className="text-xs font-semibold text-blue-200 hover:text-white uppercase tracking-wider border border-blue-800 rounded px-2 py-1 flex items-center gap-1"
+                  className="text-xs font-semibold text-blue-100 hover:text-white uppercase tracking-wider border border-blue-600 hover:bg-blue-800 rounded px-3 py-1.5 flex items-center gap-1 transition-all shadow-sm"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
                     <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
