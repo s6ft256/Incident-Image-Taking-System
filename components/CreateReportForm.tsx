@@ -6,6 +6,7 @@ import { MIN_IMAGES, INCIDENT_TYPES, ROLES, SITES } from '../constants';
 import { submitIncidentReport } from '../services/airtableService';
 import { uploadImageToStorage } from '../services/storageService';
 import { compressImage } from '../utils/imageCompression';
+import { saveOfflineReport } from '../services/offlineStorage';
 
 interface CreateReportFormProps {
   baseId: string;
@@ -19,16 +20,22 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
     site: '',
     category: '',
     observation: '',
-    actionTaken: '' // Will remain empty for new reports
+    actionTaken: '' 
   });
   
   const [images, setImages] = useState<UploadedImage[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error' | 'offline-saved'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
 
   useEffect(() => {
+    const handleStatus = () => setIsOnline(navigator.onLine);
+    window.addEventListener('online', handleStatus);
+    window.addEventListener('offline', handleStatus);
     return () => {
+      window.removeEventListener('online', handleStatus);
+      window.removeEventListener('offline', handleStatus);
       images.forEach(img => URL.revokeObjectURL(img.previewUrl));
     };
   }, [images]);
@@ -99,7 +106,6 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
         setImages(prev => prev.map(img => 
           img.id === imageId ? { ...img, status: 'error', progress: 0 } : img
         ));
-        // Provide specific file name in error
         reject(new Error(`"${imageRecord.file.name}" failed: ${error.message || 'Unknown error'}`));
       }
     });
@@ -134,10 +140,26 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
       return;
     }
 
-    // Check for any images that are already in error state
-    const failedImages = images.filter(img => img.status === 'error');
-    if (failedImages.length > 0) {
-        const failedNames = failedImages.map(img => img.file.name).join(', ');
+    // Offline Handling
+    if (!isOnline) {
+       setIsSubmitting(true);
+       try {
+         await saveOfflineReport(formData, images);
+         setSubmitStatus('offline-saved');
+         setFormData({ name: '', role: '', site: '', category: '', observation: '', actionTaken: '' });
+         setImages([]);
+       } catch (err: any) {
+         setErrorMessage("Failed to save offline: " + err.message);
+         setSubmitStatus('error');
+       } finally {
+         setIsSubmitting(false);
+       }
+       return;
+    }
+
+    // Standard Online Submission
+    if (images.some(img => img.status === 'error')) {
+        const failedNames = images.filter(i => i.status === 'error').map(i => i.file.name).join(', ');
         setErrorMessage(`Please resolve upload errors for: ${failedNames} before submitting.`);
         setSubmitStatus('error');
         return;
@@ -154,7 +176,6 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
 
       const rejectedUploads = uploadResults.filter((r): r is PromiseRejectedResult => r.status === 'rejected');
       if (rejectedUploads.length > 0) {
-          // Aggregate all unique error messages
           const uniqueErrors = Array.from(new Set(rejectedUploads.map(r => r.reason.message)));
           throw new Error(`One or more images failed to upload: ${uniqueErrors.join('; ')}`);
       }
@@ -190,16 +211,32 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
     }
   };
 
-  if (submitStatus === 'success') {
+  if (submitStatus === 'success' || submitStatus === 'offline-saved') {
+    const isOfflineSuccess = submitStatus === 'offline-saved';
     return (
       <div className="bg-slate-800 border border-slate-700 rounded-xl shadow-2xl p-8 text-center space-y-4 animate-in fade-in zoom-in duration-300">
-        <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-green-500/30">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-          </svg>
+        <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg ${
+            isOfflineSuccess ? 'bg-amber-500 shadow-amber-500/30' : 'bg-green-500 shadow-green-500/30'
+        }`}>
+          {isOfflineSuccess ? (
+             <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" />
+             </svg>
+          ) : (
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+            </svg>
+          )}
         </div>
-        <h2 className="text-2xl font-bold text-white">Submission Successful</h2>
-        <p className="text-slate-300">Report successfully saved to Airtable. It is now marked as <strong>Open</strong>.</p>
+        <h2 className="text-2xl font-bold text-white">
+            {isOfflineSuccess ? 'Saved to Outbox' : 'Submission Successful'}
+        </h2>
+        <p className="text-slate-300">
+            {isOfflineSuccess 
+                ? 'Your report has been saved locally. It will automatically upload when an internet connection is restored.'
+                : 'Report successfully saved to Airtable. It is now marked as Open.'
+            }
+        </p>
         <div className="flex gap-4 pt-4">
           <button 
             onClick={onBack}
@@ -220,6 +257,15 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
 
   return (
     <div className="animate-in slide-in-from-right duration-300">
+      
+      {!isOnline && (
+         <div className="mb-4 bg-amber-600/20 border border-amber-500/50 p-3 rounded-lg flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-amber-500" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.365 31.365 0 00-.613 3.58 2.64 2.64 0 01-.945-1.067c-.328-.68-.398-1.534-.398-2.654A1 1 0 005.05 6.05 6.981 6.981 0 003 11a7 7 0 1011.95-4.95c-.592-.591-.98-.985-1.348-1.467-.363-.476-.724-1.063-1.207-2.03zM12.12 15.12A3 3 0 017 13s.879.5 2.5.5c0-1 .5-4 1.25-4.5.5 1 .786 1.293 1.371 1.879A2.99 2.99 0 0113 13a2.99 2.99 0 01-.879 2.121z" clipRule="evenodd" />
+            </svg>
+            <p className="text-sm text-amber-100">You are offline. Reports will be saved locally.</p>
+         </div>
+      )}
       
       <div className="mb-6 relative h-48 rounded-xl overflow-hidden shadow-lg border border-slate-700 group">
         <img 
@@ -282,7 +328,6 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
           </div>
 
           <div className="border-t border-slate-700/50 pt-4">
-            {/* Changed from type="select" to text with list for autocomplete suggestions */}
             <InputField 
               id="category" 
               label="Incident Category" 
@@ -329,10 +374,17 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
             className={`w-full flex justify-center items-center gap-2 py-4 px-6 rounded-lg text-white font-bold text-lg shadow-lg transition-transform active:scale-[0.99] ${
               isSubmitting 
                 ? 'bg-slate-600 cursor-not-allowed' 
-                : 'bg-blue-600 hover:bg-blue-700 shadow-black/30'
+                : isOnline 
+                    ? 'bg-blue-600 hover:bg-blue-700 shadow-black/30'
+                    : 'bg-amber-600 hover:bg-amber-700 shadow-black/30'
             }`}
           >
-            {isSubmitting ? 'Processing Report...' : 'Submit Incident Report'}
+            {isSubmitting 
+                ? 'Processing...' 
+                : isOnline 
+                    ? 'Submit Incident Report' 
+                    : 'Save Report Offline'
+            }
           </button>
         </div>
       </form>

@@ -1,18 +1,58 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AIRTABLE_CONFIG } from './constants';
 import { CreateReportForm } from './components/CreateReportForm';
 import { RecentReports } from './components/RecentReports';
 import { HSEAssistant } from './components/HSEAssistant';
 import { Dashboard } from './components/Dashboard';
+import { syncOfflineReports } from './services/syncService';
 
 type ViewState = 'dashboard' | 'create' | 'recent';
 
 function App() {
   const [view, setView] = useState<ViewState>('dashboard');
   const [baseId, setBaseId] = useState(AIRTABLE_CONFIG.BASE_ID);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [syncCount, setSyncCount] = useState(0);
   
   // Check if configuration is needed
   const needsConfig = baseId.includes('YourBaseId') || !baseId;
+
+  useEffect(() => {
+    const handleStatus = () => {
+      const online = navigator.onLine;
+      setIsOnline(online);
+      if (online) {
+        // Trigger sync when coming online
+        attemptSync();
+      }
+    };
+
+    window.addEventListener('online', handleStatus);
+    window.addEventListener('offline', handleStatus);
+    
+    // Attempt sync on initial load if online
+    if (navigator.onLine) {
+        attemptSync();
+    }
+
+    return () => {
+      window.removeEventListener('online', handleStatus);
+      window.removeEventListener('offline', handleStatus);
+    };
+  }, [baseId]);
+
+  const attemptSync = async () => {
+    try {
+        const count = await syncOfflineReports(baseId);
+        if (count > 0) {
+            setSyncCount(count);
+            // Clear message after 5 seconds
+            setTimeout(() => setSyncCount(0), 5000);
+        }
+    } catch (e) {
+        console.error("Auto-sync failed", e);
+    }
+  };
 
   const renderContent = () => {
     switch (view) {
@@ -36,10 +76,9 @@ function App() {
 
       {/* Content Wrapper */}
       <div className="relative z-10 flex flex-col min-h-screen">
-        <header className="sticky top-0 z-20 bg-[#172554] border-b border-blue-700/50 shadow-xl">
+        <header className="sticky top-0 z-20 bg-[#172554] border-b border-blue-700/50 shadow-xl transition-colors duration-300">
           <div className="max-w-3xl mx-auto px-4 py-5 flex items-center justify-between">
              <div className="flex items-center gap-3">
-               {/* Icon removed */}
                <h1 className="text-3xl font-extrabold text-white tracking-wide drop-shadow-md" onClick={() => setView('dashboard')} style={{cursor: 'pointer'}}>
                  Incident Reporter
                </h1>
@@ -57,6 +96,20 @@ function App() {
                 </button>
              )}
           </div>
+          
+          {/* Offline / Sync Status Banner */}
+          {!isOnline && (
+            <div className="bg-amber-600 text-white text-xs font-bold text-center py-1">
+                You are currently offline. Application is running in limited mode.
+            </div>
+          )}
+          
+          {/* Sync Success Notification */}
+          {syncCount > 0 && isOnline && (
+            <div className="bg-green-600 text-white text-xs font-bold text-center py-1 animate-in slide-in-from-top-0 duration-500">
+                Connection Restored: Successfully synced {syncCount} offline report{syncCount > 1 ? 's' : ''}.
+            </div>
+          )}
         </header>
 
         <main className="max-w-3xl mx-auto px-4 pt-8 flex-grow w-full">
@@ -85,7 +138,7 @@ function App() {
         </main>
 
         <footer className="py-6 px-4 max-w-3xl mx-auto w-full flex justify-between items-center text-slate-500 text-xs">
-           <p>Secure • Mobile-First • Cloud-Synced</p>
+           <p>Secure • Mobile-First • {isOnline ? 'Cloud-Synced' : 'Offline Mode'}</p>
            <p>© 2025 Elius</p>
         </footer>
         
