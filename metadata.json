@@ -1,0 +1,7 @@
+{
+  "name": "Incident Image Taking System",
+  "description": "A mobile-friendly system to capture incident reports and images for Airtable.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
