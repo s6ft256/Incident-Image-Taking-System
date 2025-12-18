@@ -12,6 +12,7 @@ import { HSEAssistant } from './components/HSEAssistant';
 type ViewState = 'dashboard' | 'create' | 'recent' | 'profile';
 
 const PROFILE_KEY = 'hse_guardian_profile';
+const THEME_KEY = 'hse_guardian_theme';
 
 function App() {
   const [view, setView] = useState<ViewState>('dashboard');
@@ -20,6 +21,7 @@ function App() {
   const [syncCount, setSyncCount] = useState(0);
   const [quote, setQuote] = useState('');
   const [userProfile, setUserProfile] = useState<UserProfileType | null>(null);
+  const [appTheme, setAppTheme] = useState<'dark' | 'light'>('dark');
   
   const needsConfig = baseId.includes('YourBaseId') || !baseId;
 
@@ -36,9 +38,25 @@ function App() {
     }
   };
 
+  const applyTheme = (t: 'dark' | 'light') => {
+    if (t === 'light') {
+      document.documentElement.classList.add('light-mode');
+      document.documentElement.classList.remove('dark');
+    } else {
+      document.documentElement.classList.remove('light-mode');
+      document.documentElement.classList.add('dark');
+    }
+  };
+
   useEffect(() => {
     setQuote(SAFETY_QUOTES[Math.floor(Math.random() * SAFETY_QUOTES.length)]);
     loadProfile();
+
+    const savedTheme = localStorage.getItem(THEME_KEY) as 'dark' | 'light';
+    if (savedTheme) {
+      setAppTheme(savedTheme);
+      applyTheme(savedTheme);
+    }
 
     const handleStatus = () => {
       const online = navigator.onLine;
@@ -49,10 +67,15 @@ function App() {
     };
 
     const handleProfileUpdate = () => loadProfile();
+    const handleThemeChange = (e: any) => {
+      setAppTheme(e.detail);
+      applyTheme(e.detail);
+    };
 
     window.addEventListener('online', handleStatus);
     window.addEventListener('offline', handleStatus);
     window.addEventListener('profileUpdated', handleProfileUpdate);
+    window.addEventListener('themeChanged', handleThemeChange as EventListener);
     
     if (navigator.onLine) {
         attemptSync();
@@ -62,6 +85,7 @@ function App() {
       window.removeEventListener('online', handleStatus);
       window.removeEventListener('offline', handleStatus);
       window.removeEventListener('profileUpdated', handleProfileUpdate);
+      window.removeEventListener('themeChanged', handleThemeChange as EventListener);
     };
   }, [baseId]);
 
@@ -93,12 +117,12 @@ function App() {
 
   return (
     <div 
-      className="min-h-screen pb-12 bg-[#020617] relative selection:bg-blue-500/30"
+      className={`min-h-screen pb-12 transition-colors duration-300 main-app-container relative selection:bg-blue-500/30 ${appTheme === 'dark' ? 'bg-[#020617]' : 'bg-slate-100'}`}
     >
-      <div className="absolute inset-0 bg-gradient-to-b from-slate-950/70 via-slate-950/50 to-slate-950/70 z-0 pointer-events-none"></div>
+      {appTheme === 'dark' && <div className="absolute inset-0 bg-gradient-to-b from-slate-950/70 via-slate-950/50 to-slate-950/70 z-0 pointer-events-none"></div>}
 
       <div className="relative z-10 flex flex-col min-h-screen">
-        <header className="sticky top-0 z-20 bg-[#020617]/90 backdrop-blur-2xl border-b border-white/5 shadow-[0_10px_40px_rgba(0,0,0,0.8)] transition-all duration-300">
+        <header className={`sticky top-0 z-20 backdrop-blur-2xl border-b transition-all duration-300 ${appTheme === 'dark' ? 'bg-[#020617]/90 border-white/5 shadow-[0_10px_40px_rgba(0,0,0,0.8)]' : 'bg-white/80 border-slate-200 shadow-lg'}`}>
           <div className="max-w-7xl mx-auto px-4 py-8 flex items-center justify-between">
              <div className="flex-1 flex justify-start">
                <div className="flex flex-col items-center">
@@ -108,7 +132,7 @@ function App() {
                    className="h-20 w-auto object-contain drop-shadow-[0_0_15px_rgba(59,130,246,0.3)] hover:scale-105 transition-all cursor-pointer"
                    onClick={() => setView('dashboard')}
                  />
-                 <span className="text-[8px] font-black text-amber-500 uppercase tracking-widest mt-1 opacity-80">General Contracting</span>
+                 <span className={`text-[8px] font-black uppercase tracking-widest mt-1 opacity-80 ${appTheme === 'dark' ? 'text-amber-500' : 'text-slate-600'}`}>General Contracting</span>
                </div>
              </div>
 
@@ -120,9 +144,9 @@ function App() {
                    className="text-5xl font-black tracking-tight drop-shadow-2xl cursor-pointer transition-transform active:scale-95" 
                    onClick={() => setView('dashboard')}
                  >
-                   <span className="text-white">HSE</span> <span className="text-blue-500">Guardian</span>
+                   <span className={appTheme === 'dark' ? 'text-white' : 'text-slate-900'}>HSE</span> <span className="text-blue-500">Guardian</span>
                  </h1>
-                 <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.5em] mt-3 drop-shadow-md">
+                 <p className={`text-[10px] font-bold uppercase tracking-[0.5em] mt-3 drop-shadow-md ${appTheme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
                    Safety Acquisition System
                  </p>
                </div>
@@ -134,7 +158,7 @@ function App() {
                {view !== 'dashboard' && (
                   <button 
                     onClick={() => setView('dashboard')}
-                    className="group text-[10px] font-black text-white uppercase tracking-widest bg-blue-600/10 hover:bg-blue-600 backdrop-blur-md rounded-full px-6 py-3 flex items-center gap-2 transition-all border border-blue-500/30 hover:border-blue-400 shadow-lg active:scale-95 hidden sm:flex"
+                    className={`group text-[10px] font-black uppercase tracking-widest backdrop-blur-md rounded-full px-6 py-3 flex items-center gap-2 transition-all border shadow-lg active:scale-95 hidden sm:flex ${appTheme === 'dark' ? 'text-white bg-blue-600/10 border-blue-500/30 hover:bg-blue-600 hover:border-blue-400' : 'text-blue-600 bg-blue-50 border-blue-200 hover:bg-blue-100'}`}
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 group-hover:scale-110 transition-transform" viewBox="0 0 20 20" fill="currentColor">
                       <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
@@ -174,14 +198,14 @@ function App() {
 
         <main className="max-w-4xl mx-auto px-4 pt-10 flex-grow w-full">
           {needsConfig && (
-            <div className="mb-10 bg-amber-500/10 backdrop-blur-2xl border border-amber-500/30 p-8 rounded-3xl shadow-2xl">
+            <div className={`mb-10 backdrop-blur-2xl border p-8 rounded-3xl shadow-2xl ${appTheme === 'dark' ? 'bg-amber-500/10 border-amber-500/30' : 'bg-amber-50 border-amber-200'}`}>
               <h3 className="text-xs font-black text-amber-500 uppercase tracking-[0.2em] mb-4">System Configuration</h3>
               <input 
                 type="text" 
                 value={baseId} 
                 onChange={(e) => setBaseId(e.target.value)}
                 placeholder="Airtable Base ID (appXXXXXXXXXX)"
-                className="w-full rounded-2xl border border-white/10 bg-black/60 px-5 py-4 text-white focus:border-amber-500 outline-none placeholder-slate-700 transition-all font-mono"
+                className={`w-full rounded-2xl border px-5 py-4 outline-none transition-all font-mono ${appTheme === 'dark' ? 'border-white/10 bg-black/60 text-white focus:border-amber-500 placeholder-slate-700' : 'border-slate-200 bg-white text-slate-900 focus:border-amber-500 placeholder-slate-300'}`}
               />
               <p className="mt-4 text-[10px] text-amber-500/60 font-black uppercase tracking-wider">Airtable Base ID required for cloud sync.</p>
             </div>
@@ -192,9 +216,9 @@ function App() {
 
         <footer className="py-12 px-4 max-w-4xl mx-auto w-full flex flex-col items-center gap-12">
            {quote && (
-             <div className="w-full max-w-2xl text-center px-8 py-6 rounded-3xl bg-white/5 border border-white/10 backdrop-blur-2xl shadow-2xl relative overflow-hidden group">
+             <div className={`w-full max-w-2xl text-center px-8 py-6 rounded-3xl border backdrop-blur-2xl shadow-2xl relative overflow-hidden group ${appTheme === 'dark' ? 'bg-white/5 border-white/10' : 'bg-white border-slate-100'}`}>
                 <div className="absolute top-0 left-0 w-1 h-full bg-blue-500/40"></div>
-                <p className="text-slate-300 italic font-medium text-base leading-relaxed relative z-10 group-hover:text-white transition-colors">
+                <p className={`italic font-medium text-base leading-relaxed relative z-10 transition-colors ${appTheme === 'dark' ? 'text-slate-300 group-hover:text-white' : 'text-slate-600 group-hover:text-slate-900'}`}>
                   {quote}
                 </p>
              </div>
