@@ -1,13 +1,8 @@
-
-import React, { useState, useEffect, useCallback } from 'react';
+import React from 'react';
 import { InputField } from './InputField';
 import { ImageGrid } from './ImageGrid';
-import { IncidentForm, UploadedImage, UserProfile } from '../types';
-import { MIN_IMAGES, INCIDENT_TYPES, ROLES, SITES } from '../constants';
-import { submitIncidentReport } from '../services/airtableService';
-import { uploadImageToStorage } from '../services/storageService';
-import { compressImage } from '../utils/imageCompression';
-import { saveOfflineReport } from '../services/offlineStorage';
+import { INCIDENT_TYPES, ROLES, SITES } from '../constants';
+import { useIncidentReport } from '../hooks/useIncidentReport';
 
 interface CreateReportFormProps {
   baseId: string;
@@ -15,159 +10,21 @@ interface CreateReportFormProps {
   appTheme?: 'dark' | 'light';
 }
 
-const PROFILE_KEY = 'hse_guardian_profile';
-
 export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBack, appTheme = 'dark' }) => {
-  const [formData, setFormData] = useState<IncidentForm>({
-    name: '',
-    role: '',
-    site: '',
-    category: '',
-    observation: '',
-    actionTaken: '' 
-  });
-  
-  const [images, setImages] = useState<UploadedImage[]>([]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error' | 'offline-saved'>('idle');
-  const [errorMessage, setErrorMessage] = useState('');
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
-
-  useEffect(() => {
-    // Pre-fill from profile if available
-    const savedProfile = localStorage.getItem(PROFILE_KEY);
-    if (savedProfile) {
-      try {
-        const profile: UserProfile = JSON.parse(savedProfile);
-        setFormData(prev => ({
-          ...prev,
-          name: profile.name || prev.name,
-          role: profile.role || prev.role
-        }));
-      } catch (e) {
-        console.error("Failed to load profile for pre-fill", e);
-      }
-    }
-
-    const handleStatus = () => setIsOnline(navigator.onLine);
-    window.addEventListener('online', handleStatus);
-    window.addEventListener('offline', handleStatus);
-    return () => {
-      window.removeEventListener('online', handleStatus);
-      window.removeEventListener('offline', handleStatus);
-      // images is stable here because useEffect dependency is empty
-    };
-  }, []);
-
-  // Performance Optimization: Wrap in useCallback to ensure speed typing is lag-free
-  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { id, value } = e.target;
-    setFormData(prev => ({ ...prev, [id]: value }));
-  }, []);
-
-  const handleAddImage = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      const newImage: UploadedImage = {
-        id: crypto.randomUUID(),
-        file: file,
-        previewUrl: URL.createObjectURL(file),
-        status: 'pending',
-        progress: 0
-      };
-      setImages(prev => [...prev, newImage]);
-      e.target.value = '';
-    }
-  };
-
-  const handleRemoveImage = (id: string) => {
-    setImages(prev => {
-      const imageToRemove = prev.find(img => img.id === id);
-      if (imageToRemove) {
-        URL.revokeObjectURL(imageToRemove.previewUrl);
-      }
-      return prev.filter(img => img.id !== id);
-    });
-  };
-
-  const processImageUpload = async (imageId: string): Promise<string> => {
-    const imageRecord = images.find(img => img.id === imageId);
-    if (!imageRecord) throw new Error("Image not found");
-
-    return new Promise(async (resolve, reject) => {
-      let progress = 0;
-      const interval = setInterval(() => {
-        progress += Math.floor(Math.random() * 10) + 5;
-        if (progress > 90) progress = 90;
-        setImages(prev => prev.map(img => 
-          img.id === imageId ? { ...img, status: 'uploading', progress: progress } : img
-        ));
-      }, 200);
-
-      try {
-        const fileToUpload = await compressImage(imageRecord.file);
-        const publicUrl = await uploadImageToStorage(fileToUpload);
-        clearInterval(interval);
-        setImages(prev => prev.map(img => 
-          img.id === imageId ? { ...img, status: 'success', progress: 100, serverUrl: publicUrl } : img
-        ));
-        resolve(publicUrl);
-      } catch (error: any) {
-        clearInterval(interval);
-        setImages(prev => prev.map(img => 
-          img.id === imageId ? { ...img, status: 'error', progress: 0 } : img
-        ));
-        reject(new Error(`"${imageRecord.file.name}" failed: ${error.message}`));
-      }
-    });
-  };
-
-  const handleRetry = (id: string) => processImageUpload(id);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMessage('');
-
-    if (!baseId) { setErrorMessage("Base ID missing."); setSubmitStatus('error'); return; }
-    if (!formData.name || !formData.site || !formData.category || !formData.observation) {
-      setErrorMessage("All fields are required."); setSubmitStatus('error'); return;
-    }
-    if (images.length < MIN_IMAGES) {
-      setErrorMessage(`Capture at least ${MIN_IMAGES} evidence photo.`); setSubmitStatus('error'); return;
-    }
-
-    if (!isOnline) {
-       setIsSubmitting(true);
-       try {
-         await saveOfflineReport(formData, images);
-         setSubmitStatus('offline-saved');
-       } catch (err: any) {
-         setErrorMessage("Offline save failed: " + err.message);
-         setSubmitStatus('error');
-       } finally { setIsSubmitting(false); }
-       return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      const pendingImages = images.filter(img => img.status !== 'success');
-      const uploadResults = await Promise.allSettled(pendingImages.map(img => processImageUpload(img.id)));
-      
-      const attachments = images
-        .filter(img => img.status === 'success' && img.serverUrl)
-        .map(img => ({ url: img.serverUrl!, filename: img.file.name }));
-        
-      uploadResults.forEach((res, idx) => {
-        if (res.status === 'fulfilled') attachments.push({ url: (res as PromiseFulfilledResult<string>).value, filename: pendingImages[idx].file.name });
-      });
-
-      await submitIncidentReport(formData, attachments, { baseId });
-      setSubmitStatus('success');
-    } catch (error: any) {
-      setSubmitStatus('error');
-      setErrorMessage(error.message || "Submission failed.");
-    } finally { setIsSubmitting(false); }
-  };
+  const {
+    formData,
+    images,
+    isSubmitting,
+    submitStatus,
+    errorMessage,
+    isOnline,
+    handleInputChange,
+    handleAddImage,
+    handleRemoveImage,
+    handleRetry,
+    handleSubmit,
+    resetStatus
+  } = useIncidentReport(baseId);
 
   if (submitStatus === 'success' || submitStatus === 'offline-saved') {
     return (
@@ -187,7 +44,7 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
             }
         </p>
         <div className="flex flex-col gap-3 pt-4">
-          <button onClick={() => setSubmitStatus('idle')} className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-2xl shadow-xl transition-all">NEW REPORT</button>
+          <button onClick={resetStatus} className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-2xl shadow-xl transition-all">NEW REPORT</button>
           <button onClick={onBack} className={`w-full ${appTheme === 'dark' ? 'bg-white/5 text-slate-300' : 'bg-slate-100 text-slate-600'} hover:bg-opacity-20 font-bold py-4 rounded-2xl transition-all`}>EXIT TO DASHBOARD</button>
         </div>
       </div>

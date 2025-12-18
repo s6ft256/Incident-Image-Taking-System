@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useCallback } from 'react';
 import { UserProfile } from '../types';
 import { ROLES, SITES } from '../constants';
@@ -12,13 +11,32 @@ interface AuthScreenProps {
   appTheme: 'dark' | 'light';
 }
 
-// Performance: Define sub-components outside the main component 
-// to prevent unmounting/remounting on every state update (keystroke)
-const AuthCard = ({ children, isLight }: { children: React.ReactNode, isLight: boolean }) => (
-  <div className={`w-full max-w-md p-8 rounded-[2.5rem] border backdrop-blur-3xl shadow-2xl transition-all duration-500 animate-in fade-in zoom-in-95 ${
-    isLight ? 'bg-white border-slate-200 shadow-slate-200/50' : 'bg-slate-900/60 border-white/10 shadow-black'
+const AuthCard: React.FC<{ children: React.ReactNode, isLight: boolean }> = ({ children, isLight }) => (
+  <div className={`w-full max-w-md p-8 sm:p-10 rounded-[3rem] border backdrop-blur-3xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] transition-all duration-700 animate-in fade-in zoom-in-95 slide-in-from-bottom-10 z-20 ${
+    isLight ? 'bg-white/80 border-slate-200 shadow-slate-200/50' : 'bg-slate-900/60 border-white/10 shadow-black/80'
   }`}>
     {children}
+  </div>
+);
+
+const VideoBackground: React.FC<{ isLight: boolean }> = ({ isLight }) => (
+  <div className="fixed inset-0 w-full h-full overflow-hidden pointer-events-none z-0">
+    <video
+      autoPlay
+      muted
+      loop
+      playsInline
+      className="absolute top-1/2 left-1/2 min-w-full min-h-full w-auto h-auto -translate-x-1/2 -translate-y-1/2 object-cover opacity-60"
+    >
+      <source src="https://v1.pinimg.com/videos/mc/720p/be/15/5a/be155abccdc19354019151163e21a073.mp4" type="video/mp4" />
+    </video>
+    {/* Cinematic Overlays */}
+    <div className={`absolute inset-0 bg-gradient-to-br ${
+      isLight 
+        ? 'from-white/40 via-blue-50/20 to-white/60' 
+        : 'from-slate-950 via-slate-900/40 to-slate-950'
+    }`}></div>
+    <div className={`absolute inset-0 ${isLight ? 'bg-white/10' : 'bg-black/20'}`}></div>
   </div>
 );
 
@@ -38,15 +56,15 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
     setPreviewUrl(URL.createObjectURL(file));
   };
 
-  // Performance Optimization: Single memoized handler for all fields
   const handleFieldChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { id, value } = e.target;
     setProfile(p => ({ ...p, [id]: value }));
-  }, []);
+    if (error) setError('');
+  }, [error]);
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!profile.name || !profile.role) return setError('Name and Role are required.');
+    if (!profile.name || !profile.role) return setError('Mandatory: Name and Role credentials required.');
     
     setIsProcessing(true);
     setError('');
@@ -61,7 +79,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
       const newProfile = await registerProfile({ ...profile, profileImageUrl: imageUrl });
       onAuthComplete(newProfile);
     } catch (err: any) {
-      setError(err.message || 'Failed to register profile.');
+      setError(err.message || 'System fault: Failed to synchronize new identity.');
     } finally {
       setIsProcessing(false);
     }
@@ -69,7 +87,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!profile.name) return setError('Please enter your name.');
+    if (!profile.name) return setError('Identity verification requires a registered name.');
 
     setIsProcessing(true);
     setError('');
@@ -79,131 +97,182 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
       if (existing) {
         onAuthComplete(existing);
       } else {
-        setError('Profile not found. Please register instead.');
+        setError('Unauthorized: Profile not found in safety database.');
       }
     } catch (err: any) {
-      setError(err.message || 'Failed to retrieve profile.');
+      setError(err.message || 'Verification system timeout. Please retry.');
     } finally {
       setIsProcessing(false);
     }
   };
 
-  if (mode === 'welcome') {
+  const renderError = () => {
+    if (!error) return null;
     return (
-      <div className="min-h-[80vh] flex items-center justify-center p-4">
-        <AuthCard isLight={isLight}>
-          <div className="flex flex-col items-center text-center space-y-6">
-            <img src="https://www.multiply-marketing.com/trojan-wp/wp-content/uploads/2020/08/tgc-logo-300x300.png" className="h-24 w-auto drop-shadow-2xl" alt="TGC" />
-            <div className="space-y-2">
-              <h2 className={`text-4xl font-black tracking-tighter ${isLight ? 'text-slate-900' : 'text-white'}`}>HSE <span className="text-blue-500">Guardian</span></h2>
-              <p className={`text-[10px] font-black uppercase tracking-[0.4em] ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>Safety Acquisition Identity</p>
-            </div>
-            <div className="w-full flex flex-col gap-4 pt-4">
-              <button 
-                onClick={() => setMode('signup')}
-                className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-2xl shadow-xl transition-all active:scale-[0.98] uppercase tracking-widest text-xs"
-              >
-                Register New Identity
-              </button>
-              <button 
-                onClick={() => setMode('login')}
-                className={`w-full font-black py-4 rounded-2xl transition-all active:scale-[0.98] uppercase tracking-widest text-xs border ${
-                  isLight ? 'bg-slate-100 border-slate-200 text-slate-600 hover:bg-slate-200' : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'
-                }`}
-              >
-                Access Existing Profile
-              </button>
-            </div>
-          </div>
-        </AuthCard>
+      <div className="animate-in slide-in-from-top-2 fade-in duration-300 flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 text-rose-500 p-4 rounded-2xl mb-6">
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+        </svg>
+        <span className="text-[10px] font-black uppercase tracking-widest leading-tight">{error}</span>
       </div>
     );
-  }
+  };
 
   return (
-    <div className="min-h-[80vh] flex items-center justify-center p-4">
-      <AuthCard isLight={isLight}>
-        <button onClick={() => setMode('welcome')} className={`mb-6 p-2 rounded-xl transition-colors ${isLight ? 'hover:bg-slate-100 text-slate-400' : 'hover:bg-white/5 text-slate-500'}`}>
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-        </button>
-        
-        <form onSubmit={mode === 'signup' ? handleSignup : handleLogin} className="space-y-6">
-          <div className="text-center mb-8">
-            <h3 className={`text-2xl font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>{mode === 'signup' ? 'Create Identity' : 'Verify Identity'}</h3>
-            <p className={`text-[9px] font-black uppercase tracking-widest mt-1 ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>Database Synchronization</p>
-          </div>
+    <div className="relative min-h-[85vh] flex items-center justify-center p-6 overflow-hidden">
+      <VideoBackground isLight={isLight} />
+      
+      {mode === 'welcome' ? (
+        <AuthCard isLight={isLight}>
+          <div className="flex flex-col items-center text-center">
+            <div className="relative mb-8">
+              <div className="absolute inset-0 bg-blue-500/30 blur-3xl rounded-full"></div>
+              <img 
+                src="https://www.multiply-marketing.com/trojan-wp/wp-content/uploads/2020/08/tgc-logo-300x300.png" 
+                className="h-28 w-auto relative z-10 drop-shadow-2xl animate-pulse" 
+                alt="TGC" 
+              />
+            </div>
+            
+            <div className="space-y-3 mb-10">
+              <h2 className={`text-5xl font-black tracking-tighter ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                HSE <span className="text-blue-500">Guardian</span>
+              </h2>
+              <div className="flex flex-col items-center">
+                 <p className={`text-[11px] font-black uppercase tracking-[0.5em] ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>
+                   Identity Gatekeeper
+                 </p>
+                 <div className="h-1 w-12 bg-blue-600 mt-2 rounded-full shadow-[0_0_15px_rgba(37,99,235,0.8)]"></div>
+              </div>
+            </div>
 
-          {mode === 'signup' && (
-            <div className="flex flex-col items-center pb-4">
-              <div 
-                onClick={() => fileInputRef.current?.click()}
-                className={`w-24 h-24 rounded-full border-2 border-dashed flex items-center justify-center cursor-pointer transition-all overflow-hidden relative group ${
-                  isLight ? 'bg-slate-50 border-slate-300 hover:border-blue-400' : 'bg-black/20 border-white/10 hover:border-blue-500'
+            <div className="w-full flex flex-col gap-4">
+              <button 
+                onClick={() => setMode('signup')}
+                className="group w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-5 rounded-2xl shadow-2xl transition-all active:scale-[0.98] uppercase tracking-widest text-xs border border-blue-400/30 flex items-center justify-center gap-3"
+              >
+                Establish New Identity
+                <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+              </button>
+              
+              <button 
+                onClick={() => setMode('login')}
+                className={`w-full font-black py-5 rounded-2xl transition-all active:scale-[0.98] uppercase tracking-widest text-xs border ${
+                  isLight 
+                    ? 'bg-slate-100 border-slate-200 text-slate-600 hover:bg-slate-200' 
+                    : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'
                 }`}
               >
-                {previewUrl ? (
-                  <img src={previewUrl} className="w-full h-full object-cover" alt="Preview" />
-                ) : (
-                  <div className="flex flex-col items-center text-slate-500 group-hover:text-blue-500">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M12 4v16m8-8H4" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" /></svg>
-                    <span className="text-[8px] font-black uppercase mt-1">Photo</span>
-                  </div>
-                )}
-              </div>
-              <input type="file" ref={fileInputRef} onChange={handleImageChange} className="hidden" accept="image/*" capture="environment" />
+                Access Verified Profile
+              </button>
             </div>
-          )}
-
-          <div className="space-y-4">
-            <InputField 
-              id="name" 
-              label="Full Registered Name" 
-              value={profile.name} 
-              onChange={handleFieldChange} 
-              required 
-              placeholder="Ex: John Doe" 
-              autoComplete="name"
-            />
-
-            {mode === 'signup' && (
-              <>
-                <InputField 
-                  id="role" 
-                  label="Organizational Role" 
-                  value={profile.role} 
-                  onChange={handleFieldChange} 
-                  required 
-                  placeholder="Ex: Safety Supervisor" 
-                  list={ROLES}
-                  autoComplete="organization-title"
-                />
-                <InputField 
-                  id="site" 
-                  label="Assigned Site" 
-                  value={profile.site} 
-                  onChange={handleFieldChange} 
-                  placeholder="Ex: Warehouse A" 
-                  list={SITES}
-                />
-              </>
-            )}
+            
+            <p className={`mt-10 text-[9px] font-bold uppercase tracking-widest ${isLight ? 'text-slate-400' : 'text-slate-600'}`}>
+              Secure Personnel Authentication System
+            </p>
+          </div>
+        </AuthCard>
+      ) : (
+        <AuthCard isLight={isLight}>
+          <div className="flex items-center justify-between mb-8">
+            <button 
+              onClick={() => { setMode('welcome'); setError(''); }} 
+              className={`p-3 rounded-2xl transition-all flex items-center gap-2 border ${
+                isLight ? 'hover:bg-slate-100 border-slate-200 text-slate-500' : 'hover:bg-white/5 border-white/10 text-slate-400'
+              }`}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+              <span className="text-[10px] font-black uppercase tracking-widest pr-1">Back</span>
+            </button>
+            <div className="text-right">
+               <h3 className={`text-xl font-black tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                 {mode === 'signup' ? 'New Registration' : 'Restore Access'}
+               </h3>
+               <span className="text-[9px] font-black uppercase text-blue-500 tracking-widest">Protocol {mode === 'signup' ? '01-A' : '01-B'}</span>
+            </div>
           </div>
 
-          {error && (
-            <div className="bg-rose-500/10 border border-rose-500/20 text-rose-500 p-4 rounded-xl text-[9px] font-black uppercase tracking-widest text-center">
-              {error}
-            </div>
-          )}
+          {renderError()}
+          
+          <form onSubmit={mode === 'signup' ? handleSignup : handleLogin} className="space-y-6">
+            {mode === 'signup' && (
+              <div className="flex flex-col items-center pb-4">
+                <div 
+                  onClick={() => fileInputRef.current?.click()}
+                  className={`w-28 h-28 rounded-full border-2 border-dashed flex items-center justify-center cursor-pointer transition-all overflow-hidden relative group shadow-2xl ${
+                    isLight ? 'bg-slate-50 border-slate-300 hover:border-blue-400' : 'bg-black/20 border-white/10 hover:border-blue-500'
+                  }`}
+                >
+                  {previewUrl ? (
+                    <>
+                      <img src={previewUrl} className="w-full h-full object-cover" alt="Preview" />
+                      <div className="absolute inset-0 bg-blue-600/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                         <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" strokeWidth={2} /></svg>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex flex-col items-center text-slate-500 group-hover:text-blue-500 transition-colors">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                         <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                      <span className="text-[9px] font-black uppercase tracking-widest">Biometric Photo</span>
+                    </div>
+                  )}
+                </div>
+                <input type="file" ref={fileInputRef} onChange={handleImageChange} className="hidden" accept="image/*" />
+              </div>
+            )}
 
-          <button 
-            type="submit"
-            disabled={isProcessing}
-            className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-2xl shadow-xl transition-all disabled:opacity-50 uppercase tracking-widest text-xs"
-          >
-            {isProcessing ? 'Synchronizing...' : mode === 'signup' ? 'Complete Registration' : 'Restore Identity'}
-          </button>
-        </form>
-      </AuthCard>
+            <div className="space-y-5">
+              <InputField 
+                id="name" 
+                label="Personnel Name" 
+                value={profile.name} 
+                onChange={handleFieldChange} 
+                required 
+                placeholder="Full Identification Name" 
+                autoComplete="name"
+              />
+
+              {mode === 'signup' && (
+                <div className="animate-in fade-in slide-in-from-top-4 duration-500 space-y-5">
+                  <InputField 
+                    id="role" 
+                    label="Designated Capacity" 
+                    value={profile.role} 
+                    onChange={handleFieldChange} 
+                    required 
+                    placeholder="Official Title" 
+                    list={ROLES}
+                    autoComplete="organization-title"
+                  />
+                  <InputField 
+                    id="site" 
+                    label="Operational Zone" 
+                    value={profile.site} 
+                    onChange={handleFieldChange} 
+                    placeholder="Primary Location" 
+                    list={SITES}
+                  />
+                </div>
+              )}
+            </div>
+
+            <button 
+              type="submit"
+              disabled={isProcessing}
+              className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-5 rounded-2xl shadow-2xl transition-all disabled:opacity-50 active:scale-[0.98] uppercase tracking-widest text-xs border border-blue-400/30 flex items-center justify-center gap-3 mt-4"
+            >
+              {isProcessing ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                  Initializing Link...
+                </>
+              ) : mode === 'signup' ? 'Finalize Credentialing' : 'Authenticate Identity'}
+            </button>
+          </form>
+        </AuthCard>
+      )}
     </div>
   );
 };

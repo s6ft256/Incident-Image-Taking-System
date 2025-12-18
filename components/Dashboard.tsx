@@ -104,7 +104,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
     return acc;
   }, {} as Record<string, { count: number, severityScore: number }>);
 
-  const siteChartData = Object.entries(siteStats)
+  // Fix: Explicitly cast Object.entries to solve 'unknown' type errors for count and severityScore
+  const siteChartData = (Object.entries(siteStats) as [string, { count: number, severityScore: number }][])
     .map(([name, stats]) => ({ 
       name, 
       count: stats.count, 
@@ -203,7 +204,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
                      <div className="flex flex-col items-end">
                        <span className="text-rose-500 text-[9px] font-black uppercase tracking-tighter">AGG. SEV.</span>
                        <span className={`text-xs font-mono font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                        {Object.values(siteStats).reduce((a, b) => a + b.severityScore, 0)}
+                        {/* Fix: Explicitly type the arguments of reduce to resolve 'unknown' type errors for severityScore */}
+                        {Object.values(siteStats).reduce((a: number, b: { severityScore: number }) => a + b.severityScore, 0)}
                        </span>
                      </div>
                    </div>
