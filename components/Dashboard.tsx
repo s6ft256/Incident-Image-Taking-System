@@ -1,18 +1,17 @@
-
 import React, { useEffect, useState } from 'react';
 import { getAllReports } from '../services/airtableService';
 import { FetchedIncident } from '../types';
 import { INCIDENT_TYPES } from '../constants';
 import {
-  ComposedChart,
-  Bar,
-  Line,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   Tooltip,
   ResponsiveContainer,
-  Cell,
-  CartesianGrid
+  CartesianGrid,
+  Legend,
+  ReferenceLine
 } from 'recharts';
 
 interface DashboardProps {
@@ -35,14 +34,31 @@ const SEVERITY_MAP: Record<string, number> = {
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
+    const countData = payload.find((p: any) => p.dataKey === 'count');
+    const riskData = payload.find((p: any) => p.dataKey === 'criticality');
+    
     return (
-      <div className="bg-slate-900/95 backdrop-blur-xl border border-white/10 p-2 rounded-lg shadow-2xl text-[9px] z-50">
-        <p className="text-white font-black mb-0.5 uppercase tracking-wider">{label}</p>
-        <div className="space-y-0.5">
-          <p className="text-blue-400 font-bold flex justify-between gap-3">
-            <span>RISK:</span>
-            <span>{payload[0].value}</span>
-          </p>
+      <div className="bg-slate-900/95 backdrop-blur-xl border border-white/10 p-4 rounded-2xl shadow-2xl text-[10px] z-50 ring-1 ring-white/20">
+        <p className="text-white font-black mb-3 uppercase tracking-[0.2em] border-b border-white/10 pb-2">{label}</p>
+        <div className="space-y-2">
+          {countData && (
+            <div className="flex justify-between items-center gap-8">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                <span className="text-slate-400 font-bold uppercase">Volume:</span>
+              </div>
+              <span className="text-blue-400 font-black font-mono text-xs">{countData.value} Obs.</span>
+            </div>
+          )}
+          {riskData && (
+            <div className="flex justify-between items-center gap-8">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-rose-500"></div>
+                <span className="text-slate-400 font-bold uppercase">Criticality:</span>
+              </div>
+              <span className="text-rose-400 font-black font-mono text-xs">{riskData.value} Pts</span>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -95,20 +111,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
       criticality: stats.severityScore 
     }))
     .sort((a, b) => b.criticality - a.criticality)
-    .slice(0, 8);
-
-  // Category Statistics for Progress Bars
-  const categoryStats = reports.reduce((acc, curr) => {
-    const type = curr.fields["Incident Type"] || 'Other';
-    if (!acc[type]) acc[type] = { total: 0, closed: 0 };
-    acc[type].total += 1;
-    const isClosed = curr.fields["Action taken"] && curr.fields["Action taken"].trim().length > 0;
-    if (isClosed) acc[type].closed += 1;
-    return acc;
-  }, {} as Record<string, { total: number, closed: number }>);
-
-  const sortedCategories = Object.entries(categoryStats)
-    .sort((a, b) => b[1].total - a[1].total);
+    .slice(0, 10);
 
   const renderSafetyStatusMap = () => {
     const r = 42;
@@ -165,8 +168,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-            <div className={`backdrop-blur-2xl p-4 sm:p-6 rounded-3xl border shadow-xl flex flex-col items-center relative overflow-hidden min-h-[320px] sm:min-h-[400px] justify-center ${isLight ? 'bg-white border-slate-200' : 'bg-white/[0.03] border-white/10'}`}>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
+            {/* SAFETY STATUS MAP - 4 COLUMNS */}
+            <div className={`lg:col-span-4 backdrop-blur-2xl p-4 sm:p-6 rounded-3xl border shadow-xl flex flex-col items-center relative overflow-hidden min-h-[320px] sm:min-h-[400px] justify-center ${isLight ? 'bg-white border-slate-200' : 'bg-white/[0.03] border-white/10'}`}>
                 <h3 className={`text-[9px] font-black uppercase tracking-[0.3em] mb-4 absolute top-6 ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>Safety Status Map</h3>
                 <div className="flex-grow flex items-center justify-center">
                   {renderSafetyStatusMap()}
@@ -183,105 +187,117 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
                 </div>
             </div>
 
-            <div className={`backdrop-blur-2xl p-4 sm:p-6 rounded-3xl border shadow-xl flex flex-col relative overflow-hidden min-h-[320px] sm:min-h-[400px] ${isLight ? 'bg-white border-slate-200' : 'bg-white/[0.03] border-white/10'}`}>
-                <h3 className={`text-[9px] font-black uppercase tracking-[0.3em] mb-4 text-center mt-2 ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>Criticality By Site</h3>
-                <div className="flex-1 w-full flex items-center justify-center">
+            {/* CRITICALITY BY SITE GRAPH - 8 COLUMNS */}
+            <div className={`lg:col-span-8 backdrop-blur-2xl p-4 sm:p-6 rounded-3xl border shadow-xl flex flex-col relative overflow-hidden min-h-[400px] ${isLight ? 'bg-white border-slate-200' : 'bg-white/[0.03] border-white/10'}`}>
+                <div className="flex items-center justify-between mb-8 px-4">
+                   <div>
+                     <h3 className={`text-lg font-black tracking-tighter ${isLight ? 'text-slate-900' : 'text-white'}`}>Site Criticality Analysis</h3>
+                     <p className={`text-[9px] font-black uppercase tracking-[0.3em] ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>Multi-Site Hazard Trend</p>
+                   </div>
+                   <div className="flex gap-4">
+                     <div className="flex flex-col items-end">
+                       <span className="text-blue-500 text-[9px] font-black uppercase tracking-tighter">TOTAL VOL.</span>
+                       <span className={`text-xs font-mono font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>{reports.length}</span>
+                     </div>
+                     <div className="w-[1px] h-8 bg-white/10"></div>
+                     <div className="flex flex-col items-end">
+                       <span className="text-rose-500 text-[9px] font-black uppercase tracking-tighter">AGG. SEV.</span>
+                       <span className={`text-xs font-mono font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                        {Object.values(siteStats).reduce((a, b) => a + b.severityScore, 0)}
+                       </span>
+                     </div>
+                   </div>
+                </div>
+
+                <div className="flex-1 w-full flex items-center justify-center overflow-visible px-2">
                   {siteChartData.length > 0 ? (
-                    <ResponsiveContainer width="100%" height="85%">
-                      <ComposedChart data={siteChartData} margin={{ top: 5, right: 15, left: -20, bottom: 20 }}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isLight ? "rgba(0,0,0,0.05)" : "rgba(255,255,255,0.05)"} />
+                    <ResponsiveContainer width="100%" height="90%">
+                      <AreaChart data={siteChartData} margin={{ top: 10, right: 30, left: 0, bottom: 40 }}>
+                        <defs>
+                          <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                            <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                          </linearGradient>
+                          <linearGradient id="colorCrit" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.3}/>
+                            <stop offset="95%" stopColor="#f43f5e" stopOpacity={0}/>
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid 
+                          strokeDasharray="3 3" 
+                          vertical={false} 
+                          stroke={isLight ? "rgba(0,0,0,0.03)" : "rgba(255,255,255,0.03)"} 
+                        />
                         <XAxis 
                           dataKey="name" 
                           stroke={isLight ? "#94a3b8" : "#475569"} 
-                          fontSize={8} 
-                          tick={{fill: isLight ? '#64748b' : '#64748b', fontWeight: '800'}}
+                          fontSize={9} 
+                          tick={{fill: isLight ? '#64748b' : '#94a3b8', fontWeight: '800'}}
                           axisLine={false}
                           tickLine={false}
                           interval={0}
-                          angle={-35}
+                          angle={-30}
                           textAnchor="end"
+                          height={60}
                         />
-                        <YAxis hide />
-                        <Tooltip content={<CustomTooltip />} cursor={{fill: isLight ? 'rgba(0,0,0,0.02)' : 'rgba(255,255,255,0.02)'}} />
-                        <Bar 
-                          dataKey="criticality" 
-                          fill="#3b82f6" 
-                          radius={[3, 3, 0, 0]} 
-                          barSize={24}
-                        >
-                           {siteChartData.map((entry, index) => (
-                             <Cell 
-                               key={`cell-${index}`} 
-                               fillOpacity={1 - (index * 0.08)} 
-                               fill="#3b82f6"
-                             />
-                           ))}
-                        </Bar>
-                        <Line 
-                          type="monotone" 
-                          dataKey="criticality" 
-                          stroke={isLight ? "#0f172a" : "#0f172a"} 
-                          strokeWidth={2} 
-                          dot={false}
+                        <YAxis 
+                          yAxisId="left"
+                          orientation="left"
+                          stroke={isLight ? "#94a3b8" : "#475569"}
+                          fontSize={9}
+                          tick={{fill: '#3b82f6', fontWeight: '800'}}
+                          axisLine={false}
+                          tickLine={false}
+                          width={30}
                         />
-                      </ComposedChart>
+                        <YAxis 
+                          yAxisId="right"
+                          orientation="right"
+                          stroke={isLight ? "#94a3b8" : "#475569"}
+                          fontSize={9}
+                          tick={{fill: '#f43f5e', fontWeight: '800'}}
+                          axisLine={false}
+                          tickLine={false}
+                          width={30}
+                        />
+                        <Tooltip content={<CustomTooltip />} />
+                        <Legend 
+                          verticalAlign="top" 
+                          align="center" 
+                          iconType="circle" 
+                          wrapperStyle={{ fontSize: '9px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.15em', paddingBottom: '30px' }}
+                        />
+                        <Area
+                          yAxisId="left"
+                          name="Observations"
+                          type="monotone"
+                          dataKey="count"
+                          stroke="#3b82f6"
+                          strokeWidth={3}
+                          fillOpacity={1}
+                          fill="url(#colorCount)"
+                          activeDot={{ r: 6, strokeWidth: 2, stroke: isLight ? '#fff' : '#020617' }}
+                        />
+                        <Area
+                          yAxisId="right"
+                          name="Severity Score"
+                          type="monotone"
+                          dataKey="criticality"
+                          stroke="#f43f5e"
+                          strokeWidth={3}
+                          fillOpacity={1}
+                          fill="url(#colorCrit)"
+                          activeDot={{ r: 6, strokeWidth: 2, stroke: isLight ? '#fff' : '#020617' }}
+                        />
+                        <ReferenceLine yAxisId="left" y={0} stroke={isLight ? "#cbd5e1" : "#1e293b"} />
+                      </AreaChart>
                     </ResponsiveContainer>
                   ) : (
-                    <div className="h-full flex items-center justify-center text-slate-700 text-[9px] font-black uppercase tracking-widest">
-                      No Data Available
+                    <div className="h-full flex items-center justify-center text-slate-700 text-[9px] font-black uppercase tracking-widest animate-pulse">
+                      Awaiting Data Stream...
                     </div>
                   )}
                 </div>
-            </div>
-          </div>
-
-          {/* TASK RESOLUTION PROGRESS BARS */}
-          <div className={`backdrop-blur-2xl p-6 sm:p-8 rounded-[2.5rem] border shadow-xl ${isLight ? 'bg-white border-slate-200' : 'bg-white/[0.03] border-white/10'}`}>
-            <div className="flex items-center justify-between mb-8">
-              <div>
-                <h3 className={`text-lg font-black tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>Category Resolution</h3>
-                <p className={`text-[9px] font-black uppercase tracking-[0.3em] mt-1 ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>Performance Benchmarking</p>
-              </div>
-              <div className={`px-4 py-1.5 rounded-full border text-[9px] font-black uppercase tracking-widest ${isLight ? 'bg-blue-50 border-blue-100 text-blue-600' : 'bg-blue-500/10 border-blue-500/20 text-blue-400'}`}>
-                {closedCount} / {total} Closed
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
-              {sortedCategories.length > 0 ? (
-                sortedCategories.map(([category, stats]) => {
-                  const percent = Math.round((stats.closed / stats.total) * 100);
-                  return (
-                    <div key={category} className="space-y-2 group">
-                      <div className="flex justify-between items-end">
-                        <span className={`text-[10px] font-bold uppercase tracking-wide truncate pr-4 ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
-                          {category}
-                        </span>
-                        <span className={`text-[10px] font-black font-mono shrink-0 ${percent === 100 ? 'text-emerald-500' : isLight ? 'text-slate-400' : 'text-slate-500'}`}>
-                          {stats.closed}/{stats.total} • {percent}%
-                        </span>
-                      </div>
-                      <div className={`h-2.5 w-full rounded-full overflow-hidden relative shadow-inner ${isLight ? 'bg-slate-100' : 'bg-white/5'}`}>
-                        <div 
-                          className={`h-full rounded-full transition-all duration-1000 ease-out shadow-sm ${
-                            percent === 100 ? 'bg-emerald-500' : 
-                            percent > 50 ? 'bg-blue-500' : 
-                            percent > 20 ? 'bg-amber-500' : 'bg-rose-500'
-                          }`}
-                          style={{ width: `${percent}%` }}
-                        />
-                        <div 
-                          className="absolute inset-0 opacity-0 group-hover:opacity-10 bg-gradient-to-r from-transparent via-white to-transparent transition-opacity"
-                        />
-                      </div>
-                    </div>
-                  );
-                })
-              ) : (
-                <div className="col-span-2 py-8 text-center text-slate-500 text-[10px] font-black uppercase tracking-widest">
-                  Awaiting Initial Data Stream...
-                </div>
-              )}
             </div>
           </div>
         </>

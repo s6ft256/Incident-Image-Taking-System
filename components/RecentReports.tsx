@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { FetchedIncident, UploadedImage } from '../types';
 import { getRecentReports, updateIncidentAction } from '../services/airtableService';
@@ -42,14 +43,17 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
   // Per-report error messages for resolution actions
   const [resolveErrors, setResolveErrors] = useState<Record<string, string>>({});
 
+  // Confirmation state
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
+
   useEffect(() => {
     fetchReports();
   }, [baseId]);
 
-  const fetchReports = async () => {
+  const fetchReports = async (configOverride?: { baseId: string }) => {
     try {
       setLoading(true);
-      const data = await getRecentReports({ baseId });
+      const data = await getRecentReports(configOverride || { baseId });
       setReports(data);
     } catch (err: any) {
       setError(err.message || "Failed to load reports");
@@ -118,7 +122,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
           ...prev,
           [reportId]: prev[reportId].map(img => 
             img.id === newImage.id 
-              ? { ...img, status: 'success', serverUrl: publicUrl } 
+              ? { ...img, status: 'success', serverUrl: publicUrl, progress: 100 } 
               : img
           )
         }));
@@ -128,7 +132,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
           ...prev,
           [reportId]: prev[reportId].map(img => 
             img.id === newImage.id 
-              ? { ...img, status: 'error' } 
+              ? { ...img, status: 'error', progress: 0 } 
               : img
           )
         }));
@@ -153,6 +157,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
   };
 
   const handleResolve = async (id: string) => {
+    setConfirmingId(null);
     setResolveErrors(prev => { const n = {...prev}; delete n[id]; return n; });
 
     const actionTaken = actionInputs[id];
@@ -320,7 +325,8 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
                 className={`absolute inset-0 w-full h-full object-contain z-0 p-8 ${isLight ? 'opacity-30' : 'opacity-100'}`}
                 alt="TGC Logo"
               />
-              <div className={`absolute inset-0 z-10 ${isLight ? 'bg-white/0' : 'bg-slate-950/40 backdrop-blur-[0.5px]'}`}></div>
+              {/* Overlay with zero transparency in Light mode */}
+              <div className={`absolute inset-0 z-10 ${isLight ? 'bg-white' : 'bg-slate-950/40 backdrop-blur-[0.5px]'}`}></div>
               
               <div className="relative z-20 flex flex-col items-center w-full max-w-xs text-center">
                 <div className={`p-6 rounded-full mb-8 shadow-2xl border transition-colors ${
@@ -587,13 +593,16 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
                                               </div>
                                           ))}
                                           {(!closingImages[report.id] || closingImages[report.id].length < 3) && (
-                                              <label className={`flex-shrink-0 h-20 w-20 border-2 border-dashed rounded-xl flex flex-col items-center justify-center cursor-pointer transition-all group ${
-                                                isLight ? 'bg-slate-50 border-slate-300 hover:bg-slate-100 hover:border-blue-400' : 'bg-slate-700/10 border-slate-700 hover:bg-slate-700/30 hover:border-slate-500'
+                                              <div className={`flex-shrink-0 w-20 h-20 border-2 border-dashed rounded-xl overflow-hidden flex flex-col transition-all ${
+                                                isLight ? 'bg-slate-50 border-slate-300' : 'bg-slate-700/10 border-slate-700'
                                               }`}>
-                                                  <div className={`p-1.5 rounded-lg transition-all ${isLight ? 'bg-slate-200 text-slate-500 group-hover:bg-blue-600 group-hover:text-white' : 'bg-slate-700 group-hover:bg-blue-600 group-hover:text-white'}`}>
-                                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" /></svg>
-                                                  </div>
-                                                  <span className={`text-[7px] font-black uppercase mt-1 tracking-widest ${isLight ? 'text-slate-400' : 'text-slate-600'}`}>Capture</span>
+                                                <label className={`flex-1 flex flex-col items-center justify-center cursor-pointer transition-all active:bg-blue-600/10 ${
+                                                  isLight ? 'hover:bg-slate-100' : 'hover:bg-white/5'
+                                                }`}>
+                                                  <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 ${isLight ? 'text-slate-500' : 'text-slate-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" />
+                                                  </svg>
+                                                  <span className="text-[6px] font-black uppercase mt-0.5 tracking-tighter">CAM</span>
                                                   <input 
                                                     type="file" 
                                                     accept="image/*" 
@@ -601,13 +610,39 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
                                                     className="hidden" 
                                                     onChange={(e) => handleAddClosingImage(report.id, e)} 
                                                   />
-                                              </label>
+                                                </label>
+                                                <div className={`h-[1px] w-full ${isLight ? 'bg-slate-200' : 'bg-slate-700'}`}></div>
+                                                <label className={`flex-1 flex flex-col items-center justify-center cursor-pointer transition-all active:bg-blue-600/10 ${
+                                                  isLight ? 'hover:bg-slate-100' : 'hover:bg-white/5'
+                                                }`}>
+                                                  <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 ${isLight ? 'text-slate-500' : 'text-slate-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" />
+                                                  </svg>
+                                                  <span className="text-[6px] font-black uppercase mt-0.5 tracking-tighter">UP</span>
+                                                  <input 
+                                                    type="file" 
+                                                    accept="image/*" 
+                                                    className="hidden" 
+                                                    onChange={(e) => handleAddClosingImage(report.id, e)} 
+                                                  />
+                                                </label>
+                                              </div>
                                           )}
                                       </div>
                                   </div>
 
                                   <button 
-                                    onClick={() => handleResolve(report.id)}
+                                    onClick={() => {
+                                      const currentImages = closingImages[report.id] || [];
+                                      const actionTaken = actionInputs[report.id] || '';
+                                      const closedBy = closedByInputs[report.id] || '';
+                                      
+                                      if (actionTaken.trim() && closedBy.trim() && !currentImages.some(img => img.status === 'uploading')) {
+                                          setConfirmingId(report.id);
+                                      } else {
+                                          handleResolve(report.id); // Triggers existing error logic
+                                      }
+                                    }}
                                     disabled={!actionInputs[report.id]?.trim() || !closedByInputs[report.id]?.trim() || submittingIds.has(report.id)}
                                     className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-slate-300 disabled:text-slate-500 text-xs font-black py-4 rounded-xl transition-all flex justify-center items-center gap-3 shadow-xl active:scale-[0.98] uppercase tracking-[0.2em] text-white"
                                   >
@@ -635,6 +670,50 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
             </div>
           )}
         </>
+      )}
+
+      {/* Confirmation Modal */}
+      {confirmingId && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 overflow-hidden">
+          <div 
+            className="absolute inset-0 bg-black/80 backdrop-blur-md animate-in fade-in duration-300"
+            onClick={() => setConfirmingId(null)}
+          ></div>
+          <div className={`relative w-full max-w-sm rounded-[2.5rem] border shadow-2xl animate-in zoom-in duration-300 overflow-hidden ${
+            isLight ? 'bg-white border-slate-200' : 'bg-slate-900 border-white/10'
+          }`}>
+            <div className={`p-8 text-center space-y-6 ${isLight ? 'bg-slate-50' : 'bg-white/[0.02]'}`}>
+                <div className="w-20 h-20 rounded-full bg-blue-600/10 border-4 border-blue-600/20 flex items-center justify-center mx-auto text-blue-500 shadow-2xl">
+                    <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </div>
+                <div className="space-y-2">
+                    <h3 className={`text-2xl font-black tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>Verify Resolution</h3>
+                    <p className={`text-[10px] font-black uppercase tracking-[0.3em] ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>Integrity Check Required</p>
+                </div>
+                <p className={`text-sm leading-relaxed ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+                    Are you certain that the corrective actions taken fulfill the safety requirements? Once committed, this observation will be archived as <span className="text-emerald-500 font-bold">CLOSED</span>.
+                </p>
+            </div>
+            <div className="p-4 grid grid-cols-2 gap-3">
+                <button 
+                  onClick={() => setConfirmingId(null)}
+                  className={`py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 ${
+                    isLight ? 'bg-slate-100 text-slate-500 hover:bg-slate-200' : 'bg-white/5 text-slate-400 hover:bg-white/10'
+                  }`}
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={() => handleResolve(confirmingId)}
+                  className="py-4 rounded-2xl bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest shadow-xl shadow-blue-900/20 hover:bg-blue-500 transition-all active:scale-95 border border-blue-400/20"
+                >
+                  Confirm & Commit
+                </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

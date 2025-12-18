@@ -16,7 +16,6 @@ export const ImageGrid: React.FC<ImageGridProps> = memo(({ images, onRemove, onA
   const isLight = appTheme === 'light';
   
   const showAddButton = !isLimitReached;
-  const emptySlotsCount = Math.max(0, MAX_IMAGES - images.length - (showAddButton ? 1 : 0));
 
   return (
     <div className="space-y-5">
@@ -32,7 +31,7 @@ export const ImageGrid: React.FC<ImageGridProps> = memo(({ images, onRemove, onA
               {images.length}/{MAX_IMAGES}
             </span>
           </span>
-          <span className={`text-[9px] font-black uppercase tracking-[0.2em] mt-1 ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>Direct Camera Access Enabled</span>
+          <span className={`text-[9px] font-black uppercase tracking-[0.2em] mt-1 ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>Evidence Acquisition Terminal</span>
         </label>
       </div>
 
@@ -107,18 +106,30 @@ export const ImageGrid: React.FC<ImageGridProps> = memo(({ images, onRemove, onA
         ))}
 
         {showAddButton && (
-          <label className={`flex aspect-square cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed transition-all active:scale-95 ${
-            isLight ? 'bg-slate-50 border-slate-300 hover:border-blue-400' : 'bg-slate-900/40 border-slate-700 hover:border-blue-500/50'
+          <div className={`flex aspect-square flex-col overflow-hidden rounded-xl border-2 border-dashed transition-all ${
+            isLight ? 'bg-slate-50 border-slate-300' : 'bg-slate-900/40 border-slate-700'
           }`}>
-            <div className="h-10 w-10 flex items-center justify-center rounded-full bg-blue-600 text-white shadow-lg mb-2">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
-                <circle cx="12" cy="13" r="4"></circle>
+            <label className={`flex-1 flex flex-col items-center justify-center cursor-pointer transition-all active:bg-blue-600/10 group ${
+              isLight ? 'hover:bg-slate-100' : 'hover:bg-white/5'
+            }`}>
+              <svg xmlns="http://www.w3.org/2000/svg" className={`h-6 w-6 mb-1 ${isLight ? 'text-slate-500' : 'text-slate-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
+                <circle cx="12" cy="13" r="4" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
               </svg>
-            </div>
-            <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Camera</span>
-            <input type="file" accept="image/*" capture="environment" className="hidden" onChange={onAdd} />
-          </label>
+              <span className="text-[8px] font-black uppercase tracking-widest text-slate-500">Camera</span>
+              <input type="file" accept="image/*" capture="environment" className="hidden" onChange={onAdd} />
+            </label>
+            <div className={`h-[1px] w-full ${isLight ? 'bg-slate-200' : 'bg-slate-700'}`}></div>
+            <label className={`flex-1 flex flex-col items-center justify-center cursor-pointer transition-all active:bg-blue-600/10 group ${
+              isLight ? 'hover:bg-slate-100' : 'hover:bg-white/5'
+            }`}>
+              <svg xmlns="http://www.w3.org/2000/svg" className={`h-6 w-6 mb-1 ${isLight ? 'text-slate-500' : 'text-slate-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <span className="text-[8px] font-black uppercase tracking-widest text-slate-500">Upload</span>
+              <input type="file" accept="image/*" className="hidden" onChange={onAdd} />
+            </label>
+          </div>
         )}
       </div>
       
