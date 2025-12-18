@@ -1,6 +1,6 @@
 {
-  "name": "Incident Image Taking System",
-  "description": "A mobile-friendly system to capture incident reports and images for Airtable.",
+  "name": "HSE Guardian",
+  "description": "A mobile-first safety reporting tool with offline capabilities, evidence management, and an AI technical assistant.",
   "requestFramePermissions": [
     "camera"
   ]

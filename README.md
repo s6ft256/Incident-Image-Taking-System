@@ -1,21 +1,21 @@
-# Incident Image Taking System
+# HSE Guardian
 
-A mobile-friendly web application for reporting HSE incidents, capturing evidence images, and managing reports via an Airtable backend.
+**HSE Guardian** is a mobile-friendly web application designed for the modern safety workforce. It streamlines the process of reporting HSE incidents, capturing photographic evidence, and managing remediation actions.
 
 ## Features
 
 *   **Create Reports:** Capture incident details (Name, Role, Location, Observation).
+*   **Offline Mode:** Fully functional without internet; auto-syncs when connection is restored.
 *   **Evidence Capture:** Upload multiple images (compressed client-side) to Supabase Storage.
 *   **Dashboard:** View KPI statistics, incident distribution by location, and status (Open/Closed).
 *   **Incident Log:** View recent reports (last 24h) and older reports via the dashboard.
 *   **Resolution:** Close out open observations with action taken details and closing evidence photos.
-*   **AI Assistant:** Integrated "HSECES Assistant" powered by Google Gemini to answer safety-critical questions.
+*   **Daily Inspiration:** Displays safety leadership quotes to promote a positive safety culture.
 
 ## Tech Stack
 
 *   **Frontend:** React (TypeScript), Tailwind CSS
 *   **Backend / Database:** Airtable (Data), Supabase (Storage)
-*   **AI:** Google Gemini API (@google/genai)
 *   **Build Tool:** Vite
 
 ## Setup
@@ -23,7 +23,7 @@ A mobile-friendly web application for reporting HSE incidents, capturing evidenc
 1.  **Clone the repository:**
     ```bash
     git clone <your-repo-url>
-    cd incident-reporter
+    cd hse-guardian
     ```
 
 2.  **Install dependencies:**
@@ -38,7 +38,6 @@ A mobile-friendly web application for reporting HSE incidents, capturing evidenc
     ```
     *   Airtable Base ID & API Key
     *   Supabase URL, Key, and Bucket Name
-    *   Google Gemini API Key
 
 4.  **Run Development Server:**
     ```bash
@@ -59,20 +58,20 @@ A mobile-friendly web application for reporting HSE incidents, capturing evidenc
 
 3.  **Commit changes:**
     ```bash
-    git commit -m "Initial commit: Incident Reporter App"
+    git commit -m "Initial commit: HSE Guardian"
     ```
 
 4.  **Create Repository on GitHub:**
     *   Go to [github.com/new](https://github.com/new).
-    *   Name your repository (e.g., `incident-reporter`).
+    *   Name your repository (e.g., `hse-guardian`).
     *   Click "Create repository".
 
 5.  **Link and Push:**
-    *   Copy the URL provided by GitHub (e.g., `https://github.com/username/incident-reporter.git`).
+    *   Copy the URL provided by GitHub (e.g., `https://github.com/username/hse-guardian.git`).
     *   Run the following commands:
     ```bash
     git branch -M main
-    git remote add origin https://github.com/YOUR_USERNAME/incident-reporter.git
+    git remote add origin https://github.com/YOUR_USERNAME/hse-guardian.git
     git push -u origin main
     ```
 
