@@ -222,8 +222,9 @@ function App() {
 
         <footer className="py-6 px-4 max-w-6xl mx-auto w-full flex flex-col items-center gap-6 mt-auto">
            {quote && (
-             <div className={`w-full max-w-xl text-center px-6 py-4 rounded-2xl border backdrop-blur-xl shadow-lg relative overflow-hidden group ${appTheme === 'dark' ? 'bg-white/5 border-white/10' : 'bg-white border-slate-100'}`}>
-                <p className={`italic font-medium text-xs sm:text-sm leading-relaxed ${appTheme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
+             <div className={`w-full max-w-xl text-center px-6 py-4 rounded-3xl border-2 transition-all duration-700 ease-in-out backdrop-blur-xl relative overflow-hidden group animate-in fade-in zoom-in-95 ${appTheme === 'dark' ? 'bg-white/5 border-red-500/40 shadow-[0_0_20px_rgba(239,68,68,0.15)] hover:shadow-[0_0_35px_rgba(239,68,68,0.4)] hover:border-red-500' : 'bg-white border-red-400/40 shadow-lg hover:border-red-500'}`}>
+                <div className="absolute inset-0 bg-gradient-to-r from-red-500/5 via-transparent to-red-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none"></div>
+                <p className={`italic font-medium text-xs sm:text-sm leading-relaxed transition-colors duration-500 ${appTheme === 'dark' ? 'text-slate-400 group-hover:text-red-200' : 'text-slate-500 group-hover:text-red-700'}`}>
                   {quote}
                 </p>
              </div>
