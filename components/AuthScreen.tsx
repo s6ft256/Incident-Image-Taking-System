@@ -12,10 +12,13 @@ interface AuthScreenProps {
 }
 
 const AuthCard: React.FC<{ children: React.ReactNode, isLight: boolean }> = ({ children, isLight }) => (
-  <div className={`w-full max-w-md p-8 sm:p-10 rounded-[3rem] border backdrop-blur-3xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] transition-all duration-700 animate-in fade-in zoom-in-95 slide-in-from-bottom-10 z-20 ${
-    isLight ? 'bg-white/80 border-slate-200 shadow-slate-200/50' : 'bg-slate-900/60 border-white/10 shadow-black/80'
+  <div className={`relative w-full max-w-md p-8 sm:p-10 rounded-[3rem] border backdrop-blur-3xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] transition-all duration-700 animate-in fade-in zoom-in-95 slide-in-from-bottom-10 z-20 overflow-hidden ${
+    isLight ? 'bg-white/20 border-white/40 shadow-slate-200/50' : 'bg-slate-900/10 border-white/20 shadow-black/80'
   }`}>
-    {children}
+    {/* Content Container */}
+    <div className="relative z-10">
+      {children}
+    </div>
   </div>
 );
 
@@ -159,7 +162,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
                 onClick={() => setMode('login')}
                 className={`w-full font-black py-5 rounded-2xl transition-all active:scale-[0.98] uppercase tracking-widest text-xs border ${
                   isLight 
-                    ? 'bg-slate-100 border-slate-200 text-slate-600 hover:bg-slate-200' 
+                    ? 'bg-white/10 border-white/20 text-slate-900 hover:bg-white/20' 
                     : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'
                 }`}
               >
@@ -167,7 +170,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
               </button>
             </div>
             
-            <p className={`mt-10 text-[9px] font-bold uppercase tracking-widest ${isLight ? 'text-slate-400' : 'text-slate-600'}`}>
+            <p className={`mt-10 text-[9px] font-bold uppercase tracking-widest ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
               Secure Personnel Authentication System
             </p>
           </div>
@@ -178,7 +181,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
             <button 
               onClick={() => { setMode('welcome'); setError(''); }} 
               className={`p-3 rounded-2xl transition-all flex items-center gap-2 border ${
-                isLight ? 'hover:bg-slate-100 border-slate-200 text-slate-500' : 'hover:bg-white/5 border-white/10 text-slate-400'
+                isLight ? 'hover:bg-white/20 border-white/40 text-slate-900' : 'hover:bg-white/5 border-white/10 text-slate-400'
               }`}
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
@@ -200,7 +203,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
                 <div 
                   onClick={() => fileInputRef.current?.click()}
                   className={`w-28 h-28 rounded-full border-2 border-dashed flex items-center justify-center cursor-pointer transition-all overflow-hidden relative group shadow-2xl ${
-                    isLight ? 'bg-slate-50 border-slate-300 hover:border-blue-400' : 'bg-black/20 border-white/10 hover:border-blue-500'
+                    isLight ? 'bg-white/10 border-white/40 hover:border-blue-400' : 'bg-black/20 border-white/10 hover:border-blue-500'
                   }`}
                 >
                   {previewUrl ? (
