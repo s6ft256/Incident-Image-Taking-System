@@ -228,35 +228,35 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate }) => {
         </div>
       )}
 
-      {/* MENU CARD SECTION - Increased heights and sizing */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4">
+      {/* MENU CARD SECTION - Reduced heights for more compact UI */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 pt-2">
           <button
             onClick={() => onNavigate('create')}
-            className="group relative h-36 sm:h-48 flex items-center bg-white/[0.04] backdrop-blur-xl border border-white/10 rounded-[2.5rem] overflow-hidden hover:bg-white/[0.08] transition-all hover:border-blue-500/30 active:scale-[0.98] duration-300 px-8"
+            className="group relative h-24 sm:h-28 flex items-center bg-white/[0.04] backdrop-blur-xl border border-white/10 rounded-2xl sm:rounded-[2rem] overflow-hidden hover:bg-white/[0.08] transition-all hover:border-blue-500/30 active:scale-[0.98] duration-300 px-6 sm:px-8"
           >
-            <div className="w-16 h-16 sm:w-24 sm:h-24 bg-blue-600 rounded-3xl flex items-center justify-center shadow-2xl group-hover:scale-105 transition-transform shrink-0 border border-blue-400/30">
-               <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 sm:h-12 sm:w-12 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-blue-600 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-2xl group-hover:scale-105 transition-transform shrink-0 border border-blue-400/30">
+               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 sm:h-8 sm:w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path d="M12 4v16m8-8H4" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" />
                </svg>
             </div>
-            <div className="flex-1 text-left ml-6 sm:ml-8">
-               <h3 className="text-xl sm:text-3xl font-black text-white tracking-tight leading-tight">Report Incident</h3>
-               <p className="text-[10px] sm:text-xs font-black text-blue-400 uppercase tracking-[0.2em] mt-2 opacity-80">Capture New Event</p>
+            <div className="flex-1 text-left ml-4 sm:ml-6">
+               <h3 className="text-lg sm:text-xl font-black text-white tracking-tight leading-tight">Report Incident</h3>
+               <p className="text-[8px] sm:text-[9px] font-black text-blue-400 uppercase tracking-[0.2em] mt-1 opacity-80">Capture New Event</p>
             </div>
           </button>
 
           <button
             onClick={() => onNavigate('recent')}
-            className="group relative h-36 sm:h-48 flex items-center bg-white/[0.04] backdrop-blur-xl border border-white/10 rounded-[2.5rem] overflow-hidden hover:bg-white/[0.08] transition-all active:scale-[0.98] duration-300 px-8"
+            className="group relative h-24 sm:h-28 flex items-center bg-white/[0.04] backdrop-blur-xl border border-white/10 rounded-2xl sm:rounded-[2rem] overflow-hidden hover:bg-white/[0.08] transition-all active:scale-[0.98] duration-300 px-6 sm:px-8"
           >
-            <div className="w-16 h-16 sm:w-24 sm:h-24 bg-slate-800 rounded-3xl flex items-center justify-center shadow-2xl group-hover:scale-105 transition-transform shrink-0 border border-white/10">
-               <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 sm:h-12 sm:w-12 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-slate-800 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-2xl group-hover:scale-105 transition-transform shrink-0 border border-white/10">
+               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 sm:h-8 sm:w-8 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 002-2h2a2 2 0 002 2" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" />
                </svg>
             </div>
-            <div className="flex-1 text-left ml-6 sm:ml-8">
-               <h3 className="text-xl sm:text-3xl font-black text-white tracking-tight leading-tight">Recent Logs</h3>
-               <p className="text-[10px] sm:text-xs font-black text-slate-500 uppercase tracking-[0.2em] mt-2 opacity-80">Review Evidence</p>
+            <div className="flex-1 text-left ml-4 sm:ml-6">
+               <h3 className="text-lg sm:text-xl font-black text-white tracking-tight leading-tight">Recent Logs</h3>
+               <p className="text-[8px] sm:text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] mt-1 opacity-80">Review Evidence</p>
             </div>
           </button>
       </div>
