@@ -6,48 +6,29 @@
     <title>HSE Guardian</title>
     <link rel="icon" href="https://static.vecteezy.com/system/resources/previews/004/734/033/non_2x/hse-icon-with-a-shield-vector.jpg" />
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+            },
+          },
+        },
+      }
+    </script>
     <style>
       body {
         font-family: 'Inter', sans-serif;
-        transition: background-color 0.3s ease, color 0.3s ease;
       }
-      
-      /* Light mode specific overrides */
-      .light-mode body {
-        background-color: #f8fafc !important; /* slate-50 */
-        color: #0f172a !important; /* slate-900 */
+      .scrollbar-hide::-webkit-scrollbar {
+        display: none;
       }
-      
-      .light-mode .card-bg {
-        background-color: rgba(255, 255, 255, 0.8) !important;
-        border-color: rgba(0, 0, 0, 0.05) !important;
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1) !important;
-      }
-      
-      .light-mode .theme-text-primary {
-        color: #1e293b !important; /* slate-800 */
-      }
-      
-      .light-mode .main-app-container {
-        background-color: #f1f5f9 !important; /* slate-100 */
-      }
-      
-      .light-mode header {
-        background-color: rgba(255, 255, 255, 0.8) !important;
-        border-bottom-color: rgba(0, 0, 0, 0.05) !important;
-      }
-      
-      .light-mode h1, .light-mode h2, .light-mode h3 {
-        color: #0f172a !important;
-      }
-
-      .light-mode .text-slate-300, .light-mode .text-slate-400 {
-        color: #475569 !important;
-      }
-
-      .light-mode .bg-slate-800 {
-        background-color: #e2e8f0 !important; /* slate-200 */
+      .scrollbar-hide {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
       }
     </style>
   <script type="importmap">
@@ -65,7 +46,7 @@
 }
 </script>
 </head>
-  <body class="bg-slate-900 text-slate-100 antialiased dark">
+  <body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 antialiased transition-colors duration-300">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>
