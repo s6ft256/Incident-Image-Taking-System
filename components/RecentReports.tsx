@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { FetchedIncident, UploadedImage } from '../types';
 import { getRecentReports, updateIncidentAction } from '../services/airtableService';
@@ -24,6 +25,8 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack }) 
 
   // State to track text input for each report
   const [actionInputs, setActionInputs] = useState<Record<string, string>>({});
+  const [closedByInputs, setClosedByInputs] = useState<Record<string, string>>({});
+  
   // State to track closing images for each report [ReportID -> Images[]]
   const [closingImages, setClosingImages] = useState<Record<string, UploadedImage[]>>({});
   
@@ -54,6 +57,13 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack }) 
 
   const handleActionInputChange = (id: string, value: string) => {
     setActionInputs(prev => ({ ...prev, [id]: value }));
+    if (resolveErrors[id]) {
+        setResolveErrors(prev => { const n = {...prev}; delete n[id]; return n; });
+    }
+  };
+
+  const handleClosedByInputChange = (id: string, value: string) => {
+    setClosedByInputs(prev => ({ ...prev, [id]: value }));
     if (resolveErrors[id]) {
         setResolveErrors(prev => { const n = {...prev}; delete n[id]; return n; });
     }
@@ -143,7 +153,12 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack }) 
     setResolveErrors(prev => { const n = {...prev}; delete n[id]; return n; });
 
     const actionTaken = actionInputs[id];
-    if (!actionTaken || !actionTaken.trim()) return;
+    const closedBy = closedByInputs[id];
+    
+    if (!actionTaken || !actionTaken.trim() || !closedBy || !closedBy.trim()) {
+        setResolveErrors(prev => ({...prev, [id]: "All fields (Closed By and Action Taken) are required."}));
+        return;
+    }
 
     const currentImages = closingImages[id] || [];
     
@@ -168,7 +183,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack }) 
           filename: img.file.name
         }));
 
-      await updateIncidentAction(id, actionTaken, attachmentData, { baseId });
+      await updateIncidentAction(id, actionTaken, closedBy, attachmentData, { baseId });
       
       setReports(prev => prev.map(report => {
         if (report.id === id) {
@@ -177,6 +192,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack }) 
             fields: {
               ...report.fields,
               "Action taken": actionTaken,
+              "Closed by": closedBy,
               "Closed observations": attachmentData.map(a => ({ url: a.url, filename: a.filename }))
             }
           };
@@ -185,6 +201,11 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack }) 
       }));
       
       setActionInputs(prev => {
+        const newState = { ...prev };
+        delete newState[id];
+        return newState;
+      });
+      setClosedByInputs(prev => {
         const newState = { ...prev };
         delete newState[id];
         return newState;
@@ -288,13 +309,12 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack }) 
         <>
           {activeTab === 'closed' && !isAdminUnlocked ? (
             <div className="relative min-h-[450px] flex flex-col items-center justify-center p-8 bg-slate-900 rounded-[2.5rem] border border-slate-700 overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-300">
-              {/* CLEAR BACKGROUND LOGO - Opacity set to 100% for maximum clarity */}
+              {/* CLEAR BACKGROUND LOGO */}
               <img 
                 src={LOGO_URL} 
                 className="absolute inset-0 w-full h-full object-contain z-0 opacity-100 p-8"
                 alt="TGC Logo"
               />
-              {/* Subtle dark overlay for text contrast while keeping image visible */}
               <div className="absolute inset-0 bg-slate-950/40 z-10 backdrop-blur-[0.5px]"></div>
               
               <div className="relative z-20 flex flex-col items-center w-full max-w-xs text-center">
@@ -305,7 +325,6 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack }) 
                   </svg>
                 </div>
                 
-                {/* Updated Text Labels */}
                 <h3 className="text-4xl font-black text-white mb-2 tracking-tight drop-shadow-[0_2px_10px_rgba(0,0,0,1)]">Admin.</h3>
                 <p className="text-white text-[11px] font-black uppercase tracking-[0.4em] mb-10 bg-black/70 px-6 py-2 rounded-full border border-white/10 shadow-2xl">Restricted access</p>
                 
@@ -387,7 +406,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack }) 
 
                     {isExpanded && (
                        <div className="border-t border-slate-700/50 bg-slate-900/30 p-4 sm:p-6 animate-in slide-in-from-top-2 duration-200">
-                          <div className="flex flex-wrap gap-4 mb-4 text-xs text-slate-400 border-b border-slate-700/50 pb-3">
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4 text-xs text-slate-400 border-b border-slate-700/50 pb-3">
                              <div>
                                 <span className="block font-bold text-slate-500 uppercase">Reporter</span>
                                 <span className="text-slate-300">{report.fields["Name"]}</span>
@@ -396,6 +415,12 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack }) 
                                 <span className="block font-bold text-slate-500 uppercase">Role</span>
                                 <span className="text-slate-300">{report.fields["Role / Position"]}</span>
                              </div>
+                             {activeTab === 'closed' && (
+                               <div>
+                                  <span className="block font-bold text-slate-500 uppercase">Closed By</span>
+                                  <span className="text-emerald-400 font-bold">{report.fields["Closed by"] || 'System'}</span>
+                               </div>
+                             )}
                              <div>
                                 <span className="block font-bold text-slate-500 uppercase">Exact Time</span>
                                 <span className="text-slate-300 font-mono">{formatDateDetail(report.createdTime)}</span>
@@ -430,13 +455,28 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack }) 
                              <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
                                 <h4 className="text-xs font-bold text-blue-400 uppercase mb-3">Resolve Incident</h4>
                                 
-                                <textarea 
-                                  value={actionInputs[report.id] || ''}
-                                  onChange={(e) => handleActionInputChange(report.id, e.target.value)}
-                                  placeholder="Describe the corrective action taken..."
-                                  rows={3}
-                                  className="w-full rounded bg-slate-900 border border-slate-600 text-slate-200 text-sm p-3 mb-4 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
-                                />
+                                <div className="grid grid-cols-1 gap-4 mb-4">
+                                  <div>
+                                    <label className="text-[10px] text-slate-500 font-bold uppercase mb-1 block">Closed By</label>
+                                    <input 
+                                      type="text"
+                                      value={closedByInputs[report.id] || ''}
+                                      onChange={(e) => handleClosedByInputChange(report.id, e.target.value)}
+                                      placeholder="Full Name / ID"
+                                      className="w-full rounded bg-slate-900 border border-slate-600 text-slate-200 text-sm p-3 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="text-[10px] text-slate-500 font-bold uppercase mb-1 block">Action Taken</label>
+                                    <textarea 
+                                      value={actionInputs[report.id] || ''}
+                                      onChange={(e) => handleActionInputChange(report.id, e.target.value)}
+                                      placeholder="Describe the corrective action taken..."
+                                      rows={3}
+                                      className="w-full rounded bg-slate-900 border border-slate-600 text-slate-200 text-sm p-3 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
+                                    />
+                                  </div>
+                                </div>
 
                                 <div className="mb-4">
                                     <div className="flex justify-between items-center mb-2">
@@ -479,7 +519,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack }) 
 
                                 <button 
                                   onClick={() => handleResolve(report.id)}
-                                  disabled={!actionInputs[report.id]?.trim() || submittingIds.has(report.id)}
+                                  disabled={!actionInputs[report.id]?.trim() || !closedByInputs[report.id]?.trim() || submittingIds.has(report.id)}
                                   className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 text-white text-sm font-bold py-3 rounded-lg transition-colors flex justify-center items-center gap-2"
                                 >
                                   {submittingIds.has(report.id) ? (

@@ -1,3 +1,4 @@
+
 import { IncidentForm, IncidentRecord, FetchedIncident } from '../types';
 import { AIRTABLE_CONFIG } from '../constants';
 
@@ -127,6 +128,7 @@ export const submitIncidentReport = async (
 export const updateIncidentAction = async (
   recordId: string,
   actionTaken: string,
+  closedBy: string,
   closingImages: AttachmentData[] = [],
   configOverride?: AirtableConfigOverride
 ): Promise<boolean> => {
@@ -138,7 +140,11 @@ export const updateIncidentAction = async (
 
   const url = `https://api.airtable.com/v0/${BASE_ID}/${encodeURIComponent(TABLE_NAME)}/${recordId}`;
 
-  const fieldsToUpdate: any = { "Action taken": actionTaken };
+  const fieldsToUpdate: any = { 
+    "Action taken": actionTaken,
+    "Closed by": closedBy 
+  };
+  
   if (closingImages.length > 0) {
     fieldsToUpdate["Closed observations"] = closingImages.map(img => ({
       url: img.url,

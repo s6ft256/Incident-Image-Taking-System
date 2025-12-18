@@ -1,3 +1,10 @@
+
+export interface UserProfile {
+  name: string;
+  role: string;
+  profileImageUrl?: string;
+}
+
 export interface IncidentForm {
   name: string;
   role: string;
@@ -15,6 +22,7 @@ export interface IncidentRecord {
     "Incident Type"?: string;
     "Observation": string;
     "Action taken": string;
+    "Closed by"?: string;
     "Open observations"?: Array<{ 
       url: string; 
       filename?: string; 
@@ -36,6 +44,7 @@ export interface FetchedIncident {
     "Incident Type"?: string;
     "Observation": string;
     "Action taken": string;
+    "Closed by"?: string;
     "Open observations"?: Array<{ 
       url: string; 
       filename: string;

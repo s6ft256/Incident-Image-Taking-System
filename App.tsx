@@ -1,11 +1,17 @@
+
 import React, { useState, useEffect } from 'react';
 import { AIRTABLE_CONFIG, SAFETY_QUOTES } from './constants';
 import { CreateReportForm } from './components/CreateReportForm';
 import { RecentReports } from './components/RecentReports';
 import { Dashboard } from './components/Dashboard';
+import { UserProfile } from './components/UserProfile';
 import { syncOfflineReports } from './services/syncService';
+import { UserProfile as UserProfileType } from './types';
+import { HSEAssistant } from './components/HSEAssistant';
 
-type ViewState = 'dashboard' | 'create' | 'recent';
+type ViewState = 'dashboard' | 'create' | 'recent' | 'profile';
+
+const PROFILE_KEY = 'hse_guardian_profile';
 
 function App() {
   const [view, setView] = useState<ViewState>('dashboard');
@@ -13,11 +19,26 @@ function App() {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [syncCount, setSyncCount] = useState(0);
   const [quote, setQuote] = useState('');
+  const [userProfile, setUserProfile] = useState<UserProfileType | null>(null);
   
   const needsConfig = baseId.includes('YourBaseId') || !baseId;
 
+  const loadProfile = () => {
+    const saved = localStorage.getItem(PROFILE_KEY);
+    if (saved) {
+      try {
+        setUserProfile(JSON.parse(saved));
+      } catch (e) {
+        console.error("Failed to load profile", e);
+      }
+    } else {
+      setUserProfile(null);
+    }
+  };
+
   useEffect(() => {
     setQuote(SAFETY_QUOTES[Math.floor(Math.random() * SAFETY_QUOTES.length)]);
+    loadProfile();
 
     const handleStatus = () => {
       const online = navigator.onLine;
@@ -27,8 +48,11 @@ function App() {
       }
     };
 
+    const handleProfileUpdate = () => loadProfile();
+
     window.addEventListener('online', handleStatus);
     window.addEventListener('offline', handleStatus);
+    window.addEventListener('profileUpdated', handleProfileUpdate);
     
     if (navigator.onLine) {
         attemptSync();
@@ -37,6 +61,7 @@ function App() {
     return () => {
       window.removeEventListener('online', handleStatus);
       window.removeEventListener('offline', handleStatus);
+      window.removeEventListener('profileUpdated', handleProfileUpdate);
     };
   }, [baseId]);
 
@@ -58,6 +83,8 @@ function App() {
         return <CreateReportForm baseId={baseId} onBack={() => setView('dashboard')} />;
       case 'recent':
         return <RecentReports baseId={baseId} onBack={() => setView('dashboard')} />;
+      case 'profile':
+        return <UserProfile onBack={() => setView('dashboard')} />;
       case 'dashboard':
       default:
         return <Dashboard baseId={baseId} onNavigate={(target) => setView(target)} />;
@@ -103,11 +130,11 @@ function App() {
                <div className="w-32 h-[3px] bg-gradient-to-r from-transparent via-blue-500 to-transparent mt-4 shadow-[0_0_12px_rgba(59,130,246,0.6)] rounded-full"></div>
              </div>
              
-             <div className="flex-1 flex justify-end">
+             <div className="flex-1 flex justify-end items-center gap-4">
                {view !== 'dashboard' && (
                   <button 
                     onClick={() => setView('dashboard')}
-                    className="group text-[10px] font-black text-white uppercase tracking-widest bg-blue-600/10 hover:bg-blue-600 backdrop-blur-md rounded-full px-6 py-3 flex items-center gap-2 transition-all border border-blue-500/30 hover:border-blue-400 shadow-lg active:scale-95"
+                    className="group text-[10px] font-black text-white uppercase tracking-widest bg-blue-600/10 hover:bg-blue-600 backdrop-blur-md rounded-full px-6 py-3 flex items-center gap-2 transition-all border border-blue-500/30 hover:border-blue-400 shadow-lg active:scale-95 hidden sm:flex"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 group-hover:scale-110 transition-transform" viewBox="0 0 20 20" fill="currentColor">
                       <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
@@ -115,6 +142,21 @@ function App() {
                     DASHBOARD
                   </button>
                )}
+               <button 
+                onClick={() => setView('profile')}
+                className={`w-12 h-12 rounded-full border-2 transition-all duration-300 overflow-hidden flex items-center justify-center ${view === 'profile' ? 'border-blue-400 ring-4 ring-blue-500/20 shadow-[0_0_15px_rgba(59,130,246,0.5)]' : 'border-white/10 hover:border-white/30 bg-white/5'}`}
+                title="Profile Settings"
+               >
+                  {userProfile?.profileImageUrl ? (
+                    <img src={userProfile.profileImageUrl} alt="Profile" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="flex items-center justify-center w-full h-full text-slate-400">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                    </div>
+                  )}
+               </button>
              </div>
           </div>
           
@@ -164,6 +206,7 @@ function App() {
            </div>
         </footer>
       </div>
+      <HSEAssistant />
     </div>
   );
 }

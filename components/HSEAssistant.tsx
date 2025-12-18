@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { GoogleGenAI, Chat, GenerateContentResponse } from "@google/genai";
 
@@ -23,16 +24,12 @@ export const HSEAssistant: React.FC = () => {
 
   const initializeChat = () => {
     if (!chatSessionRef.current) {
-      const apiKey = process.env.API_KEY;
-      
-      if (!apiKey) {
-        throw new Error("API Key is missing. Please configure VITE_GOOGLE_API_KEY in your environment variables.");
-      }
-
       try {
-        const ai = new GoogleGenAI({ apiKey });
+        // Fix: Use process.env.API_KEY directly as per guidelines
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         chatSessionRef.current = ai.chats.create({
-          model: 'gemini-2.5-flash',
+          // Fix: Use gemini-3-flash-preview for general text tasks
+          model: 'gemini-3-flash-preview',
           config: {
             systemInstruction: `You are an expert Technical Authority and Assistant specialized in Health, Safety, and Environment (HSE), with a comprehensive focus on **HSECES (Health, Safety, and Environmental Critical Equipment and Systems)**.
 
@@ -86,6 +83,7 @@ You must STRICTLY focus on HSE and HSECES topics. If a user asks about unrelated
 
       for await (const chunk of result) {
         const c = chunk as GenerateContentResponse;
+        // Fix: Use .text property as per guidelines (no parentheses)
         const text = c.text || '';
         fullResponse += text;
         

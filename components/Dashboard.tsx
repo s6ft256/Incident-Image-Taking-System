@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { getAllReports } from '../services/airtableService';
 import { FetchedIncident } from '../types';
@@ -17,7 +18,7 @@ import {
 
 interface DashboardProps {
   baseId: string;
-  onNavigate: (view: 'create' | 'recent') => void;
+  onNavigate: (view: 'create' | 'recent' | 'profile') => void;
 }
 
 // Severity mapping for criticality calculation
@@ -230,43 +231,43 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate }) => {
       )}
 
       {/* MENU BUTTONS */}
-      <div className="flex flex-col gap-6 pt-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6">
           <button
             onClick={() => onNavigate('create')}
-            className="group relative w-full h-40 flex items-center bg-blue-600/10 backdrop-blur-3xl border border-white/10 rounded-[2.5rem] overflow-hidden hover:bg-blue-600/20 transition-all hover:border-blue-500/40 active:scale-[0.98] duration-300 px-8"
+            className="group relative h-28 flex items-center bg-white/[0.05] backdrop-blur-2xl border border-white/10 rounded-[2rem] overflow-hidden hover:bg-white/[0.1] transition-all hover:border-blue-500/40 active:scale-[0.98] duration-300 px-6"
           >
-            <div className="w-24 h-24 bg-blue-600 rounded-[1.8rem] flex items-center justify-center shadow-[0_15px_30px_rgba(37,99,235,0.3)] group-hover:scale-105 transition-transform shrink-0">
-               <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path d="M12 4v16m8-8H4" strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round" />
+            <div className="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center shadow-[0_0_20px_rgba(37,99,235,0.4)] group-hover:scale-105 transition-transform shrink-0">
+               <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path d="M12 4v16m8-8H4" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" />
                </svg>
             </div>
-            <div className="flex-1 text-left ml-10">
-               <h3 className="text-4xl font-black text-white tracking-tight drop-shadow-lg">Report Incident</h3>
-               <p className="text-[11px] font-black text-blue-400 uppercase tracking-[0.5em] mt-2 opacity-80">Start New Capture</p>
+            <div className="flex-1 text-left ml-5">
+               <h3 className="text-xl font-bold text-white tracking-tight">Report Incident</h3>
+               <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mt-0.5 opacity-80">Start New Capture</p>
             </div>
-            <div className="text-blue-500/50 group-hover:text-blue-400 group-hover:translate-x-3 transition-all duration-300">
-               <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path d="M9 5l7 7-7 7" strokeWidth={4} strokeLinecap="round" strokeLinejoin="round" />
+            <div className="text-blue-500/50 group-hover:text-blue-400 transition-colors">
+               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
                </svg>
             </div>
           </button>
 
           <button
             onClick={() => onNavigate('recent')}
-            className="group relative w-full h-40 flex items-center bg-slate-900/40 backdrop-blur-3xl border border-white/5 rounded-[2.5rem] overflow-hidden hover:bg-slate-900/60 transition-all hover:border-white/20 active:scale-[0.98] duration-300 px-8"
+            className="group relative h-28 flex items-center bg-white/[0.05] backdrop-blur-2xl border border-white/10 rounded-[2rem] overflow-hidden hover:bg-white/[0.1] transition-all hover:border-white/20 active:scale-[0.98] duration-300 px-6"
           >
-            <div className="w-24 h-24 bg-slate-800 rounded-[1.8rem] flex items-center justify-center shadow-2xl group-hover:scale-105 transition-transform shrink-0 border border-white/5">
-               <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round" />
+            <div className="w-14 h-14 bg-slate-800 rounded-2xl flex items-center justify-center shadow-xl group-hover:scale-105 transition-transform shrink-0 border border-white/5">
+               <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" />
                </svg>
             </div>
-            <div className="flex-1 text-left ml-10">
-               <h3 className="text-4xl font-black text-white tracking-tight drop-shadow-lg">Recent Logs</h3>
-               <p className="text-[11px] font-black text-slate-500 uppercase tracking-[0.5em] mt-2 opacity-80">View Historical Evidence</p>
+            <div className="flex-1 text-left ml-5">
+               <h3 className="text-xl font-bold text-white tracking-tight">Recent Logs</h3>
+               <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-0.5 opacity-80">View Historical Evidence</p>
             </div>
-            <div className="text-slate-700 group-hover:text-slate-500 group-hover:translate-x-3 transition-all duration-300">
-               <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path d="M9 5l7 7-7 7" strokeWidth={4} strokeLinecap="round" strokeLinejoin="round" />
+            <div className="text-slate-600 group-hover:text-slate-400 transition-colors">
+               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
                </svg>
             </div>
           </button>

@@ -1,7 +1,8 @@
+
 import React, { useState, useEffect } from 'react';
 import { InputField } from './InputField';
 import { ImageGrid } from './ImageGrid';
-import { IncidentForm, UploadedImage } from '../types';
+import { IncidentForm, UploadedImage, UserProfile } from '../types';
 import { MIN_IMAGES, INCIDENT_TYPES, ROLES, SITES } from '../constants';
 import { submitIncidentReport } from '../services/airtableService';
 import { uploadImageToStorage } from '../services/storageService';
@@ -12,6 +13,8 @@ interface CreateReportFormProps {
   baseId: string;
   onBack: () => void;
 }
+
+const PROFILE_KEY = 'hse_guardian_profile';
 
 export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBack }) => {
   const [formData, setFormData] = useState<IncidentForm>({
@@ -30,6 +33,21 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
   const [isOnline, setIsOnline] = useState(navigator.onLine);
 
   useEffect(() => {
+    // Pre-fill from profile if available
+    const savedProfile = localStorage.getItem(PROFILE_KEY);
+    if (savedProfile) {
+      try {
+        const profile: UserProfile = JSON.parse(savedProfile);
+        setFormData(prev => ({
+          ...prev,
+          name: profile.name || prev.name,
+          role: profile.role || prev.role
+        }));
+      } catch (e) {
+        console.error("Failed to load profile for pre-fill", e);
+      }
+    }
+
     const handleStatus = () => setIsOnline(navigator.onLine);
     window.addEventListener('online', handleStatus);
     window.addEventListener('offline', handleStatus);
@@ -38,7 +56,7 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
       window.removeEventListener('offline', handleStatus);
       images.forEach(img => URL.revokeObjectURL(img.previewUrl));
     };
-  }, [images]);
+  }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { id, value } = e.target;
@@ -62,6 +80,7 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
 
   const handleRemoveImage = (id: string) => {
     setImages(prev => {
+      // Fix: Corrected the predicate for find to check against the element property
       const imageToRemove = prev.find(img => img.id === id);
       if (imageToRemove) {
         URL.revokeObjectURL(imageToRemove.previewUrl);
@@ -193,7 +212,7 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
           <h2 className="text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-white/5 pb-4">Observer Identification</h2>
           <InputField id="name" label="Full Name" value={formData.name} onChange={handleInputChange} required placeholder="Your Name" />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <InputField id="role" label="Current Role" value={formData.role} onChange={handleInputChange} required list={ROLES} />
+            <InputField id="role" label="Current Role" value={formData.role} onChange={handleInputChange} required list={ROLES} type="select" options={ROLES} />
             <InputField id="site" label="Work Location" value={formData.site} onChange={handleInputChange} required list={SITES} />
           </div>
           <InputField id="category" label="Incident Type" value={formData.category} onChange={handleInputChange} list={INCIDENT_TYPES} required />
