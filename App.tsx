@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { AIRTABLE_CONFIG, SAFETY_QUOTES } from './constants';
 import { CreateReportForm } from './components/CreateReportForm';
@@ -120,52 +121,52 @@ function App() {
 
       <div className="relative z-10 flex flex-col min-h-screen">
         <header className={`sticky top-0 z-40 backdrop-blur-2xl border-b transition-all duration-300 ${appTheme === 'dark' ? 'bg-[#020617]/90 border-white/5 shadow-[0_4px_30px_rgba(0,0,0,0.5)]' : 'bg-white/80 border-slate-200 shadow-md'}`}>
-          <div className="max-w-7xl mx-auto px-4 py-2 sm:py-3 flex items-center justify-between gap-2 sm:gap-4">
+          <div className="max-w-7xl mx-auto px-6 py-6 sm:py-10 flex items-center justify-between gap-2 sm:gap-6">
              <div className="flex-1 flex justify-start">
                <div className="flex flex-col items-center">
                  <img 
                    src="https://www.multiply-marketing.com/trojan-wp/wp-content/uploads/2020/08/tgc-logo-300x300.png" 
                    alt="TGC Logo" 
-                   className="h-10 w-auto sm:h-12 object-contain drop-shadow-[0_0_10px_rgba(59,130,246,0.3)] hover:scale-105 transition-all cursor-pointer"
+                   className="h-12 w-auto sm:h-20 object-contain drop-shadow-[0_0_15px_rgba(59,130,246,0.4)] hover:scale-110 transition-all cursor-pointer"
                    onClick={() => setView('dashboard')}
                  />
-                 <span className={`hidden lg:block text-[6px] font-black uppercase tracking-widest mt-0.5 opacity-80 ${appTheme === 'dark' ? 'text-amber-500' : 'text-slate-600'}`}>General Contracting</span>
+                 <span className={`hidden lg:block text-[8px] font-black uppercase tracking-widest mt-1 opacity-80 ${appTheme === 'dark' ? 'text-amber-500' : 'text-slate-600'}`}>General Contracting</span>
                </div>
              </div>
 
-             <div className="flex-[3] sm:flex-[2] flex flex-col items-center">
+             <div className="flex-[3] sm:flex-[4] flex flex-col items-center">
                <div className="flex flex-col items-center text-center">
                  <h1 
-                   className="text-xl sm:text-2xl font-black tracking-tight drop-shadow-xl cursor-pointer transition-transform active:scale-95" 
+                   className="text-2xl sm:text-5xl font-black tracking-tighter drop-shadow-2xl cursor-pointer transition-transform active:scale-95" 
                    onClick={() => setView('dashboard')}
                  >
                    <span className={appTheme === 'dark' ? 'text-white' : 'text-slate-900'}>HSE</span> <span className="text-blue-500">Guardian</span>
                  </h1>
-                 <p className={`text-[7px] sm:text-[8px] font-bold uppercase tracking-[0.2em] sm:tracking-[0.3em] mt-0.5 drop-shadow-md ${appTheme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
+                 <p className={`text-[9px] sm:text-sm font-bold uppercase tracking-[0.3em] sm:tracking-[0.5em] mt-2 drop-shadow-md ${appTheme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
                    Safety Acquisition System
                  </p>
                </div>
              </div>
              
-             <div className="flex-1 flex justify-end items-center gap-2 sm:gap-3 relative">
+             <div className="flex-1 flex justify-end items-center gap-3 sm:gap-6 relative">
                {view !== 'dashboard' && (
                   <button 
                     onClick={() => setView('dashboard')}
-                    className={`group text-[8px] font-black uppercase tracking-widest backdrop-blur-md rounded-full px-3 py-1.5 flex items-center gap-2 transition-all border shadow-lg active:scale-95 hidden md:flex ${appTheme === 'dark' ? 'text-white bg-blue-600/10 border-blue-500/30 hover:bg-blue-600 hover:border-blue-400' : 'text-blue-600 bg-blue-50 border-blue-200 hover:bg-blue-100'}`}
+                    className={`group text-[10px] font-black uppercase tracking-widest backdrop-blur-md rounded-full px-5 py-2.5 flex items-center gap-2 transition-all border shadow-lg active:scale-95 hidden lg:flex ${appTheme === 'dark' ? 'text-white bg-blue-600/10 border-blue-500/30 hover:bg-blue-600 hover:border-blue-400' : 'text-blue-600 bg-blue-50 border-blue-200 hover:bg-blue-100'}`}
                   >
                     DASHBOARD
                   </button>
                )}
                <button 
                 onClick={() => setShowProfileCard(!showProfileCard)}
-                className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 transition-all duration-300 overflow-hidden flex items-center justify-center ${showProfileCard ? 'border-blue-400 ring-2 ring-blue-500/20 shadow-lg' : 'border-white/10 hover:border-white/30 bg-white/5'}`}
+                className={`w-10 h-10 sm:w-16 sm:h-16 rounded-full border-2 transition-all duration-300 overflow-hidden flex items-center justify-center ${showProfileCard ? 'border-blue-400 ring-4 ring-blue-500/20 shadow-2xl' : 'border-white/10 hover:border-white/30 bg-white/5 shadow-lg'}`}
                 title="Profile Settings"
                >
                   {userProfile?.profileImageUrl ? (
                     <img src={userProfile.profileImageUrl} alt="Profile" className="w-full h-full object-cover" />
                   ) : (
                     <div className="flex items-center justify-center w-full h-full text-slate-400">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 sm:h-8 sm:w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                       </svg>
                     </div>
@@ -174,7 +175,7 @@ function App() {
 
                {/* COMPACT PROFILE OVERLAY */}
                {showProfileCard && (
-                 <div className="absolute top-12 right-0 w-72 sm:w-80 z-50 animate-in fade-in slide-in-from-top-2 duration-300">
+                 <div className="absolute top-16 sm:top-24 right-0 w-72 sm:w-80 z-50 animate-in fade-in slide-in-from-top-4 duration-300">
                     <UserProfile onBack={() => setShowProfileCard(false)} />
                  </div>
                )}
@@ -182,12 +183,12 @@ function App() {
           </div>
           
           {!isOnline && (
-            <div className="bg-amber-600 text-white text-[8px] font-black uppercase tracking-widest text-center py-1">
+            <div className="bg-amber-600 text-white text-[10px] font-black uppercase tracking-widest text-center py-1.5 shadow-inner">
                 Offline Mode • Queued
             </div>
           )}
           {syncCount > 0 && isOnline && (
-            <div className="bg-emerald-600 text-white text-[8px] font-black uppercase tracking-widest text-center py-1 animate-pulse">
+            <div className="bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest text-center py-1.5 animate-pulse shadow-inner">
                 Synced {syncCount} reports
             </div>
           )}
@@ -196,41 +197,41 @@ function App() {
         {/* CLICK OVERLAY TO CLOSE PROFILE CARD */}
         {showProfileCard && (
           <div 
-            className="fixed inset-0 z-30 bg-transparent" 
+            className="fixed inset-0 z-30 bg-black/10 backdrop-blur-[1px]" 
             onClick={() => setShowProfileCard(false)}
           />
         )}
 
-        <main className="max-w-6xl mx-auto px-4 pt-4 sm:pt-6 flex-grow w-full overflow-y-auto">
+        <main className="max-w-7xl mx-auto px-4 pt-6 sm:pt-10 flex-grow w-full overflow-y-auto">
           {needsConfig && (
-            <div className={`mb-6 backdrop-blur-2xl border p-4 sm:p-6 rounded-2xl shadow-xl ${appTheme === 'dark' ? 'bg-amber-500/10 border-amber-500/30' : 'bg-amber-50 border-amber-200'}`}>
-              <h3 className="text-[10px] font-black text-amber-500 uppercase tracking-widest mb-3">Configuration Required</h3>
+            <div className={`mb-10 backdrop-blur-2xl border p-6 sm:p-10 rounded-3xl shadow-2xl ${appTheme === 'dark' ? 'bg-amber-500/10 border-amber-500/30' : 'bg-amber-50 border-amber-200'}`}>
+              <h3 className="text-xs font-black text-amber-500 uppercase tracking-widest mb-4">Configuration Required</h3>
               <input 
                 type="text" 
                 value={baseId} 
                 onChange={(e) => setBaseId(e.target.value)}
                 placeholder="Airtable Base ID"
-                className={`w-full rounded-xl border px-4 py-3 outline-none transition-all font-mono text-xs ${appTheme === 'dark' ? 'border-white/10 bg-black/60 text-white focus:border-amber-500' : 'border-slate-200 bg-white text-slate-900 focus:border-amber-500'}`}
+                className={`w-full rounded-2xl border px-6 py-4 outline-none transition-all font-mono text-sm ${appTheme === 'dark' ? 'border-white/10 bg-black/60 text-white focus:border-amber-500 shadow-inner' : 'border-slate-200 bg-white text-slate-900 focus:border-amber-500 shadow-md'}`}
               />
             </div>
           )}
 
-          <div className="pb-20">
+          <div className="pb-24">
             {renderContent()}
           </div>
         </main>
 
-        <footer className="py-6 px-4 max-w-6xl mx-auto w-full flex flex-col items-center gap-6 mt-auto">
+        <footer className="py-10 px-4 max-w-7xl mx-auto w-full flex flex-col items-center gap-8 mt-auto">
            {quote && (
-             <div className={`w-full max-w-xl text-center px-6 py-4 rounded-3xl border-2 transition-all duration-700 ease-in-out backdrop-blur-xl relative overflow-hidden group animate-in fade-in zoom-in-95 ${appTheme === 'dark' ? 'bg-white/5 border-red-500/40 shadow-[0_0_20px_rgba(239,68,68,0.15)] hover:shadow-[0_0_35px_rgba(239,68,68,0.4)] hover:border-red-500' : 'bg-white border-red-400/40 shadow-lg hover:border-red-500'}`}>
-                <div className="absolute inset-0 bg-gradient-to-r from-red-500/5 via-transparent to-red-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none"></div>
-                <p className={`italic font-medium text-xs sm:text-sm leading-relaxed transition-colors duration-500 ${appTheme === 'dark' ? 'text-slate-400 group-hover:text-red-200' : 'text-slate-500 group-hover:text-red-700'}`}>
+             <div className={`w-full max-w-2xl text-center px-10 py-6 rounded-[3rem] border-2 transition-all duration-700 ease-in-out backdrop-blur-xl relative overflow-hidden group animate-in fade-in zoom-in-95 ${appTheme === 'dark' ? 'bg-white/5 border-red-500/40 shadow-[0_0_30px_rgba(239,68,68,0.2)] hover:shadow-[0_0_50px_rgba(239,68,68,0.5)] hover:border-red-500' : 'bg-white border-red-400/40 shadow-xl hover:border-red-500'}`}>
+                <div className="absolute inset-0 bg-gradient-to-r from-red-500/10 via-transparent to-red-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none"></div>
+                <p className={`italic font-medium text-sm sm:text-base leading-relaxed transition-colors duration-500 ${appTheme === 'dark' ? 'text-slate-400 group-hover:text-red-200' : 'text-slate-500 group-hover:text-red-700'}`}>
                   {quote}
                 </p>
              </div>
            )}
-           <div className="w-full flex justify-center items-center border-t border-white/5 pt-4">
-             <div className="text-slate-500 text-[9px] font-black uppercase tracking-[0.3em] leading-none text-center">
+           <div className="w-full flex justify-center items-center border-t border-white/5 pt-6">
+             <div className="text-slate-500 text-[10px] font-black uppercase tracking-[0.4em] leading-none text-center">
                 © 2025 ELIUS256 • SAFETY FIRST
              </div>
            </div>
