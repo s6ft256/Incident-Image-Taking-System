@@ -1,4 +1,3 @@
-
 {
   "name": "hse-guardian",
   "version": "1.0.0",
@@ -15,8 +14,7 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "@supabase/supabase-js": "^2.45.0",
-    "recharts": "^2.12.0",
-    "@google/genai": "^1.34.0"
+    "recharts": "^2.12.0"
   },
   "devDependencies": {
     "@types/react": "^19.0.0",

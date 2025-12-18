@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { AIRTABLE_CONFIG, SAFETY_QUOTES } from './constants';
 import { CreateReportForm } from './components/CreateReportForm';
@@ -7,7 +6,6 @@ import { Dashboard } from './components/Dashboard';
 import { UserProfile } from './components/UserProfile';
 import { syncOfflineReports } from './services/syncService';
 import { UserProfile as UserProfileType } from './types';
-import { HSEAssistant } from './components/HSEAssistant';
 
 type ViewState = 'dashboard' | 'create' | 'recent';
 
@@ -237,7 +235,6 @@ function App() {
            </div>
         </footer>
       </div>
-      <HSEAssistant />
     </div>
   );
 }

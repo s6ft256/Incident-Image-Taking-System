@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { getAllReports } from '../services/airtableService';
 import { FetchedIncident } from '../types';
@@ -137,6 +138,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate }) => {
 
   return (
     <div className="space-y-4 sm:space-y-6 pb-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+      {/* PROACTIVE SAFETY TEXT - MOVED TO TOP */}
+      <div className="px-4 sm:px-8 py-6 bg-white/[0.03] border border-white/10 rounded-[2rem] text-center backdrop-blur-md shadow-lg">
+        <p className="text-xs sm:text-sm text-slate-300 font-medium leading-relaxed max-w-4xl mx-auto">
+          HSE Guardian isn't just software; it's your proactive safety nerve center. 
+          It’s a unified system that captures, manages, and analyzes all your safety observations, 
+          near misses, and incident data in real-time. Move from reactive record-keeping to predictive insights, 
+          and empower every employee to be a guardian of your safety culture.
+        </p>
+      </div>
+
       {loading ? (
         <div className="flex flex-col items-center justify-center py-16 gap-4">
           <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-blue-500"></div>
@@ -216,35 +227,35 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate }) => {
         </div>
       )}
 
-      {/* MENU CARD SECTION - Make scrollable if screen is very small */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 overflow-y-auto max-h-[300px] sm:max-h-none pr-1">
+      {/* MENU CARD SECTION - Increased heights and sizing */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4">
           <button
             onClick={() => onNavigate('create')}
-            className="group relative h-20 sm:h-24 flex items-center bg-white/[0.04] backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden hover:bg-white/[0.08] transition-all hover:border-blue-500/30 active:scale-[0.98] duration-300 px-4"
+            className="group relative h-36 sm:h-48 flex items-center bg-white/[0.04] backdrop-blur-xl border border-white/10 rounded-[2.5rem] overflow-hidden hover:bg-white/[0.08] transition-all hover:border-blue-500/30 active:scale-[0.98] duration-300 px-8"
           >
-            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform shrink-0">
-               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="w-16 h-16 sm:w-24 sm:h-24 bg-blue-600 rounded-3xl flex items-center justify-center shadow-2xl group-hover:scale-105 transition-transform shrink-0 border border-blue-400/30">
+               <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 sm:h-12 sm:w-12 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path d="M12 4v16m8-8H4" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" />
                </svg>
             </div>
-            <div className="flex-1 text-left ml-4">
-               <h3 className="text-lg font-bold text-white tracking-tight leading-none">Report Incident</h3>
-               <p className="text-[8px] font-black text-blue-400 uppercase tracking-widest mt-1 opacity-70">Capture New Event</p>
+            <div className="flex-1 text-left ml-6 sm:ml-8">
+               <h3 className="text-xl sm:text-3xl font-black text-white tracking-tight leading-tight">Report Incident</h3>
+               <p className="text-[10px] sm:text-xs font-black text-blue-400 uppercase tracking-[0.2em] mt-2 opacity-80">Capture New Event</p>
             </div>
           </button>
 
           <button
             onClick={() => onNavigate('recent')}
-            className="group relative h-20 sm:h-24 flex items-center bg-white/[0.04] backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden hover:bg-white/[0.08] transition-all active:scale-[0.98] duration-300 px-4"
+            className="group relative h-36 sm:h-48 flex items-center bg-white/[0.04] backdrop-blur-xl border border-white/10 rounded-[2.5rem] overflow-hidden hover:bg-white/[0.08] transition-all active:scale-[0.98] duration-300 px-8"
           >
-            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-slate-800 rounded-xl flex items-center justify-center shadow-md group-hover:scale-105 transition-transform shrink-0 border border-white/5">
-               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="w-16 h-16 sm:w-24 sm:h-24 bg-slate-800 rounded-3xl flex items-center justify-center shadow-2xl group-hover:scale-105 transition-transform shrink-0 border border-white/10">
+               <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 sm:h-12 sm:w-12 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 002-2h2a2 2 0 002 2" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" />
                </svg>
             </div>
-            <div className="flex-1 text-left ml-4">
-               <h3 className="text-lg font-bold text-white tracking-tight leading-none">Recent Logs</h3>
-               <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mt-1 opacity-70">Review Evidence</p>
+            <div className="flex-1 text-left ml-6 sm:ml-8">
+               <h3 className="text-xl sm:text-3xl font-black text-white tracking-tight leading-tight">Recent Logs</h3>
+               <p className="text-[10px] sm:text-xs font-black text-slate-500 uppercase tracking-[0.2em] mt-2 opacity-80">Review Evidence</p>
             </div>
           </button>
       </div>
