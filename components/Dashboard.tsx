@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { getAllReports } from '../services/airtableService';
 import { FetchedIncident } from '../types';
@@ -35,7 +34,8 @@ const SEVERITY_MAP: Record<string, number> = {
   'Other': 1
 };
 
-const CustomTooltip = ({ active, payload, label }: TooltipProps<number, string>) => {
+// Fix: Using any for the tooltip props to bypass Recharts version-specific generic type mismatches for payload and label
+const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
       <div className="bg-slate-900/95 backdrop-blur-xl border border-white/10 p-2 rounded-lg shadow-2xl text-[9px] z-50">
@@ -131,7 +131,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate }) => {
         </svg>
         <div className="absolute flex flex-col items-center text-center">
             <span className="text-4xl sm:text-6xl font-black text-white leading-none tracking-tighter">{total}</span>
-            <span className="text-[10px] sm:text-xs text-slate-500 font-black uppercase tracking-[0.2em] mt-1">Total Logs</span>
+            <span className="text-[10px] sm:text-xs text-slate-500 font-black uppercase tracking-[0.2em] mt-1">Total Obs</span>
         </div>
       </div>
     );
@@ -142,10 +142,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate }) => {
       {/* PROACTIVE SAFETY TEXT - MOVED TO TOP */}
       <div className="px-4 sm:px-8 py-6 bg-white/[0.03] border border-white/10 rounded-[2rem] text-center backdrop-blur-md shadow-lg">
         <p className="text-xs sm:text-sm text-slate-300 font-medium leading-relaxed max-w-4xl mx-auto">
-          HSE Guardian isn't just software, it's your proactive safety nerve center. 
+          HSE Guardian isn't just software; it's your proactive safety nerve center. 
           It’s a unified system that captures, manages, and analyzes all your safety observations, 
-          near misses, and incident data in real-time.
-           Move from reactive record keeping to predictive insights, 
+          near misses, and incident data in real-time. Move from reactive record-keeping to predictive insights, 
           and empower every employee to be a guardian of your safety culture.
         </p>
       </div>
