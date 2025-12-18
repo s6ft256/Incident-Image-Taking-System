@@ -480,7 +480,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack }) 
 
                                 <div className="mb-4">
                                     <div className="flex justify-between items-center mb-2">
-                                        <span className="text-[10px] text-slate-500 font-bold uppercase">Closing Evidence (Multi: Camera & Files)</span>
+                                        <span className="text-[10px] text-slate-500 font-bold uppercase text-center">Open Camera</span>
                                         <span className="text-[10px] text-slate-600">{(closingImages[report.id] || []).length}/3</span>
                                     </div>
                                     <div className="flex gap-2 overflow-x-auto pb-1">
@@ -509,6 +509,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack }) 
                                                 <input 
                                                   type="file" 
                                                   accept="image/*" 
+                                                  capture="environment"
                                                   className="hidden" 
                                                   onChange={(e) => handleAddClosingImage(report.id, e)} 
                                                 />

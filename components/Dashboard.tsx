@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { getAllReports } from '../services/airtableService';
 import { FetchedIncident } from '../types';
@@ -18,7 +17,8 @@ import {
 
 interface DashboardProps {
   baseId: string;
-  onNavigate: (view: 'create' | 'recent' | 'profile') => void;
+  // Fix: Removed 'profile' from navigation options as it is handled as an overlay, fixing App.tsx type mismatch
+  onNavigate: (view: 'create' | 'recent') => void;
 }
 
 // Severity mapping for criticality calculation
@@ -37,19 +37,13 @@ const SEVERITY_MAP: Record<string, number> = {
 const CustomTooltip = ({ active, payload, label }: TooltipProps<number, string>) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-slate-900/95 backdrop-blur-xl border border-white/10 p-3 rounded-xl shadow-2xl text-[10px] z-50 ring-1 ring-white/5">
-        <p className="text-white font-black mb-1 uppercase tracking-wider">{label}</p>
-        <div className="space-y-1">
-          <p className="text-blue-400 font-bold flex justify-between gap-4">
-            <span>RISK IMPACT:</span>
+      <div className="bg-slate-900/95 backdrop-blur-xl border border-white/10 p-2 rounded-lg shadow-2xl text-[9px] z-50">
+        <p className="text-white font-black mb-0.5 uppercase tracking-wider">{label}</p>
+        <div className="space-y-0.5">
+          <p className="text-blue-400 font-bold flex justify-between gap-3">
+            <span>RISK:</span>
             <span>{payload[0].value}</span>
           </p>
-          {payload[1] && (
-            <p className="text-slate-400 font-bold flex justify-between gap-4">
-              <span>LOG COUNT:</span>
-              <span>{payload[1].value}</span>
-            </p>
-          )}
         </div>
       </div>
     );
@@ -104,20 +98,20 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate }) => {
     .slice(0, 8);
 
   const renderSafetyStatusMap = () => {
-    const r = 35;
+    const r = 30;
     const c = 2 * Math.PI * r;
     const openPercent = total > 0 ? openCount / total : 0;
     const openOffset = c * (1 - openPercent);
     
     return (
-      <div className="relative h-48 w-48 mx-auto flex items-center justify-center">
+      <div className="relative h-32 w-32 sm:h-44 sm:w-44 mx-auto flex items-center justify-center">
         <svg width="100%" height="100%" viewBox="0 0 100 100" className="transform -rotate-90">
-          <circle cx="50" cy="50" r={r} fill="transparent" stroke="rgba(255,255,255,0.05)" strokeWidth="12" />
+          <circle cx="50" cy="50" r={r} fill="transparent" stroke="rgba(255,255,255,0.05)" strokeWidth="10" />
           <circle 
             cx="50" cy="50" r={r} 
             fill="transparent" 
             stroke="#065f46" 
-            strokeWidth="12" 
+            strokeWidth="10" 
             strokeDasharray={c} 
             strokeDashoffset={0} 
             strokeLinecap="round"
@@ -126,7 +120,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate }) => {
             cx="50" cy="50" r={r} 
             fill="transparent" 
             stroke="#f59e0b" 
-            strokeWidth="12" 
+            strokeWidth="10" 
             strokeDasharray={c} 
             strokeDashoffset={openOffset} 
             strokeLinecap="round"
@@ -134,141 +128,123 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate }) => {
           />
         </svg>
         <div className="absolute flex flex-col items-center text-center">
-            <span className="text-5xl font-black text-white leading-none tracking-tighter">{total}</span>
-            <span className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em] mt-1">Total Logs</span>
+            <span className="text-2xl sm:text-4xl font-black text-white leading-none tracking-tighter">{total}</span>
+            <span className="text-[8px] text-slate-500 font-black uppercase tracking-widest mt-0.5">Total Logs</span>
         </div>
       </div>
     );
   };
 
   return (
-    <div className="space-y-8 pb-10 animate-in fade-in slide-in-from-bottom-6 duration-1000">
+    <div className="space-y-4 sm:space-y-6 pb-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
       {loading ? (
-        <div className="flex flex-col items-center justify-center py-20 gap-6">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 shadow-[0_0_20px_rgba(59,130,246,0.3)]"></div>
-          <span className="text-xs text-slate-500 font-black uppercase tracking-[0.4em]">Acquiring Evidence Status...</span>
+        <div className="flex flex-col items-center justify-center py-16 gap-4">
+          <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-blue-500"></div>
+          <span className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Acquiring Data...</span>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
           {/* SAFETY STATUS MAP */}
-          <div className="bg-white/[0.03] backdrop-blur-3xl p-8 rounded-[3rem] border border-white/10 shadow-2xl flex flex-col items-center relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-blue-500/20 to-transparent"></div>
-              <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.4em] mb-10">Safety Status Map</h3>
-              <div className="flex-grow flex items-center justify-center py-4">
+          <div className="bg-white/[0.03] backdrop-blur-2xl p-4 sm:p-6 rounded-3xl border border-white/10 shadow-xl flex flex-col items-center relative overflow-hidden">
+              <h3 className="text-[9px] font-black text-slate-500 uppercase tracking-[0.3em] mb-4">Safety Status Map</h3>
+              <div className="flex-grow flex items-center justify-center py-2">
                 {renderSafetyStatusMap()}
               </div>
-              <div className="flex justify-center gap-10 mt-10">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-3.5 h-3.5 bg-amber-500 rounded-full shadow-[0_0_10px_rgba(245,158,11,0.4)]"></div>
-                  <span className="text-[11px] font-black text-slate-300 uppercase tracking-widest">Open</span>
+              <div className="flex justify-center gap-6 mt-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 bg-amber-500 rounded-full"></div>
+                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Open</span>
                 </div>
-                <div className="flex items-center gap-2.5">
-                  <div className="w-3.5 h-3.5 bg-[#065f46] rounded-full"></div>
-                  <span className="text-[11px] font-black text-slate-300 uppercase tracking-widest">Closed</span>
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 bg-[#065f46] rounded-full"></div>
+                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Closed</span>
                 </div>
               </div>
           </div>
 
-          {/* DISTRIBUTION BY SITE - Criticality Weighted Graph */}
-          <div className="bg-white/[0.03] backdrop-blur-3xl p-8 rounded-[3rem] border border-white/10 shadow-2xl flex flex-col relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-blue-500/20 to-transparent"></div>
-              <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.4em] mb-10 text-center">Criticality By Site</h3>
-              <div className="flex-1 w-full min-h-[250px]">
+          {/* DISTRIBUTION BY SITE */}
+          <div className="bg-white/[0.03] backdrop-blur-2xl p-4 sm:p-6 rounded-3xl border border-white/10 shadow-xl flex flex-col relative overflow-hidden">
+              <h3 className="text-[9px] font-black text-slate-500 uppercase tracking-[0.3em] mb-4 text-center">Criticality By Site</h3>
+              <div className="flex-1 w-full min-h-[220px] sm:min-h-[260px]">
                 {siteChartData.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
-                    <ComposedChart data={siteChartData} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>
+                    <ComposedChart data={siteChartData} margin={{ top: 5, right: 5, left: -25, bottom: 20 }}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
                       <XAxis 
                         dataKey="name" 
                         stroke="#475569" 
-                        fontSize={9} 
-                        tick={{fill: '#64748b', fontWeight: '900', textTransform: 'capitalize'}}
+                        fontSize={8} 
+                        tick={{fill: '#64748b', fontWeight: '800'}}
                         axisLine={false}
                         tickLine={false}
                         interval={0}
-                        angle={-15}
+                        angle={-35}
                         textAnchor="end"
                       />
                       <YAxis hide />
                       <Tooltip content={<CustomTooltip />} cursor={{fill: 'rgba(255,255,255,0.02)'}} />
-                      {/* Bars represent the Criticality Score */}
                       <Bar 
                         dataKey="criticality" 
                         fill="#3b82f6" 
-                        radius={[4, 4, 0, 0]} 
+                        radius={[3, 3, 0, 0]} 
                         barSize={24}
-                        animationDuration={1500}
                       >
                          {siteChartData.map((entry, index) => (
                            <Cell 
                              key={`cell-${index}`} 
-                             fillOpacity={1 - (index * 0.08)} 
+                             fillOpacity={1 - (index * 0.1)} 
                              fill="#3b82f6"
                            />
                          ))}
                       </Bar>
-                      {/* Line represents the Trend of criticality */}
                       <Line 
                         type="monotone" 
                         dataKey="criticality" 
                         stroke="#0f172a" 
-                        strokeWidth={3} 
-                        dot={{ r: 4, fill: '#0f172a', strokeWidth: 2, stroke: '#fff' }} 
-                        activeDot={{ r: 6, fill: '#3b82f6', stroke: '#fff', strokeWidth: 2 }}
-                        animationDuration={2000}
+                        strokeWidth={2} 
+                        dot={false}
                       />
                     </ComposedChart>
                   </ResponsiveContainer>
                 ) : (
-                  <div className="h-full flex items-center justify-center text-slate-800 text-[10px] font-black uppercase tracking-[0.5em]">
-                    Empty Dataset
+                  <div className="h-full flex items-center justify-center text-slate-700 text-[9px] font-black uppercase tracking-widest">
+                    No Data Available
                   </div>
                 )}
               </div>
-              <p className="text-[8px] text-slate-500 font-black uppercase tracking-[0.2em] text-center mt-4">Weighted by Incident Severity</p>
           </div>
         </div>
       )}
 
-      {/* MENU BUTTONS */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6">
+      {/* MENU CARD SECTION - Make scrollable if screen is very small */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 overflow-y-auto max-h-[300px] sm:max-h-none pr-1">
           <button
             onClick={() => onNavigate('create')}
-            className="group relative h-28 flex items-center bg-white/[0.05] backdrop-blur-2xl border border-white/10 rounded-[2rem] overflow-hidden hover:bg-white/[0.1] transition-all hover:border-blue-500/40 active:scale-[0.98] duration-300 px-6"
+            className="group relative h-20 sm:h-24 flex items-center bg-white/[0.04] backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden hover:bg-white/[0.08] transition-all hover:border-blue-500/30 active:scale-[0.98] duration-300 px-4"
           >
-            <div className="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center shadow-[0_0_20px_rgba(37,99,235,0.4)] group-hover:scale-105 transition-transform shrink-0">
-               <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform shrink-0">
+               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path d="M12 4v16m8-8H4" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" />
                </svg>
             </div>
-            <div className="flex-1 text-left ml-5">
-               <h3 className="text-xl font-bold text-white tracking-tight">Report Incident</h3>
-               <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mt-0.5 opacity-80">Start New Capture</p>
-            </div>
-            <div className="text-blue-500/50 group-hover:text-blue-400 transition-colors">
-               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
-               </svg>
+            <div className="flex-1 text-left ml-4">
+               <h3 className="text-lg font-bold text-white tracking-tight leading-none">Report Incident</h3>
+               <p className="text-[8px] font-black text-blue-400 uppercase tracking-widest mt-1 opacity-70">Capture New Event</p>
             </div>
           </button>
 
           <button
             onClick={() => onNavigate('recent')}
-            className="group relative h-28 flex items-center bg-white/[0.05] backdrop-blur-2xl border border-white/10 rounded-[2rem] overflow-hidden hover:bg-white/[0.1] transition-all hover:border-white/20 active:scale-[0.98] duration-300 px-6"
+            className="group relative h-20 sm:h-24 flex items-center bg-white/[0.04] backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden hover:bg-white/[0.08] transition-all active:scale-[0.98] duration-300 px-4"
           >
-            <div className="w-14 h-14 bg-slate-800 rounded-2xl flex items-center justify-center shadow-xl group-hover:scale-105 transition-transform shrink-0 border border-white/5">
-               <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" />
+            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-slate-800 rounded-xl flex items-center justify-center shadow-md group-hover:scale-105 transition-transform shrink-0 border border-white/5">
+               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 002-2h2a2 2 0 002 2" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" />
                </svg>
             </div>
-            <div className="flex-1 text-left ml-5">
-               <h3 className="text-xl font-bold text-white tracking-tight">Recent Logs</h3>
-               <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-0.5 opacity-80">View Historical Evidence</p>
-            </div>
-            <div className="text-slate-600 group-hover:text-slate-400 transition-colors">
-               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
-               </svg>
+            <div className="flex-1 text-left ml-4">
+               <h3 className="text-lg font-bold text-white tracking-tight leading-none">Recent Logs</h3>
+               <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mt-1 opacity-70">Review Evidence</p>
             </div>
           </button>
       </div>

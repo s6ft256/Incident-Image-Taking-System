@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { UploadedImage } from '../types';
 import { MAX_IMAGES, MIN_IMAGES } from '../constants';
@@ -39,7 +40,7 @@ export const ImageGrid: React.FC<ImageGridProps> = ({ images, onRemove, onAdd, o
                 {images.length}/{MAX_IMAGES}
               </span>
             </span>
-            <span className="text-[9px] text-slate-500 font-black uppercase tracking-[0.2em] mt-1">Multi: Camera & Gallery</span>
+            <span className="text-[9px] text-slate-500 font-black uppercase tracking-[0.2em] mt-1">Direct Camera Access Enabled</span>
           </label>
           
           {isLimitReached && (
@@ -127,11 +128,11 @@ export const ImageGrid: React.FC<ImageGridProps> = ({ images, onRemove, onAdd, o
                   <circle cx="12" cy="13" r="4"></circle>
                 </svg>
               </div>
-              <span className="text-[10px] font-black text-slate-500 group-hover:text-blue-200 z-10 uppercase tracking-widest">Acquire</span>
-              {/* Multi: Clicking here on mobile prompts Camera or Photo Library automatically */}
+              <span className="text-[10px] font-black text-slate-500 group-hover:text-blue-200 z-10 uppercase tracking-widest text-center">Open Camera</span>
               <input 
                 type="file" 
                 accept="image/*" 
+                capture="environment"
                 className="hidden" 
                 onChange={onAdd}
               />

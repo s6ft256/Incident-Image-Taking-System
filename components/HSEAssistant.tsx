@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { GoogleGenAI, Chat, GenerateContentResponse } from "@google/genai";
 
@@ -28,8 +27,8 @@ export const HSEAssistant: React.FC = () => {
         // Fix: Use process.env.API_KEY directly as per guidelines
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         chatSessionRef.current = ai.chats.create({
-          // Fix: Use gemini-3-flash-preview for general text tasks
-          model: 'gemini-3-flash-preview',
+          // Fix: Use gemini-3-pro-preview for complex technical/STEM tasks (HSECES engineering logic)
+          model: 'gemini-3-pro-preview',
           config: {
             systemInstruction: `You are an expert Technical Authority and Assistant specialized in Health, Safety, and Environment (HSE), with a comprehensive focus on **HSECES (Health, Safety, and Environmental Critical Equipment and Systems)**.
 
