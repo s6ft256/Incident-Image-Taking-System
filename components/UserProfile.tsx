@@ -100,7 +100,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack }) => {
   return (
     <div className="animate-in slide-in-from-right duration-500 pb-10 max-w-lg mx-auto">
       {/* Smaller Compact Header */}
-      <div className="mb-6 relative h-48 rounded-[2rem] overflow-hidden shadow-xl border border-white/10 bg-slate-800 flex items-center justify-center">
+      <div className="mb-6 relative h-48 rounded-[2rem] overflow-hidden shadow-xl border border-white/10 bg-slate-800 flex items-center justify-center transition-colors duration-300">
         <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 via-transparent to-emerald-600/10"></div>
         
         <button onClick={onBack} className="absolute top-4 left-4 bg-white/5 hover:bg-white/10 text-white p-2.5 rounded-xl backdrop-blur-xl border border-white/10 transition-all z-20">
@@ -109,7 +109,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack }) => {
 
         <div className="flex flex-col items-center relative z-10 pt-2">
           <div className="relative group">
-            <div className="w-24 h-24 bg-slate-700 rounded-full flex items-center justify-center mb-2 shadow-2xl border-4 border-slate-900 overflow-hidden ring-4 ring-blue-500/10">
+            <div className="w-24 h-24 bg-slate-700 rounded-full flex items-center justify-center mb-2 shadow-2xl border-4 border-slate-900 overflow-hidden ring-4 ring-blue-500/10 transition-all">
               {profile.profileImageUrl ? (
                 <img src={profile.profileImageUrl} alt="Profile" className="w-full h-full object-cover" />
               ) : (
@@ -143,7 +143,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack }) => {
       </div>
 
       <form onSubmit={handleSave} className="space-y-4">
-        {/* Identity Details Card - Smaller Padding */}
+        {/* Identity Details Card */}
         <div className="bg-white/5 backdrop-blur-xl rounded-[1.5rem] border border-white/10 p-5 space-y-4 shadow-xl card-bg transition-colors duration-300">
           <h2 className="text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-white/5 pb-3">Identity Details</h2>
           
@@ -171,8 +171,11 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack }) => {
           <h2 className="text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-white/5 pb-3">App Preferences</h2>
           
           <div className="flex items-center justify-between py-1">
-            <div className="flex flex-col">
-              <span className="text-sm font-semibold text-slate-200 theme-text-primary">Interface Theme</span>
+            <div 
+              className="flex flex-col cursor-pointer select-none group/theme" 
+              onClick={toggleTheme}
+            >
+              <span className="text-sm font-semibold text-slate-200 theme-text-primary group-hover/theme:text-blue-400 transition-colors">Interface Theme</span>
               <span className="text-[9px] text-slate-500 uppercase font-bold tracking-wider">{theme} Mode Active</span>
             </div>
             
