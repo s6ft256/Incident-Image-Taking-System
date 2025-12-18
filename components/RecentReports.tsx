@@ -54,14 +54,12 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack }) 
 
   const handleActionInputChange = (id: string, value: string) => {
     setActionInputs(prev => ({ ...prev, [id]: value }));
-    // Clear error when user types
     if (resolveErrors[id]) {
         setResolveErrors(prev => { const n = {...prev}; delete n[id]; return n; });
     }
   };
 
   const handleRowClick = (id: string) => {
-    // Toggle expansion
     setExpandedId(prev => prev === id ? null : id);
   };
 
@@ -93,7 +91,6 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack }) 
         [reportId]: [...(prev[reportId] || []), newImage]
       }));
       
-      // Clear specific error if it was about images
       if (resolveErrors[reportId]) {
          setResolveErrors(prev => { const n = {...prev}; delete n[reportId]; return n; });
       }
@@ -122,7 +119,6 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack }) 
               : img
           )
         }));
-        // Optional: Set an inline error here if needed, but visual indicator on image is usually enough
       }
     }
   };
@@ -138,14 +134,12 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack }) 
         [reportId]: reportImages.filter(img => img.id !== imageId)
       };
     });
-    // Clear error on removal (e.g. if removing a failed image allowed submission)
     if (resolveErrors[reportId]) {
        setResolveErrors(prev => { const n = {...prev}; delete n[reportId]; return n; });
     }
   };
 
   const handleResolve = async (id: string) => {
-    // Clear previous errors
     setResolveErrors(prev => { const n = {...prev}; delete n[id]; return n; });
 
     const actionTaken = actionInputs[id];
@@ -153,17 +147,14 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack }) 
 
     const currentImages = closingImages[id] || [];
     
-    // Validation: Check for active uploads
     if (currentImages.some(img => img.status === 'uploading')) {
         setResolveErrors(prev => ({...prev, [id]: "Please wait for all images to finish uploading."}));
         return;
     }
     
-    // Validation: Check for failed uploads
     const failedImages = currentImages.filter(img => img.status === 'error');
     if (failedImages.length > 0) {
-        const names = failedImages.map(i => i.file.name).join(', ');
-        setResolveErrors(prev => ({...prev, [id]: `Cannot submit. The following images failed to upload: ${names}. Please remove or retry them.`}));
+        setResolveErrors(prev => ({...prev, [id]: "Cannot submit. Some images failed to upload. Please remove or retry them."}));
         return;
     }
 
@@ -219,7 +210,6 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack }) 
     }
   };
 
-  // Date format: 12/17/2025
   const formatDateSimple = (isoString: string) => {
     return new Date(isoString).toLocaleDateString('en-US', {
       month: '2-digit', day: '2-digit', year: 'numeric'
@@ -242,6 +232,8 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack }) 
     return activeTab === 'closed' ? hasAction : !hasAction;
   });
 
+  const LOGO_URL = "https://www.multiply-marketing.com/trojan-wp/wp-content/uploads/2020/08/tgc-logo-300x300.png";
+
   return (
     <div className="animate-in slide-in-from-right duration-300">
       <div className="flex items-center mb-6">
@@ -251,7 +243,6 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack }) 
         <h2 className="text-xl font-bold text-white">Incident Log</h2>
       </div>
 
-      {/* Tabs */}
       <div className="flex p-1 mb-6 bg-slate-800 rounded-lg border border-slate-700">
         <button
           onClick={() => { setActiveTab('open'); setExpandedId(null); }}
@@ -296,35 +287,52 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack }) 
       {!loading && !error && (
         <>
           {activeTab === 'closed' && !isAdminUnlocked ? (
-            <div className="flex flex-col items-center justify-center py-12 bg-slate-800 rounded-lg border border-slate-700 animate-in fade-in zoom-in duration-300">
-              <div className="bg-slate-700 p-4 rounded-full mb-4 shadow-inner">
-                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-300">
-                  <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>
-                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                </svg>
-              </div>
-              <h3 className="text-xl font-bold text-white mb-2">Admin</h3>
-              <p className="text-slate-400 text-sm mb-6">Restricted Access: Closed Observations</p>
+            <div className="relative min-h-[450px] flex flex-col items-center justify-center p-8 bg-slate-900 rounded-[2.5rem] border border-slate-700 overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-300">
+              {/* CLEAR BACKGROUND LOGO - Opacity set to 100% for maximum clarity */}
+              <img 
+                src={LOGO_URL} 
+                className="absolute inset-0 w-full h-full object-contain z-0 opacity-100 p-8"
+                alt="TGC Logo"
+              />
+              {/* Subtle dark overlay for text contrast while keeping image visible */}
+              <div className="absolute inset-0 bg-slate-950/40 z-10 backdrop-blur-[0.5px]"></div>
               
-              <form onSubmit={handleUnlock} className="flex flex-col gap-4 w-full max-w-xs px-4">
-                <div>
-                  <input 
-                    type="password" 
-                    value={passwordInput}
-                    onChange={(e) => setPasswordInput(e.target.value)}
-                    placeholder="Enter Password"
-                    className="w-full rounded-lg border border-slate-600 bg-slate-900 px-4 py-3 text-slate-100 placeholder:text-slate-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all"
-                    autoFocus
-                  />
-                  {passwordError && <p className="text-red-400 text-xs mt-2 pl-1">{passwordError}</p>}
+              <div className="relative z-20 flex flex-col items-center w-full max-w-xs text-center">
+                <div className="bg-slate-800/90 p-6 rounded-full mb-8 shadow-2xl border border-blue-500/40 ring-8 ring-blue-500/10 animate-pulse">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-blue-400">
+                    <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                  </svg>
                 </div>
-                <button 
-                  type="submit"
-                  className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-lg shadow-lg shadow-blue-900/20 transition-all active:scale-[0.98]"
-                >
-                  Unlock
-                </button>
-              </form>
+                
+                {/* Updated Text Labels */}
+                <h3 className="text-4xl font-black text-white mb-2 tracking-tight drop-shadow-[0_2px_10px_rgba(0,0,0,1)]">Admin.</h3>
+                <p className="text-white text-[11px] font-black uppercase tracking-[0.4em] mb-10 bg-black/70 px-6 py-2 rounded-full border border-white/10 shadow-2xl">Restricted access</p>
+                
+                <form onSubmit={handleUnlock} className="flex flex-col gap-4 w-full px-4">
+                  <div className="relative">
+                    <input 
+                      type="password" 
+                      value={passwordInput}
+                      onChange={(e) => setPasswordInput(e.target.value)}
+                      placeholder="Enter Secure Access Key"
+                      className="w-full rounded-2xl border border-white/20 bg-black/80 px-5 py-4 text-white placeholder:text-slate-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none backdrop-blur-md transition-all text-center font-mono shadow-2xl"
+                      autoFocus
+                    />
+                    {passwordError && (
+                      <div className="absolute -bottom-6 left-0 right-0">
+                         <p className="text-rose-400 text-[10px] font-black uppercase tracking-widest">{passwordError}</p>
+                      </div>
+                    )}
+                  </div>
+                  <button 
+                    type="submit"
+                    className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-2xl shadow-xl shadow-blue-900/60 transition-all active:scale-[0.98] uppercase tracking-[0.2em] text-xs mt-6 border border-blue-400/40"
+                  >
+                    Unlock Observations
+                  </button>
+                </form>
+              </div>
             </div>
           ) : (
             <div className="flex flex-col gap-3">
@@ -346,27 +354,19 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack }) 
                         : 'bg-slate-800/80 border-slate-700 hover:bg-slate-800 hover:border-slate-600'
                     }`}
                   >
-                    {/* Collapsed Row View - Layout updated to match image: Date | Type | Location | Status | > */}
                     <div 
                       onClick={() => handleRowClick(report.id)}
                       className="flex items-center gap-3 p-4 cursor-pointer"
                     >
-                      {/* Date */}
                       <div className="w-20 text-xs font-mono text-slate-400 shrink-0">
                         {formatDateSimple(report.createdTime)}
                       </div>
-
-                      {/* Incident Type (N/A if missing, Bold White) */}
                       <div className="w-24 sm:w-32 text-sm font-bold text-white truncate shrink-0">
                         {report.fields["Incident Type"] || 'N/A'}
                       </div>
-
-                      {/* Site / Location (Visible on all screens) */}
                       <div className="flex-1 text-sm text-slate-300 truncate uppercase">
                          {report.fields["Site / Location"]}
                       </div>
-
-                      {/* Status Badge */}
                       <div className="shrink-0">
                         {activeTab === 'closed' ? (
                           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-900/40 text-emerald-400 border border-emerald-800/50">
@@ -380,18 +380,13 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack }) 
                           </span>
                         )}
                       </div>
-
-                      {/* Chevron */}
                       <div className={`text-slate-500 shrink-0 transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}>
                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
                       </div>
                     </div>
 
-                    {/* Expanded Details View */}
                     {isExpanded && (
                        <div className="border-t border-slate-700/50 bg-slate-900/30 p-4 sm:p-6 animate-in slide-in-from-top-2 duration-200">
-                          
-                          {/* Metadata Row */}
                           <div className="flex flex-wrap gap-4 mb-4 text-xs text-slate-400 border-b border-slate-700/50 pb-3">
                              <div>
                                 <span className="block font-bold text-slate-500 uppercase">Reporter</span>
@@ -407,7 +402,6 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack }) 
                              </div>
                           </div>
 
-                          {/* Observation Text */}
                           <div className="mb-6">
                             <h4 className="text-xs font-bold text-slate-500 uppercase mb-2">Observation</h4>
                             <div className="bg-slate-900/50 rounded-lg p-3 text-sm text-slate-200 border border-slate-700">
@@ -415,26 +409,6 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack }) 
                             </div>
                           </div>
 
-                          {/* Evidence Images */}
-                          {report.fields["Open observations"] && report.fields["Open observations"].length > 0 && (
-                             <div className="mb-6">
-                                <h4 className="text-xs font-bold text-slate-500 uppercase mb-2">Initial Evidence</h4>
-                                <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-slate-700">
-                                  {report.fields["Open observations"].map((img, idx) => (
-                                    <a key={idx} href={img.url} target="_blank" rel="noopener noreferrer" className="shrink-0 relative group">
-                                      <img 
-                                        src={img.thumbnails?.small?.url || img.url} 
-                                        onError={handleImageError}
-                                        alt="Evidence" 
-                                        className="h-20 w-20 object-cover rounded-lg border border-slate-600 group-hover:border-blue-500 transition-colors" 
-                                      />
-                                    </a>
-                                  ))}
-                                </div>
-                             </div>
-                          )}
-
-                          {/* Resolution Section */}
                           {activeTab === 'closed' ? (
                              <div className="bg-emerald-900/10 rounded-lg p-4 border border-emerald-900/50">
                                 <h4 className="text-xs font-bold text-emerald-500 uppercase mb-2 flex items-center gap-1">
@@ -442,26 +416,17 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack }) 
                                    Action Taken
                                 </h4>
                                 <p className="text-sm text-emerald-100/90 mb-3">{report.fields["Action taken"]}</p>
-                                
                                 {report.fields["Closed observations"] && report.fields["Closed observations"].length > 0 && (
-                                   <div>
-                                      <span className="text-[10px] text-emerald-500/70 font-bold uppercase mb-1 block">Closing Evidence</span>
-                                      <div className="flex gap-2">
-                                        {report.fields["Closed observations"].map((img, idx) => (
-                                          <a key={idx} href={img.url} target="_blank" rel="noopener noreferrer" className="shrink-0">
-                                            <img 
-                                              src={img.thumbnails?.small?.url || img.url} 
-                                              onError={handleImageError}
-                                              className="h-16 w-16 object-cover rounded border border-emerald-800" 
-                                            />
-                                          </a>
-                                        ))}
-                                      </div>
+                                   <div className="flex gap-2">
+                                      {report.fields["Closed observations"].map((img, idx) => (
+                                         <a key={idx} href={img.url} target="_blank" rel="noopener noreferrer">
+                                            <img src={img.url} className="h-16 w-16 object-cover rounded border border-emerald-800" onError={handleImageError} />
+                                         </a>
+                                      ))}
                                    </div>
                                 )}
                              </div>
                           ) : (
-                             /* Open Resolution Form */
                              <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
                                 <h4 className="text-xs font-bold text-blue-400 uppercase mb-3">Resolve Incident</h4>
                                 
@@ -475,7 +440,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack }) 
 
                                 <div className="mb-4">
                                     <div className="flex justify-between items-center mb-2">
-                                        <span className="text-[10px] text-slate-500 font-bold uppercase">Closing Evidence (Optional)</span>
+                                        <span className="text-[10px] text-slate-500 font-bold uppercase">Closing Evidence (Multi: Camera & Files)</span>
                                         <span className="text-[10px] text-slate-600">{(closingImages[report.id] || []).length}/3</span>
                                     </div>
                                     <div className="flex gap-2 overflow-x-auto pb-1">
@@ -489,11 +454,6 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack }) 
                                                       'border-slate-600'
                                                   }`}
                                                 />
-                                                {img.status === 'uploading' && (
-                                                    <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-md">
-                                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                                    </div>
-                                                )}
                                                 <button 
                                                   onClick={() => handleRemoveClosingImage(report.id, img.id)}
                                                   className="absolute -top-1 -right-1 bg-slate-800 text-slate-400 hover:text-red-400 rounded-full p-0.5 border border-slate-600 shadow-sm"
@@ -506,7 +466,12 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack }) 
                                             <label className="flex-shrink-0 h-16 w-16 border border-dashed border-slate-600 rounded-md flex flex-col items-center justify-center cursor-pointer hover:bg-slate-700/50 hover:border-slate-500 transition-colors">
                                                 <svg className="w-5 h-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
                                                 <span className="text-[8px] text-slate-500 font-bold uppercase mt-1">Add</span>
-                                                <input type="file" accept="image/*" className="hidden" onChange={(e) => handleAddClosingImage(report.id, e)} />
+                                                <input 
+                                                  type="file" 
+                                                  accept="image/*" 
+                                                  className="hidden" 
+                                                  onChange={(e) => handleAddClosingImage(report.id, e)} 
+                                                />
                                             </label>
                                         )}
                                     </div>
@@ -524,14 +489,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack }) 
                                     </>
                                   ) : "MARK AS RESOLVED"}
                                 </button>
-                                
-                                {/* Error Message Area */}
-                                {resolveErrors[report.id] && (
-                                  <div className="mt-3 bg-red-900/40 border border-red-800/50 text-red-200 text-xs p-2 rounded animate-in fade-in flex items-start gap-2">
-                                    <svg className="w-4 h-4 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                    <span>{resolveErrors[report.id]}</span>
-                                  </div>
-                                )}
+                                {resolveErrors[report.id] && <p className="text-rose-400 text-[10px] mt-2 font-bold uppercase tracking-widest">{resolveErrors[report.id]}</p>}
                              </div>
                           )}
                        </div>
