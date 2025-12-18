@@ -23,23 +23,33 @@ const AuthCard: React.FC<{ children: React.ReactNode, isLight: boolean }> = ({ c
 );
 
 const VideoBackground: React.FC<{ isLight: boolean }> = ({ isLight }) => (
-  <div className="fixed inset-0 w-full h-full overflow-hidden pointer-events-none z-0">
-    <video
-      autoPlay
-      muted
-      loop
-      playsInline
-      className="absolute top-1/2 left-1/2 min-w-full min-h-full w-auto h-auto -translate-x-1/2 -translate-y-1/2 object-cover opacity-60"
-    >
-      <source src="https://v1.pinimg.com/videos/mc/720p/be/15/5a/be155abccdc19354019151163e21a073.mp4" type="video/mp4" />
-    </video>
-    {/* Cinematic Overlays */}
+  <div className="fixed inset-0 w-full h-full overflow-hidden pointer-events-none z-0 flex items-center justify-center">
+    {/* Cinematic "Shortened" Video Container */}
+    <div className="relative w-full h-[65vh] overflow-hidden opacity-70">
+      <video
+        autoPlay
+        muted
+        loop
+        playsInline
+        className="absolute top-1/2 left-1/2 min-w-full min-h-full w-auto h-auto -translate-x-1/2 -translate-y-1/2 object-cover"
+      >
+        <source src="https://v1.pinimg.com/videos/mc/720p/be/15/5a/be155abccdc19354019151163e21a073.mp4" type="video/mp4" />
+      </video>
+      
+      {/* Edge Feathering for the cinematic strip */}
+      <div className={`absolute inset-0 bg-gradient-to-b ${
+        isLight 
+          ? 'from-white via-transparent to-white' 
+          : 'from-slate-950 via-transparent to-slate-950'
+      }`}></div>
+    </div>
+
+    {/* Global Color Grading Overlays */}
     <div className={`absolute inset-0 bg-gradient-to-br ${
       isLight 
-        ? 'from-white/40 via-blue-50/20 to-white/60' 
-        : 'from-slate-950 via-slate-900/40 to-slate-950'
+        ? 'from-white/40 via-blue-50/10 to-white/60' 
+        : 'from-slate-950 via-slate-900/20 to-slate-950'
     }`}></div>
-    <div className={`absolute inset-0 ${isLight ? 'bg-white/10' : 'bg-black/20'}`}></div>
   </div>
 );
 
@@ -127,7 +137,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
       
       {mode === 'welcome' ? (
         <AuthCard isLight={isLight}>
-          <div className="flex flex-col items-center text-center">
+          <div className="flex flex-col items-center text-center relative z-10">
             <div className="relative mb-8">
               <div className="absolute inset-0 bg-blue-500/30 blur-3xl rounded-full"></div>
               <img 
@@ -142,9 +152,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
                 HSE <span className="text-blue-500">Guardian</span>
               </h2>
               <div className="flex flex-col items-center">
-                 <p className={`text-[11px] font-black uppercase tracking-[0.5em] ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>
-                   Identity Gatekeeper
-                 </p>
                  <div className="h-1 w-12 bg-blue-600 mt-2 rounded-full shadow-[0_0_15px_rgba(37,99,235,0.8)]"></div>
               </div>
             </div>
@@ -177,7 +184,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
         </AuthCard>
       ) : (
         <AuthCard isLight={isLight}>
-          <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center justify-between mb-8 relative z-10">
             <button 
               onClick={() => { setMode('welcome'); setError(''); }} 
               className={`p-3 rounded-2xl transition-all flex items-center gap-2 border ${
@@ -195,85 +202,87 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
             </div>
           </div>
 
-          {renderError()}
-          
-          <form onSubmit={mode === 'signup' ? handleSignup : handleLogin} className="space-y-6">
-            {mode === 'signup' && (
-              <div className="flex flex-col items-center pb-4">
-                <div 
-                  onClick={() => fileInputRef.current?.click()}
-                  className={`w-28 h-28 rounded-full border-2 border-dashed flex items-center justify-center cursor-pointer transition-all overflow-hidden relative group shadow-2xl ${
-                    isLight ? 'bg-white/10 border-white/40 hover:border-blue-400' : 'bg-black/20 border-white/10 hover:border-blue-500'
-                  }`}
-                >
-                  {previewUrl ? (
-                    <>
-                      <img src={previewUrl} className="w-full h-full object-cover" alt="Preview" />
-                      <div className="absolute inset-0 bg-blue-600/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                         <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" strokeWidth={2} /></svg>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="flex flex-col items-center text-slate-500 group-hover:text-blue-500 transition-colors">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                         <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                      <span className="text-[9px] font-black uppercase tracking-widest">Biometric Photo</span>
-                    </div>
-                  )}
-                </div>
-                <input type="file" ref={fileInputRef} onChange={handleImageChange} className="hidden" accept="image/*" />
-              </div>
-            )}
-
-            <div className="space-y-5">
-              <InputField 
-                id="name" 
-                label="Personnel Name" 
-                value={profile.name} 
-                onChange={handleFieldChange} 
-                required 
-                placeholder="Full Identification Name" 
-                autoComplete="name"
-              />
-
+          <div className="relative z-10">
+            {renderError()}
+            
+            <form onSubmit={mode === 'signup' ? handleSignup : handleLogin} className="space-y-6">
               {mode === 'signup' && (
-                <div className="animate-in fade-in slide-in-from-top-4 duration-500 space-y-5">
-                  <InputField 
-                    id="role" 
-                    label="Designated Capacity" 
-                    value={profile.role} 
-                    onChange={handleFieldChange} 
-                    required 
-                    placeholder="Official Title" 
-                    list={ROLES}
-                    autoComplete="organization-title"
-                  />
-                  <InputField 
-                    id="site" 
-                    label="Operational Zone" 
-                    value={profile.site} 
-                    onChange={handleFieldChange} 
-                    placeholder="Primary Location" 
-                    list={SITES}
-                  />
+                <div className="flex flex-col items-center pb-4">
+                  <div 
+                    onClick={() => fileInputRef.current?.click()}
+                    className={`w-28 h-28 rounded-full border-2 border-dashed flex items-center justify-center cursor-pointer transition-all overflow-hidden relative group shadow-2xl ${
+                      isLight ? 'bg-white/10 border-white/40 hover:border-blue-400' : 'bg-black/20 border-white/10 hover:border-blue-500'
+                    }`}
+                  >
+                    {previewUrl ? (
+                      <>
+                        <img src={previewUrl} className="w-full h-full object-cover" alt="Preview" />
+                        <div className="absolute inset-0 bg-blue-600/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                           <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" strokeWidth={2} /></svg>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex flex-col items-center text-slate-500 group-hover:text-blue-500 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                           <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                        <span className="text-[9px] font-black uppercase tracking-widest">Biometric Photo</span>
+                      </div>
+                    )}
+                  </div>
+                  <input type="file" ref={fileInputRef} onChange={handleImageChange} className="hidden" accept="image/*" />
                 </div>
               )}
-            </div>
 
-            <button 
-              type="submit"
-              disabled={isProcessing}
-              className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-5 rounded-2xl shadow-2xl transition-all disabled:opacity-50 active:scale-[0.98] uppercase tracking-widest text-xs border border-blue-400/30 flex items-center justify-center gap-3 mt-4"
-            >
-              {isProcessing ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                  Initializing Link...
-                </>
-              ) : mode === 'signup' ? 'Finalize Credentialing' : 'Authenticate Identity'}
-            </button>
-          </form>
+              <div className="space-y-5">
+                <InputField 
+                  id="name" 
+                  label="Personnel Name" 
+                  value={profile.name} 
+                  onChange={handleFieldChange} 
+                  required 
+                  placeholder="Full Identification Name" 
+                  autoComplete="name"
+                />
+
+                {mode === 'signup' && (
+                  <div className="animate-in fade-in slide-in-from-top-4 duration-500 space-y-5">
+                    <InputField 
+                      id="role" 
+                      label="Designated Capacity" 
+                      value={profile.role} 
+                      onChange={handleFieldChange} 
+                      required 
+                      placeholder="Official Title" 
+                      list={ROLES}
+                      autoComplete="organization-title"
+                    />
+                    <InputField 
+                      id="site" 
+                      label="Operational Zone" 
+                      value={profile.site} 
+                      onChange={handleFieldChange} 
+                      placeholder="Primary Location" 
+                      list={SITES}
+                    />
+                  </div>
+                )}
+              </div>
+
+              <button 
+                type="submit"
+                disabled={isProcessing}
+                className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-5 rounded-2xl shadow-2xl transition-all disabled:opacity-50 active:scale-[0.98] uppercase tracking-widest text-xs border border-blue-400/30 flex items-center justify-center gap-3 mt-4"
+              >
+                {isProcessing ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                    Initializing Link...
+                  </>
+                ) : mode === 'signup' ? 'Finalize Credentialing' : 'Authenticate Identity'}
+              </button>
+            </form>
+          </div>
         </AuthCard>
       )}
     </div>
