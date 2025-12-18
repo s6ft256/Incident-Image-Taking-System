@@ -99,20 +99,21 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate }) => {
     .slice(0, 8);
 
   const renderSafetyStatusMap = () => {
-    const r = 30;
+    const r = 42; // Increased radius from 30
+    const strokeWidth = 12; // Increased stroke from 10
     const c = 2 * Math.PI * r;
     const openPercent = total > 0 ? openCount / total : 0;
     const openOffset = c * (1 - openPercent);
     
     return (
-      <div className="relative h-32 w-32 sm:h-44 sm:w-44 mx-auto flex items-center justify-center">
-        <svg width="100%" height="100%" viewBox="0 0 100 100" className="transform -rotate-90">
-          <circle cx="50" cy="50" r={r} fill="transparent" stroke="rgba(255,255,255,0.05)" strokeWidth="10" />
+      <div className="relative h-48 w-48 sm:h-64 sm:w-64 mx-auto flex items-center justify-center">
+        <svg width="100%" height="100%" viewBox="0 0 100 100" className="transform -rotate-90 drop-shadow-[0_0_15px_rgba(0,0,0,0.3)]">
+          <circle cx="50" cy="50" r={r} fill="transparent" stroke="rgba(255,255,255,0.05)" strokeWidth={strokeWidth} />
           <circle 
             cx="50" cy="50" r={r} 
             fill="transparent" 
             stroke="#065f46" 
-            strokeWidth="10" 
+            strokeWidth={strokeWidth} 
             strokeDasharray={c} 
             strokeDashoffset={0} 
             strokeLinecap="round"
@@ -121,7 +122,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate }) => {
             cx="50" cy="50" r={r} 
             fill="transparent" 
             stroke="#f59e0b" 
-            strokeWidth="10" 
+            strokeWidth={strokeWidth} 
             strokeDasharray={c} 
             strokeDashoffset={openOffset} 
             strokeLinecap="round"
@@ -129,8 +130,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate }) => {
           />
         </svg>
         <div className="absolute flex flex-col items-center text-center">
-            <span className="text-2xl sm:text-4xl font-black text-white leading-none tracking-tighter">{total}</span>
-            <span className="text-[8px] text-slate-500 font-black uppercase tracking-widest mt-0.5">Total Logs</span>
+            <span className="text-4xl sm:text-6xl font-black text-white leading-none tracking-tighter">{total}</span>
+            <span className="text-[10px] sm:text-xs text-slate-500 font-black uppercase tracking-[0.2em] mt-1">Total Logs</span>
         </div>
       </div>
     );
@@ -141,9 +142,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate }) => {
       {/* PROACTIVE SAFETY TEXT - MOVED TO TOP */}
       <div className="px-4 sm:px-8 py-6 bg-white/[0.03] border border-white/10 rounded-[2rem] text-center backdrop-blur-md shadow-lg">
         <p className="text-xs sm:text-sm text-slate-300 font-medium leading-relaxed max-w-4xl mx-auto">
-          HSE Guardian isn't just software; it's your proactive safety nerve center. 
+          HSE Guardian isn't just software, it's your proactive safety nerve center. 
           It’s a unified system that captures, manages, and analyzes all your safety observations, 
-          near misses, and incident data in real-time. Move from reactive record-keeping to predictive insights, 
+          near misses, and incident data in real-time.
+           Move from reactive record keeping to predictive insights, 
           and empower every employee to be a guardian of your safety culture.
         </p>
       </div>
@@ -156,12 +158,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate }) => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
           {/* SAFETY STATUS MAP */}
-          <div className="bg-white/[0.03] backdrop-blur-2xl p-4 sm:p-6 rounded-3xl border border-white/10 shadow-xl flex flex-col items-center relative overflow-hidden">
-              <h3 className="text-[9px] font-black text-slate-500 uppercase tracking-[0.3em] mb-4">Safety Status Map</h3>
-              <div className="flex-grow flex items-center justify-center py-2">
+          <div className="bg-white/[0.03] backdrop-blur-2xl p-4 sm:p-6 rounded-3xl border border-white/10 shadow-xl flex flex-col items-center relative overflow-hidden min-h-[320px] sm:min-h-[400px] justify-center">
+              <h3 className="text-[9px] font-black text-slate-500 uppercase tracking-[0.3em] mb-4 absolute top-6">Safety Status Map</h3>
+              <div className="flex-grow flex items-center justify-center">
                 {renderSafetyStatusMap()}
               </div>
-              <div className="flex justify-center gap-6 mt-4">
+              <div className="flex justify-center gap-6 mt-4 absolute bottom-6">
                 <div className="flex items-center gap-2">
                   <div className="w-2.5 h-2.5 bg-amber-500 rounded-full"></div>
                   <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Open</span>
@@ -174,12 +176,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate }) => {
           </div>
 
           {/* DISTRIBUTION BY SITE */}
-          <div className="bg-white/[0.03] backdrop-blur-2xl p-4 sm:p-6 rounded-3xl border border-white/10 shadow-xl flex flex-col relative overflow-hidden">
-              <h3 className="text-[9px] font-black text-slate-500 uppercase tracking-[0.3em] mb-4 text-center">Criticality By Site</h3>
-              <div className="flex-1 w-full min-h-[220px] sm:min-h-[260px]">
+          <div className="bg-white/[0.03] backdrop-blur-2xl p-4 sm:p-6 rounded-3xl border border-white/10 shadow-xl flex flex-col relative overflow-hidden min-h-[320px] sm:min-h-[400px]">
+              <h3 className="text-[9px] font-black text-slate-500 uppercase tracking-[0.3em] mb-4 text-center mt-2">Criticality By Site</h3>
+              <div className="flex-1 w-full flex items-center justify-center">
                 {siteChartData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <ComposedChart data={siteChartData} margin={{ top: 5, right: 5, left: -25, bottom: 20 }}>
+                  <ResponsiveContainer width="100%" height="85%">
+                    <ComposedChart data={siteChartData} margin={{ top: 5, right: 15, left: -20, bottom: 20 }}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
                       <XAxis 
                         dataKey="name" 
@@ -203,7 +205,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate }) => {
                          {siteChartData.map((entry, index) => (
                            <Cell 
                              key={`cell-${index}`} 
-                             fillOpacity={1 - (index * 0.1)} 
+                             fillOpacity={1 - (index * 0.08)} 
                              fill="#3b82f6"
                            />
                          ))}
