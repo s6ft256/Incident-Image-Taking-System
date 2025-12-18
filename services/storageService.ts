@@ -1,8 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { SUPABASE_CONFIG } from '../constants';
 
-// Initialize Supabase Client
-// We check if keys are dummy values to prevent crash, though upload will fail if not set.
 const isValidConfig = SUPABASE_CONFIG.URL.startsWith('https') && !SUPABASE_CONFIG.URL.includes('your-project-id');
 
 const supabase = isValidConfig 
@@ -10,46 +8,76 @@ const supabase = isValidConfig
   : null;
 
 /**
- * Uploads a file to Supabase Storage and returns the Public URL.
- * @param file The file object to upload
- * @param folder The folder path within the bucket (default: 'uploads')
+ * Maps technical storage errors to human-readable safety messages.
  */
-export const uploadImageToStorage = async (file: File, folder: string = 'uploads'): Promise<string> => {
+const getFriendlyStorageError = (error: any): string => {
+  const message = error?.message || '';
+  if (message.includes('row-level security') || message.includes('policy')) {
+    return "Storage access denied. Please contact the safety administrator to verify storage bucket permissions.";
+  }
+  if (message.includes('bucket not found')) {
+    return `The '${SUPABASE_CONFIG.BUCKET_NAME}' storage container does not exist. Please check system configuration.`;
+  }
+  if (message.includes('Network request failed') || message.includes('fetch')) {
+    return "Network instability detected. We are attempting to reconnect to the secure evidence server.";
+  }
+  return "An unexpected error occurred while saving the evidence. Our system will attempt to retry.";
+};
+
+/**
+ * Uploads a file to Supabase Storage with automatic retry logic.
+ */
+export const uploadImageToStorage = async (
+  file: File, 
+  folder: string = 'uploads', 
+  maxRetries = 3
+): Promise<string> => {
   if (!supabase) {
-    throw new Error("Supabase is not configured. Please set URL and KEY in constants.ts");
+    throw new Error("Safety storage is not configured. Please provide a valid Supabase URL and Key.");
   }
 
-  // 1. Create a unique file path: folder/timestamp_random_filename
   const fileExt = file.name.split('.').pop();
   const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
-  
-  // Ensure clean folder path
   const cleanFolder = folder.replace(/^\/+|\/+$/g, '');
   const filePath = `${cleanFolder}/${fileName}`;
 
-  // 2. Upload the file
-  const { data, error } = await supabase.storage
-    .from(SUPABASE_CONFIG.BUCKET_NAME)
-    .upload(filePath, file, {
-      cacheControl: '3600',
-      upsert: false
-    });
+  let lastError: any;
+  
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const { data, error } = await supabase.storage
+        .from(SUPABASE_CONFIG.BUCKET_NAME)
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
 
-  if (error) {
-    console.error("Supabase Upload Error:", error);
-    
-    // Check for specific RLS error to give a better hint
-    if (error.message.includes('row-level security') || error.message.includes('policy')) {
-      throw new Error(`Permission denied: You need to add an INSERT policy for the '${SUPABASE_CONFIG.BUCKET_NAME}' bucket in Supabase.`);
+      if (error) {
+        // Don't retry client errors that won't change (auth/permission/not found)
+        const isClientError = error.message.includes('security') || 
+                            error.message.includes('policy') || 
+                            error.message.includes('not found');
+        
+        if (isClientError || attempt === maxRetries) {
+          throw new Error(getFriendlyStorageError(error));
+        }
+        
+        // Wait before next attempt (exponential backoff)
+        await new Promise(res => setTimeout(res, Math.pow(2, attempt) * 1000));
+        continue;
+      }
+
+      const { data: { publicUrl } } = supabase.storage
+        .from(SUPABASE_CONFIG.BUCKET_NAME)
+        .getPublicUrl(filePath);
+
+      return publicUrl;
+    } catch (error: any) {
+      lastError = error;
+      if (attempt === maxRetries) throw error;
+      await new Promise(res => setTimeout(res, Math.pow(2, attempt) * 1000));
     }
-
-    throw new Error(`Upload failed: ${error.message}`);
   }
 
-  // 3. Get Public URL
-  const { data: { publicUrl } } = supabase.storage
-    .from(SUPABASE_CONFIG.BUCKET_NAME)
-    .getPublicUrl(filePath);
-
-  return publicUrl;
+  throw lastError;
 };
