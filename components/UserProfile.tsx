@@ -1,9 +1,9 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { InputField } from './InputField';
 import { UserProfile as UserProfileType } from '../types';
 import { uploadImageToStorage } from '../services/storageService';
 import { compressImage } from '../utils/imageCompression';
+import { updateProfile } from '../services/profileService';
 
 interface UserProfileProps {
   onBack: () => void;
@@ -13,12 +13,14 @@ const PROFILE_KEY = 'hse_guardian_profile';
 const THEME_KEY = 'hse_guardian_theme';
 
 export const UserProfile: React.FC<UserProfileProps> = ({ onBack }) => {
-  const [profile, setProfile] = useState<UserProfileType>({ name: '', role: '', profileImageUrl: '' });
+  const [profile, setProfile] = useState<UserProfileType>({ name: '', role: '', site: '', profileImageUrl: '' });
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [isUploading, setIsUploading] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const isLight = theme === 'light';
 
   useEffect(() => {
     const saved = localStorage.getItem(PROFILE_KEY);
@@ -57,7 +59,15 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack }) => {
     try {
       const compressed = await compressImage(file);
       const publicUrl = await uploadImageToStorage(compressed, 'profiles');
-      setProfile(prev => ({ ...prev, profileImageUrl: publicUrl }));
+      
+      const updatedProfile = { ...profile, profileImageUrl: publicUrl };
+      if (profile.id) {
+        await updateProfile(profile.id, { profileImageUrl: publicUrl });
+      }
+      
+      setProfile(updatedProfile);
+      localStorage.setItem(PROFILE_KEY, JSON.stringify(updatedProfile));
+      window.dispatchEvent(new Event('profileUpdated'));
     } catch (err: any) {
       console.error("Image upload failed", err);
       setErrorMessage(err.message || "Failed to upload image.");
@@ -66,18 +76,29 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack }) => {
     }
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaveStatus('saving');
     
-    setTimeout(() => {
+    try {
+      if (profile.id) {
+        await updateProfile(profile.id, { name: profile.name, role: profile.role, site: profile.site });
+      }
       localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
       localStorage.setItem(THEME_KEY, theme);
       setSaveStatus('saved');
       window.dispatchEvent(new Event('profileUpdated'));
       window.dispatchEvent(new CustomEvent('themeChanged', { detail: theme }));
       setTimeout(() => setSaveStatus('idle'), 2000);
-    }, 400);
+    } catch (err: any) {
+      setErrorMessage(err.message);
+      setSaveStatus('error');
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem(PROFILE_KEY);
+    window.location.reload();
   };
 
   const toggleTheme = () => {
@@ -89,9 +110,11 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack }) => {
   };
 
   return (
-    <div className="bg-slate-900/95 backdrop-blur-2xl rounded-2xl border border-white/10 shadow-[0_10px_50px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col p-4 space-y-4">
+    <div className={`backdrop-blur-2xl rounded-2xl border shadow-[0_10px_50px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col p-4 space-y-4 ${
+      isLight ? 'bg-white border-slate-200' : 'bg-slate-900/95 border-white/10'
+    }`}>
       <div className="flex items-center justify-between border-b border-white/5 pb-3">
-        <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Profile Settings</h3>
+        <h3 className={`text-[10px] font-black uppercase tracking-widest ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>Profile Settings</h3>
         <button onClick={onBack} className="text-slate-500 hover:text-white transition-colors">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
         </button>
@@ -99,7 +122,9 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack }) => {
 
       <div className="flex flex-col items-center">
         <div className="relative group mb-3">
-          <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center shadow-xl border-2 border-slate-700 overflow-hidden ring-2 ring-blue-500/10">
+          <div className={`w-16 h-16 rounded-full flex items-center justify-center shadow-xl border-2 overflow-hidden ring-2 ring-blue-500/10 ${
+            isLight ? 'bg-slate-100 border-slate-200' : 'bg-slate-800 border-slate-700'
+          }`}>
             {profile.profileImageUrl ? (
               <img src={profile.profileImageUrl} alt="Profile" className="w-full h-full object-cover" />
             ) : (
@@ -125,36 +150,52 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack }) => {
           </button>
           <input type="file" ref={fileInputRef} onChange={handleImageChange} accept="image/*" capture="environment" className="hidden" />
         </div>
-        <p className="text-xs font-black text-white">{profile.name || 'HSE Reporter'}</p>
+        <p className={`text-xs font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>{profile.name || 'HSE Reporter'}</p>
         <p className="text-[8px] font-black text-blue-400 uppercase tracking-widest">{profile.role || 'Access Tier 1'}</p>
       </div>
 
       <form onSubmit={handleSave} className="space-y-3">
         <div className="space-y-2">
           <div className="flex flex-col gap-1">
-            <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest px-1">Identity</label>
+            <label className={`text-[8px] font-black uppercase tracking-widest px-1 ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>Identity</label>
             <input 
               type="text" 
               value={profile.name} 
               onChange={(e) => setProfile(prev => ({ ...prev, name: e.target.value }))}
               placeholder="Full Name"
-              className="bg-black/40 border border-white/5 rounded-lg px-3 py-1.5 text-xs text-white focus:border-blue-500 outline-none w-full"
+              className={`border rounded-lg px-3 py-1.5 text-xs focus:border-blue-500 outline-none w-full ${
+                isLight ? 'bg-slate-50 border-slate-200 text-slate-900' : 'bg-black/40 border-white/5 text-white'
+              }`}
             />
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest px-1">Role</label>
+            <label className={`text-[8px] font-black uppercase tracking-widest px-1 ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>Role</label>
             <input 
               type="text" 
               value={profile.role} 
               onChange={(e) => setProfile(prev => ({ ...prev, role: e.target.value }))}
-              placeholder="Safety Role"
-              className="bg-black/40 border border-white/5 rounded-lg px-3 py-1.5 text-xs text-white focus:border-blue-500 outline-none w-full"
+              placeholder="Organizational Role"
+              className={`border rounded-lg px-3 py-1.5 text-xs focus:border-blue-500 outline-none w-full ${
+                isLight ? 'bg-slate-50 border-slate-200 text-slate-900' : 'bg-black/40 border-white/5 text-white'
+              }`}
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className={`text-[8px] font-black uppercase tracking-widest px-1 ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>Work Location</label>
+            <input 
+              type="text" 
+              value={profile.site} 
+              onChange={(e) => setProfile(prev => ({ ...prev, site: e.target.value }))}
+              placeholder="Site Assignment"
+              className={`border rounded-lg px-3 py-1.5 text-xs focus:border-blue-500 outline-none w-full ${
+                isLight ? 'bg-slate-50 border-slate-200 text-slate-900' : 'bg-black/40 border-white/5 text-white'
+              }`}
             />
           </div>
         </div>
 
-        <div className="flex items-center justify-between px-1 py-1 bg-white/5 rounded-lg">
-          <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Theme: {theme}</span>
+        <div className={`flex items-center justify-between px-1 py-1 rounded-lg ${isLight ? 'bg-slate-50' : 'bg-white/5'}`}>
+          <span className={`text-[9px] font-black uppercase tracking-widest ${isLight ? 'text-slate-500' : 'text-slate-300'}`}>Theme: {theme}</span>
           <button 
             type="button" 
             onClick={toggleTheme}
@@ -166,15 +207,27 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack }) => {
 
         {errorMessage && <p className="text-[8px] text-rose-500 font-bold uppercase">{errorMessage}</p>}
 
-        <button
-          type="submit"
-          disabled={saveStatus === 'saving'}
-          className={`w-full text-[10px] font-black py-2 rounded-lg shadow-lg transition-all uppercase tracking-widest ${
-            saveStatus === 'saved' ? 'bg-emerald-600' : 'bg-blue-600 hover:bg-blue-500'
-          } text-white`}
-        >
-          {saveStatus === 'saving' ? 'Syncing...' : saveStatus === 'saved' ? 'Updated ✓' : 'Save Profile'}
-        </button>
+        <div className="flex flex-col gap-2">
+          <button
+            type="submit"
+            disabled={saveStatus === 'saving'}
+            className={`w-full text-[10px] font-black py-2 rounded-lg shadow-lg transition-all uppercase tracking-widest ${
+              saveStatus === 'saved' ? 'bg-emerald-600' : 'bg-blue-600 hover:bg-blue-500'
+            } text-white`}
+          >
+            {saveStatus === 'saving' ? 'Syncing...' : saveStatus === 'saved' ? 'Updated ✓' : 'Save Changes'}
+          </button>
+          
+          <button
+            type="button"
+            onClick={handleLogout}
+            className={`w-full text-[10px] font-black py-2 rounded-lg transition-all uppercase tracking-widest border ${
+              isLight ? 'bg-white border-slate-200 text-slate-400 hover:text-rose-500 hover:border-rose-200' : 'bg-black/20 border-white/5 text-slate-500 hover:text-rose-400 hover:border-rose-500/30'
+            }`}
+          >
+            Switch Identity
+          </button>
+        </div>
       </form>
     </div>
   );

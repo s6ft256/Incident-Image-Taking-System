@@ -4,11 +4,11 @@ import { CreateReportForm } from './components/CreateReportForm';
 import { RecentReports } from './components/RecentReports';
 import { Dashboard } from './components/Dashboard';
 import { UserProfile } from './components/UserProfile';
-import { HSEAssistant } from './components/HSEAssistant';
+import { AuthScreen } from './components/AuthScreen';
 import { syncOfflineReports } from './services/syncService';
 import { UserProfile as UserProfileType } from './types';
 
-type ViewState = 'dashboard' | 'create' | 'recent';
+type ViewState = 'dashboard' | 'create' | 'recent' | 'auth';
 
 const PROFILE_KEY = 'hse_guardian_profile';
 const THEME_KEY = 'hse_guardian_theme';
@@ -22,6 +22,7 @@ function App() {
   const [quote, setQuote] = useState('');
   const [userProfile, setUserProfile] = useState<UserProfileType | null>(null);
   const [appTheme, setAppTheme] = useState<'dark' | 'light'>('dark');
+  const [isInitialized, setIsInitialized] = useState(false);
   
   const needsConfig = baseId.includes('YourBaseId') || !baseId;
 
@@ -29,13 +30,14 @@ function App() {
     const saved = localStorage.getItem(PROFILE_KEY);
     if (saved) {
       try {
-        setUserProfile(JSON.parse(saved));
+        const parsed = JSON.parse(saved);
+        setUserProfile(parsed);
+        return parsed;
       } catch (e) {
         console.error("Failed to load profile", e);
       }
-    } else {
-      setUserProfile(null);
     }
+    return null;
   };
 
   const applyTheme = (t: 'dark' | 'light') => {
@@ -50,7 +52,14 @@ function App() {
 
   useEffect(() => {
     setQuote(SAFETY_QUOTES[Math.floor(Math.random() * SAFETY_QUOTES.length)]);
-    loadProfile();
+    const profile = loadProfile();
+    
+    if (!profile) {
+      setView('auth');
+    } else {
+      setView('dashboard');
+    }
+    setIsInitialized(true);
 
     const savedTheme = localStorage.getItem(THEME_KEY) as 'dark' | 'light';
     if (savedTheme) {
@@ -102,7 +111,17 @@ function App() {
     }
   };
 
+  const handleAuthComplete = (profile: UserProfileType) => {
+    localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+    setUserProfile(profile);
+    setView('dashboard');
+  };
+
   const renderContent = () => {
+    if (view === 'auth') {
+      return <AuthScreen onAuthComplete={handleAuthComplete} appTheme={appTheme} />;
+    }
+
     switch (view) {
       case 'create':
         return <CreateReportForm baseId={baseId} appTheme={appTheme} onBack={() => setView('dashboard')} />;
@@ -114,14 +133,16 @@ function App() {
     }
   };
 
+  if (!isInitialized) return null;
+
   return (
     <div 
-      className={`min-h-screen transition-colors duration-300 main-app-container relative selection:bg-blue-500/30 overflow-x-hidden ${appTheme === 'dark' ? 'bg-[#020617]' : 'bg-slate-100'}`}
+      className={`min-h-screen transition-colors duration-300 main-app-container relative selection:bg-blue-500/30 overflow-x-hidden ${appTheme === 'dark' ? 'bg-[#020617]' : 'bg-white'}`}
     >
       {appTheme === 'dark' && <div className="absolute inset-0 bg-gradient-to-b from-slate-950/70 via-slate-950/50 to-slate-950/70 z-0 pointer-events-none"></div>}
 
       <div className="relative z-10 flex flex-col min-h-screen">
-        <header className={`sticky top-0 z-40 backdrop-blur-2xl border-b transition-all duration-300 ${appTheme === 'dark' ? 'bg-[#020617]/90 border-white/5 shadow-[0_4px_30px_rgba(0,0,0,0.5)]' : 'bg-white/80 border-slate-200 shadow-md'}`}>
+        <header className={`sticky top-0 z-40 backdrop-blur-2xl border-b transition-all duration-300 ${appTheme === 'dark' ? 'bg-[#020617]/90 border-white/5 shadow-[0_4px_30px_rgba(0,0,0,0.5)]' : 'bg-white border-slate-200 shadow-sm'} ${view === 'auth' ? 'hidden' : ''}`}>
           <div className="max-w-7xl mx-auto px-6 py-6 sm:py-10 flex items-center justify-between gap-2 sm:gap-6">
              <div className="flex-1 flex justify-start">
                <div className="flex flex-col items-center">
@@ -150,7 +171,7 @@ function App() {
              </div>
              
              <div className="flex-1 flex justify-end items-center gap-3 sm:gap-6 relative">
-               {view !== 'dashboard' && (
+               {view !== 'dashboard' && view !== 'auth' && (
                   <button 
                     onClick={() => setView('dashboard')}
                     className={`group text-[10px] font-black uppercase tracking-widest backdrop-blur-md rounded-full px-5 py-2.5 flex items-center gap-2 transition-all border shadow-lg active:scale-95 hidden lg:flex ${appTheme === 'dark' ? 'text-white bg-blue-600/10 border-blue-500/30 hover:bg-blue-600 hover:border-blue-400' : 'text-blue-600 bg-blue-50 border-blue-200 hover:bg-blue-100'}`}
@@ -174,7 +195,6 @@ function App() {
                   )}
                </button>
 
-               {/* COMPACT PROFILE OVERLAY */}
                {showProfileCard && (
                  <div className="absolute top-16 sm:top-24 right-0 w-72 sm:w-80 z-50 animate-in fade-in slide-in-from-top-4 duration-300">
                     <UserProfile onBack={() => setShowProfileCard(false)} />
@@ -195,7 +215,6 @@ function App() {
           )}
         </header>
 
-        {/* CLICK OVERLAY TO CLOSE PROFILE CARD */}
         {showProfileCard && (
           <div 
             className="fixed inset-0 z-30 bg-black/10 backdrop-blur-[1px]" 
@@ -204,7 +223,7 @@ function App() {
         )}
 
         <main className="max-w-7xl mx-auto px-4 pt-6 sm:pt-10 flex-grow w-full overflow-y-auto">
-          {needsConfig && (
+          {needsConfig && view !== 'auth' && (
             <div className={`mb-10 backdrop-blur-2xl border p-6 sm:p-10 rounded-3xl shadow-2xl ${appTheme === 'dark' ? 'bg-amber-500/10 border-amber-500/30' : 'bg-amber-50 border-amber-200'}`}>
               <h3 className="text-xs font-black text-amber-500 uppercase tracking-widest mb-4">Configuration Required</h3>
               <input 
@@ -222,11 +241,11 @@ function App() {
           </div>
         </main>
 
-        <footer className="py-10 px-4 max-w-7xl mx-auto w-full flex flex-col items-center gap-8 mt-auto">
+        <footer className={`py-10 px-4 max-w-7xl mx-auto w-full flex flex-col items-center gap-8 mt-auto ${view === 'auth' ? 'hidden' : ''}`}>
            {quote && (
              <div className={`w-full max-w-2xl text-center px-10 py-6 rounded-[3rem] border-2 transition-all duration-700 ease-in-out backdrop-blur-xl relative overflow-hidden group animate-in fade-in zoom-in-95 ${appTheme === 'dark' ? 'bg-white/5 border-red-500/40 shadow-[0_0_30px_rgba(239,68,68,0.2)] hover:shadow-[0_0_50px_rgba(239,68,68,0.5)] hover:border-red-500' : 'bg-white border-red-400/40 shadow-xl hover:border-red-500'}`}>
                 <div className="absolute inset-0 bg-gradient-to-r from-red-500/10 via-transparent to-red-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none"></div>
-                <p className={`italic font-medium text-sm sm:text-base leading-relaxed transition-colors duration-500 ${appTheme === 'dark' ? 'text-slate-400 group-hover:text-red-200' : 'text-slate-500 group-hover:text-red-700'}`}>
+                <p className={`italic font-medium text-sm sm:text-base leading-relaxed transition-colors duration-500 ${appTheme === 'dark' ? 'text-slate-400 group-hover:text-red-200' : 'text-slate-700 group-hover:text-red-700'}`}>
                   {quote}
                 </p>
              </div>
@@ -238,9 +257,6 @@ function App() {
            </div>
         </footer>
       </div>
-
-      {/* HSE Technical Assistant */}
-      <HSEAssistant appTheme={appTheme} />
     </div>
   );
 }

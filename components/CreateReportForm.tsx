@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState, useEffect, useCallback } from 'react';
 import { InputField } from './InputField';
 import { ImageGrid } from './ImageGrid';
 import { IncidentForm, UploadedImage, UserProfile } from '../types';
@@ -54,14 +55,15 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
     return () => {
       window.removeEventListener('online', handleStatus);
       window.removeEventListener('offline', handleStatus);
-      images.forEach(img => URL.revokeObjectURL(img.previewUrl));
+      // images is stable here because useEffect dependency is empty
     };
   }, []);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+  // Performance Optimization: Wrap in useCallback to ensure speed typing is lag-free
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { id, value } = e.target;
     setFormData(prev => ({ ...prev, [id]: value }));
-  };
+  }, []);
 
   const handleAddImage = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -211,7 +213,7 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
           <h2 className={`text-[10px] font-black ${appTheme === 'dark' ? 'text-slate-500 border-white/5' : 'text-slate-400 border-slate-100'} uppercase tracking-widest border-b pb-4`}>Observer Identification</h2>
           <InputField id="name" label="Full Name" value={formData.name} onChange={handleInputChange} required placeholder="Your Name" />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <InputField id="role" label="Current Role" value={formData.role} onChange={handleInputChange} required list={ROLES} type="select" options={ROLES} />
+            <InputField id="role" label="Current Role" value={formData.role} onChange={handleInputChange} required list={ROLES} />
             <InputField id="site" label="Work Location" value={formData.site} onChange={handleInputChange} required list={SITES} />
           </div>
           <InputField id="category" label="Incident Type" value={formData.category} onChange={handleInputChange} list={INCIDENT_TYPES} required />
@@ -219,7 +221,7 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
         </div>
 
         <div className={`${appTheme === 'dark' ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200'} backdrop-blur-xl rounded-[2rem] border p-8 shadow-2xl`}>
-          <ImageGrid images={images} onAdd={handleAddImage} onRemove={handleRemoveImage} onRetry={handleRetry} />
+          <ImageGrid images={images} onAdd={handleAddImage} onRemove={handleRemoveImage} onRetry={handleRetry} appTheme={appTheme} />
         </div>
 
         {errorMessage && (
