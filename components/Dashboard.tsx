@@ -12,19 +12,15 @@ import {
   Tooltip,
   ResponsiveContainer,
   Cell,
-  CartesianGrid,
-  TooltipProps
+  CartesianGrid
 } from 'recharts';
 
 interface DashboardProps {
   baseId: string;
-  // Fix: Removed 'profile' from navigation options as it is handled as an overlay, fixing App.tsx type mismatch
   onNavigate: (view: 'create' | 'recent') => void;
-  // Added appTheme to fix prop mismatch in App.tsx
   appTheme?: 'dark' | 'light';
 }
 
-// Severity mapping for criticality calculation
 const SEVERITY_MAP: Record<string, number> = {
   'Fire Risk': 10,
   'Chemical Spill': 9,
@@ -37,7 +33,6 @@ const SEVERITY_MAP: Record<string, number> = {
   'Other': 1
 };
 
-// Fix: Using any for the tooltip props to bypass Recharts version-specific generic type mismatches for payload and label
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
@@ -59,6 +54,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
   const [reports, setReports] = useState<FetchedIncident[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const isLight = appTheme === 'light';
+
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -77,7 +74,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
   const closedCount = reports.filter(r => r.fields["Action taken"] && r.fields["Action taken"].trim().length > 0).length;
   const openCount = total - closedCount;
   
-  // Calculate site statistics weighted by criticality
+  // Site Statistics
   const siteStats = reports.reduce((acc, curr) => {
     const site = curr.fields["Site / Location"] || 'Other';
     const type = curr.fields["Incident Type"] || 'Other';
@@ -91,7 +88,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
     return acc;
   }, {} as Record<string, { count: number, severityScore: number }>);
 
-  // Sort sites by criticality (Severity Score)
   const siteChartData = Object.entries(siteStats)
     .map(([name, stats]) => ({ 
       name, 
@@ -101,9 +97,22 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
     .sort((a, b) => b.criticality - a.criticality)
     .slice(0, 8);
 
+  // Category Statistics for Progress Bars
+  const categoryStats = reports.reduce((acc, curr) => {
+    const type = curr.fields["Incident Type"] || 'Other';
+    if (!acc[type]) acc[type] = { total: 0, closed: 0 };
+    acc[type].total += 1;
+    const isClosed = curr.fields["Action taken"] && curr.fields["Action taken"].trim().length > 0;
+    if (isClosed) acc[type].closed += 1;
+    return acc;
+  }, {} as Record<string, { total: number, closed: number }>);
+
+  const sortedCategories = Object.entries(categoryStats)
+    .sort((a, b) => b[1].total - a[1].total);
+
   const renderSafetyStatusMap = () => {
-    const r = 42; // Increased radius from 30
-    const strokeWidth = 12; // Increased stroke from 10
+    const r = 42;
+    const strokeWidth = 12;
     const c = 2 * Math.PI * r;
     const openPercent = total > 0 ? openCount / total : 0;
     const openOffset = c * (1 - openPercent);
@@ -111,11 +120,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
     return (
       <div className="relative h-48 w-48 sm:h-64 sm:w-64 mx-auto flex items-center justify-center">
         <svg width="100%" height="100%" viewBox="0 0 100 100" className="transform -rotate-90 drop-shadow-[0_0_15px_rgba(0,0,0,0.3)]">
-          <circle cx="50" cy="50" r={r} fill="transparent" stroke="rgba(255,255,255,0.05)" strokeWidth={strokeWidth} />
+          <circle cx="50" cy="50" r={r} fill="transparent" stroke={isLight ? "rgba(0,0,0,0.05)" : "rgba(255,255,255,0.05)"} strokeWidth={strokeWidth} />
           <circle 
             cx="50" cy="50" r={r} 
             fill="transparent" 
-            stroke="#065f46" 
+            stroke="#10b981" 
             strokeWidth={strokeWidth} 
             strokeDasharray={c} 
             strokeDashoffset={0} 
@@ -133,8 +142,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
           />
         </svg>
         <div className="absolute flex flex-col items-center text-center">
-            <span className="text-4xl sm:text-6xl font-black text-white leading-none tracking-tighter">{total}</span>
-            <span className="text-[10px] sm:text-xs text-slate-500 font-black uppercase tracking-[0.2em] mt-1">Total Obs</span>
+            <span className={`text-4xl sm:text-6xl font-black leading-none tracking-tighter ${isLight ? 'text-slate-900' : 'text-white'}`}>{total}</span>
+            <span className={`text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] mt-1 ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>Total Obs</span>
         </div>
       </div>
     );
@@ -142,13 +151,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
 
   return (
     <div className="space-y-4 sm:space-y-6 pb-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      {/* PROACTIVE SAFETY TEXT - MOVED TO TOP */}
-      <div className="px-4 sm:px-8 py-6 bg-white/[0.03] border border-white/10 rounded-[2rem] text-center backdrop-blur-md shadow-lg">
-        <p className="text-xs sm:text-sm text-slate-300 font-medium leading-relaxed max-w-4xl mx-auto">
+      <div className={`px-4 sm:px-8 py-6 rounded-[2rem] text-center backdrop-blur-md shadow-lg border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/[0.03] border-white/10'}`}>
+        <p className={`text-xs sm:text-sm font-medium leading-relaxed max-w-4xl mx-auto ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
           HSE Guardian isn't just software; it's your proactive safety nerve center. 
-          It’s a unified system that captures, manages, and analyzes all your safety observations, 
-          near misses, and incident data in real-time. Move from reactive record-keeping to predictive insights, 
-          and empower every employee to be a guardian of your safety culture.
+          Unified system capturing and managing all safety observations and incident data in real-time.
         </p>
       </div>
 
@@ -158,84 +164,135 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
           <span className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Acquiring Data...</span>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-          {/* SAFETY STATUS MAP */}
-          <div className="bg-white/[0.03] backdrop-blur-2xl p-4 sm:p-6 rounded-3xl border border-white/10 shadow-xl flex flex-col items-center relative overflow-hidden min-h-[320px] sm:min-h-[400px] justify-center">
-              <h3 className="text-[9px] font-black text-slate-500 uppercase tracking-[0.3em] mb-4 absolute top-6">Safety Status Map</h3>
-              <div className="flex-grow flex items-center justify-center">
-                {renderSafetyStatusMap()}
-              </div>
-              <div className="flex justify-center gap-6 mt-4 absolute bottom-6">
-                <div className="flex items-center gap-2">
-                  <div className="w-2.5 h-2.5 bg-amber-500 rounded-full"></div>
-                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Open</span>
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+            <div className={`backdrop-blur-2xl p-4 sm:p-6 rounded-3xl border shadow-xl flex flex-col items-center relative overflow-hidden min-h-[320px] sm:min-h-[400px] justify-center ${isLight ? 'bg-white border-slate-200' : 'bg-white/[0.03] border-white/10'}`}>
+                <h3 className={`text-[9px] font-black uppercase tracking-[0.3em] mb-4 absolute top-6 ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>Safety Status Map</h3>
+                <div className="flex-grow flex items-center justify-center">
+                  {renderSafetyStatusMap()}
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-2.5 h-2.5 bg-[#065f46] rounded-full"></div>
-                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Closed</span>
+                <div className="flex justify-center gap-6 mt-4 absolute bottom-6">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2.5 h-2.5 bg-amber-500 rounded-full"></div>
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Open</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-2.5 h-2.5 bg-[#10b981] rounded-full"></div>
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Closed</span>
+                  </div>
                 </div>
-              </div>
+            </div>
+
+            <div className={`backdrop-blur-2xl p-4 sm:p-6 rounded-3xl border shadow-xl flex flex-col relative overflow-hidden min-h-[320px] sm:min-h-[400px] ${isLight ? 'bg-white border-slate-200' : 'bg-white/[0.03] border-white/10'}`}>
+                <h3 className={`text-[9px] font-black uppercase tracking-[0.3em] mb-4 text-center mt-2 ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>Criticality By Site</h3>
+                <div className="flex-1 w-full flex items-center justify-center">
+                  {siteChartData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="85%">
+                      <ComposedChart data={siteChartData} margin={{ top: 5, right: 15, left: -20, bottom: 20 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isLight ? "rgba(0,0,0,0.05)" : "rgba(255,255,255,0.05)"} />
+                        <XAxis 
+                          dataKey="name" 
+                          stroke={isLight ? "#94a3b8" : "#475569"} 
+                          fontSize={8} 
+                          tick={{fill: isLight ? '#64748b' : '#64748b', fontWeight: '800'}}
+                          axisLine={false}
+                          tickLine={false}
+                          interval={0}
+                          angle={-35}
+                          textAnchor="end"
+                        />
+                        <YAxis hide />
+                        <Tooltip content={<CustomTooltip />} cursor={{fill: isLight ? 'rgba(0,0,0,0.02)' : 'rgba(255,255,255,0.02)'}} />
+                        <Bar 
+                          dataKey="criticality" 
+                          fill="#3b82f6" 
+                          radius={[3, 3, 0, 0]} 
+                          barSize={24}
+                        >
+                           {siteChartData.map((entry, index) => (
+                             <Cell 
+                               key={`cell-${index}`} 
+                               fillOpacity={1 - (index * 0.08)} 
+                               fill="#3b82f6"
+                             />
+                           ))}
+                        </Bar>
+                        <Line 
+                          type="monotone" 
+                          dataKey="criticality" 
+                          stroke={isLight ? "#0f172a" : "#0f172a"} 
+                          strokeWidth={2} 
+                          dot={false}
+                        />
+                      </ComposedChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-full flex items-center justify-center text-slate-700 text-[9px] font-black uppercase tracking-widest">
+                      No Data Available
+                    </div>
+                  )}
+                </div>
+            </div>
           </div>
 
-          {/* DISTRIBUTION BY SITE */}
-          <div className="bg-white/[0.03] backdrop-blur-2xl p-4 sm:p-6 rounded-3xl border border-white/10 shadow-xl flex flex-col relative overflow-hidden min-h-[320px] sm:min-h-[400px]">
-              <h3 className="text-[9px] font-black text-slate-500 uppercase tracking-[0.3em] mb-4 text-center mt-2">Criticality By Site</h3>
-              <div className="flex-1 w-full flex items-center justify-center">
-                {siteChartData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="85%">
-                    <ComposedChart data={siteChartData} margin={{ top: 5, right: 15, left: -20, bottom: 20 }}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
-                      <XAxis 
-                        dataKey="name" 
-                        stroke="#475569" 
-                        fontSize={8} 
-                        tick={{fill: '#64748b', fontWeight: '800'}}
-                        axisLine={false}
-                        tickLine={false}
-                        interval={0}
-                        angle={-35}
-                        textAnchor="end"
-                      />
-                      <YAxis hide />
-                      <Tooltip content={<CustomTooltip />} cursor={{fill: 'rgba(255,255,255,0.02)'}} />
-                      <Bar 
-                        dataKey="criticality" 
-                        fill="#3b82f6" 
-                        radius={[3, 3, 0, 0]} 
-                        barSize={24}
-                      >
-                         {siteChartData.map((entry, index) => (
-                           <Cell 
-                             key={`cell-${index}`} 
-                             fillOpacity={1 - (index * 0.08)} 
-                             fill="#3b82f6"
-                           />
-                         ))}
-                      </Bar>
-                      <Line 
-                        type="monotone" 
-                        dataKey="criticality" 
-                        stroke="#0f172a" 
-                        strokeWidth={2} 
-                        dot={false}
-                      />
-                    </ComposedChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="h-full flex items-center justify-center text-slate-700 text-[9px] font-black uppercase tracking-widest">
-                    No Data Available
-                  </div>
-                )}
+          {/* TASK RESOLUTION PROGRESS BARS */}
+          <div className={`backdrop-blur-2xl p-6 sm:p-8 rounded-[2.5rem] border shadow-xl ${isLight ? 'bg-white border-slate-200' : 'bg-white/[0.03] border-white/10'}`}>
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <h3 className={`text-lg font-black tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>Category Resolution</h3>
+                <p className={`text-[9px] font-black uppercase tracking-[0.3em] mt-1 ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>Performance Benchmarking</p>
               </div>
+              <div className={`px-4 py-1.5 rounded-full border text-[9px] font-black uppercase tracking-widest ${isLight ? 'bg-blue-50 border-blue-100 text-blue-600' : 'bg-blue-500/10 border-blue-500/20 text-blue-400'}`}>
+                {closedCount} / {total} Closed
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
+              {sortedCategories.length > 0 ? (
+                sortedCategories.map(([category, stats]) => {
+                  const percent = Math.round((stats.closed / stats.total) * 100);
+                  return (
+                    <div key={category} className="space-y-2 group">
+                      <div className="flex justify-between items-end">
+                        <span className={`text-[10px] font-bold uppercase tracking-wide truncate pr-4 ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
+                          {category}
+                        </span>
+                        <span className={`text-[10px] font-black font-mono shrink-0 ${percent === 100 ? 'text-emerald-500' : isLight ? 'text-slate-400' : 'text-slate-500'}`}>
+                          {stats.closed}/{stats.total} • {percent}%
+                        </span>
+                      </div>
+                      <div className={`h-2.5 w-full rounded-full overflow-hidden relative shadow-inner ${isLight ? 'bg-slate-100' : 'bg-white/5'}`}>
+                        <div 
+                          className={`h-full rounded-full transition-all duration-1000 ease-out shadow-sm ${
+                            percent === 100 ? 'bg-emerald-500' : 
+                            percent > 50 ? 'bg-blue-500' : 
+                            percent > 20 ? 'bg-amber-500' : 'bg-rose-500'
+                          }`}
+                          style={{ width: `${percent}%` }}
+                        />
+                        <div 
+                          className="absolute inset-0 opacity-0 group-hover:opacity-10 bg-gradient-to-r from-transparent via-white to-transparent transition-opacity"
+                        />
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="col-span-2 py-8 text-center text-slate-500 text-[10px] font-black uppercase tracking-widest">
+                  Awaiting Initial Data Stream...
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        </>
       )}
 
-      {/* MENU CARD SECTION - Reduced heights for more compact UI */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 pt-2">
           <button
             onClick={() => onNavigate('create')}
-            className="group relative h-24 sm:h-28 flex items-center bg-white/[0.04] backdrop-blur-xl border border-white/10 rounded-2xl sm:rounded-[2rem] overflow-hidden hover:bg-white/[0.08] transition-all hover:border-blue-500/30 active:scale-[0.98] duration-300 px-6 sm:px-8"
+            className={`group relative h-24 sm:h-28 flex items-center backdrop-blur-xl border rounded-2xl sm:rounded-[2rem] overflow-hidden transition-all active:scale-[0.98] duration-300 px-6 sm:px-8 ${
+              isLight ? 'bg-white border-slate-200 hover:bg-slate-50 hover:border-blue-300' : 'bg-white/[0.04] border-white/10 hover:bg-white/[0.08] hover:border-blue-500/30'
+            }`}
           >
             <div className="w-12 h-12 sm:w-16 sm:h-16 bg-blue-600 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-2xl group-hover:scale-105 transition-transform shrink-0 border border-blue-400/30">
                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 sm:h-8 sm:w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -243,23 +300,27 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
                </svg>
             </div>
             <div className="flex-1 text-left ml-4 sm:ml-6">
-               <h3 className="text-lg sm:text-xl font-black text-white tracking-tight leading-tight">Report Incident</h3>
+               <h3 className={`text-lg sm:text-xl font-black tracking-tight leading-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>Report Incident</h3>
                <p className="text-[8px] sm:text-[9px] font-black text-blue-400 uppercase tracking-[0.2em] mt-1 opacity-80">Capture New Event</p>
             </div>
           </button>
 
           <button
             onClick={() => onNavigate('recent')}
-            className="group relative h-24 sm:h-28 flex items-center bg-white/[0.04] backdrop-blur-xl border border-white/10 rounded-2xl sm:rounded-[2rem] overflow-hidden hover:bg-white/[0.08] transition-all active:scale-[0.98] duration-300 px-6 sm:px-8"
+            className={`group relative h-24 sm:h-28 flex items-center backdrop-blur-xl border rounded-2xl sm:rounded-[2rem] overflow-hidden transition-all active:scale-[0.98] duration-300 px-6 sm:px-8 ${
+              isLight ? 'bg-white border-slate-200 hover:bg-slate-50 hover:border-slate-300' : 'bg-white/[0.04] border-white/10 hover:bg-white/[0.08] hover:border-white/20'
+            }`}
           >
-            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-slate-800 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-2xl group-hover:scale-105 transition-transform shrink-0 border border-white/10">
-               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 sm:h-8 sm:w-8 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className={`w-12 h-12 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-2xl group-hover:scale-105 transition-transform shrink-0 border ${
+              isLight ? 'bg-slate-100 border-slate-200' : 'bg-slate-800 border-white/10'
+            }`}>
+               <svg xmlns="http://www.w3.org/2000/svg" className={`h-6 w-6 sm:h-8 sm:w-8 ${isLight ? 'text-slate-500' : 'text-slate-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 002-2h2a2 2 0 002 2" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" />
                </svg>
             </div>
             <div className="flex-1 text-left ml-4 sm:ml-6">
-               <h3 className="text-lg sm:text-xl font-black text-white tracking-tight leading-tight">Recent Logs</h3>
-               <p className="text-[8px] sm:text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] mt-1 opacity-80">Review Evidence</p>
+               <h3 className={`text-lg sm:text-xl font-black tracking-tight leading-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>Recent Logs</h3>
+               <p className={`text-[8px] sm:text-[9px] font-black uppercase tracking-[0.2em] mt-1 opacity-80 ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>Review Evidence</p>
             </div>
           </button>
       </div>

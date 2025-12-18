@@ -164,9 +164,12 @@ function App() {
                  >
                    <span className={appTheme === 'dark' ? 'text-white' : 'text-slate-900'}>HSE</span> <span className="text-blue-500">Guardian</span>
                  </h1>
-                 <p className={`text-[9px] sm:text-sm font-bold uppercase tracking-[0.3em] sm:tracking-[0.5em] mt-2 drop-shadow-md ${appTheme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
-                   Safety Acquisition System
-                 </p>
+                 <div className="flex flex-col items-center mt-2 group">
+                   <p className={`text-[9px] sm:text-sm font-bold uppercase tracking-[0.3em] sm:tracking-[0.5em] drop-shadow-md ${appTheme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
+                     Safety Acquisition System
+                   </p>
+                   <div className="h-[2px] w-[80%] bg-red-600 mt-1.5 shadow-[0_0_10px_rgba(220,38,38,0.9)] rounded-full animate-pulse"></div>
+                 </div>
                </div>
              </div>
              
