@@ -13,15 +13,12 @@ interface AuthScreenProps {
 }
 
 const AuthCard: React.FC<{ children: React.ReactNode, isLight: boolean }> = ({ children, isLight }) => (
-  <div className={`relative w-full max-w-md p-8 sm:p-10 rounded-[3rem] border backdrop-blur-3xl transition-all duration-700 animate-in fade-in zoom-in-95 slide-in-from-bottom-10 z-20 overflow-hidden ${
+  <div className={`relative w-full max-w-md p-8 sm:p-10 rounded-[3.5rem] border backdrop-blur-3xl transition-all duration-700 animate-in fade-in zoom-in-95 slide-in-from-bottom-10 z-20 overflow-hidden ${
     isLight 
-      ? 'bg-white/[0.0005] border-red-500/40 shadow-[0_0_40px_rgba(239,68,68,0.15)]' 
-      : 'bg-slate-950/[0.0005] border-red-600/50 shadow-[0_0_50px_rgba(220,38,38,0.3)] ring-1 ring-red-500/20'
+      ? 'bg-white/[0.05] border-red-500/40 shadow-[0_0_40px_rgba(239,68,68,0.15)]' 
+      : 'bg-slate-950/[0.05] border-red-600/50 shadow-[0_0_50px_rgba(220,38,38,0.3)] ring-1 ring-red-500/20'
   }`}>
-    {/* Inner Subtle Gradient for contrast */}
     <div className="absolute inset-0 bg-gradient-to-br from-red-500/5 via-transparent to-blue-500/5 pointer-events-none"></div>
-    
-    {/* Content Container */}
     <div className="relative z-10">
       {children}
     </div>
@@ -30,7 +27,6 @@ const AuthCard: React.FC<{ children: React.ReactNode, isLight: boolean }> = ({ c
 
 const VideoBackground: React.FC<{ isLight: boolean }> = ({ isLight }) => (
   <div className="fixed inset-0 w-full h-full overflow-hidden pointer-events-none z-0 flex items-center justify-center">
-    {/* Cinematic "Shortened" Video Container */}
     <div className="relative w-full h-[65vh] overflow-hidden opacity-70">
       <video
         autoPlay
@@ -41,16 +37,12 @@ const VideoBackground: React.FC<{ isLight: boolean }> = ({ isLight }) => (
       >
         <source src="https://v1.pinimg.com/videos/mc/720p/be/15/5a/be155abccdc19354019151163e21a073.mp4" type="video/mp4" />
       </video>
-      
-      {/* Edge Feathering for the cinematic strip */}
       <div className={`absolute inset-0 bg-gradient-to-b ${
         isLight 
           ? 'from-white via-transparent to-white' 
           : 'from-slate-950 via-transparent to-slate-950'
       }`}></div>
     </div>
-
-    {/* Global Color Grading Overlays */}
     <div className={`absolute inset-0 bg-gradient-to-br ${
       isLight 
         ? 'from-white/40 via-blue-50/10 to-white/60' 
@@ -61,7 +53,8 @@ const VideoBackground: React.FC<{ isLight: boolean }> = ({ isLight }) => (
 
 export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme }) => {
   const [mode, setMode] = useState<'welcome' | 'signup' | 'login'>('welcome');
-  const [profile, setProfile] = useState<UserProfile>({ name: '', role: '', site: '' });
+  const [profile, setProfile] = useState<UserProfile>({ name: '', role: '', site: '', password: '' });
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -77,13 +70,25 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
 
   const handleFieldChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { id, value } = e.target;
-    setProfile(p => ({ ...p, [id]: value }));
+    if (id === 'confirmPassword') {
+      setConfirmPassword(value);
+    } else {
+      setProfile(p => ({ ...p, [id]: value }));
+    }
     if (error) setError('');
   }, [error]);
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!profile.name || !profile.role) return setError('Mandatory: Name and Role credentials required.');
+    if (!profile.name || !profile.role || !profile.password) {
+      return setError('Identification details and Access Key are required.');
+    }
+    if (profile.password.length < 6) {
+      return setError('Security protocols require at least 6 characters.');
+    }
+    if (profile.password !== confirmPassword) {
+      return setError('Access Key mismatch: Keys must be identical.');
+    }
     
     setIsProcessing(true);
     setError('');
@@ -106,7 +111,9 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!profile.name) return setError('Identity verification requires a registered name.');
+    if (!profile.name || !profile.password) {
+      return setError('Verification requires name and Access Key.');
+    }
 
     setIsProcessing(true);
     setError('');
@@ -114,7 +121,11 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
     try {
       const existing = await getProfileByName(profile.name);
       if (existing) {
-        onAuthComplete(existing);
+        if (existing.password === profile.password) {
+          onAuthComplete(existing);
+        } else {
+          setError('Invalid Credentials: Access Key rejected.');
+        }
       } else {
         setError('Unauthorized: Profile not found in safety database.');
       }
@@ -129,7 +140,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
     if (!error) return null;
     return (
       <div className="animate-in slide-in-from-top-2 fade-in duration-300 flex items-center gap-3 bg-rose-500/10 border border-rose-500/20 text-rose-500 p-4 rounded-2xl mb-6">
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 shrink-0" viewBox="0 0 20 20" fill="currentColor">
           <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
         </svg>
         <span className="text-[10px] font-black uppercase tracking-widest leading-tight">{error}</span>
@@ -273,6 +284,30 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
                       list={SITES}
                     />
                   </div>
+                )}
+
+                <InputField 
+                  id="password" 
+                  label="Secure Access Key" 
+                  type="password"
+                  value={profile.password || ''} 
+                  onChange={handleFieldChange} 
+                  required 
+                  placeholder="••••••••"
+                  autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+                />
+
+                {mode === 'signup' && (
+                   <InputField 
+                    id="confirmPassword" 
+                    label="Confirm Access Key" 
+                    type="password"
+                    value={confirmPassword} 
+                    onChange={handleFieldChange} 
+                    required 
+                    placeholder="••••••••"
+                    autoComplete="new-password"
+                  />
                 )}
               </div>
 

@@ -13,19 +13,23 @@ export const registerProfile = async (profile: UserProfile): Promise<UserProfile
       name: profile.name, 
       role: profile.role, 
       site: profile.site,
+      password: profile.password,
       profile_image_url: profile.profileImageUrl 
     }])
     .select()
     .single();
 
-  if (error) throw new Error(error.message);
+  if (error) {
+    if (error.code === '23505') throw new Error('Identity already exists. Please use the Access protocol to login.');
+    throw new Error(error.message);
+  }
   
-  // Map back to camelCase for the app
   return {
     id: data.id,
     name: data.name,
     role: data.role,
     site: data.site,
+    password: data.password,
     profileImageUrl: data.profile_image_url
   };
 };
@@ -45,6 +49,7 @@ export const getProfileByName = async (name: string): Promise<UserProfile | null
     name: data.name,
     role: data.role,
     site: data.site,
+    password: data.password,
     profileImageUrl: data.profile_image_url
   };
 };
@@ -54,6 +59,7 @@ export const updateProfile = async (id: string, updates: Partial<UserProfile>): 
   if (updates.name !== undefined) dbUpdates.name = updates.name;
   if (updates.role !== undefined) dbUpdates.role = updates.role;
   if (updates.site !== undefined) dbUpdates.site = updates.site;
+  if (updates.password !== undefined) dbUpdates.password = updates.password;
   if (updates.profileImageUrl !== undefined) dbUpdates.profile_image_url = updates.profileImageUrl;
 
   const { error } = await supabase

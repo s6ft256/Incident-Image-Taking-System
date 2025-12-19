@@ -1,3 +1,4 @@
+
 import React, { memo } from 'react';
 
 interface InputFieldProps {
@@ -6,7 +7,7 @@ interface InputFieldProps {
   value: string;
   onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
   placeholder?: string;
-  type?: 'text' | 'select' | 'textarea';
+  type?: 'text' | 'select' | 'textarea' | 'password';
   options?: string[];
   list?: string[];
   required?: boolean;
@@ -35,7 +36,6 @@ export const InputField: React.FC<InputFieldProps> = memo(({
 }) => {
   const dataListId = list && list.length > 0 ? `${id}-list` : undefined;
 
-  // Optimized classes: Removed backdrop-blur and complex shadows on focus to prevent typing lag
   const baseClasses = "w-full rounded-xl border px-4 py-3.5 outline-none transition-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 text-sm";
   const themeClasses = "border-slate-700 bg-slate-900/40 text-slate-100 placeholder:text-slate-600 light-mode:bg-white light-mode:border-slate-300 light-mode:text-slate-900";
 
@@ -78,6 +78,19 @@ export const InputField: React.FC<InputFieldProps> = memo(({
             className={`${baseClasses} ${themeClasses} resize-none min-h-[120px]`}
             required={required}
             autoComplete={autoComplete}
+          />
+        );
+      case 'password':
+        return (
+          <input
+            type="password"
+            id={id}
+            value={value}
+            onChange={onChange}
+            placeholder={placeholder}
+            autoComplete={autoComplete}
+            className={`${baseClasses} ${themeClasses}`}
+            required={required}
           />
         );
       default:

@@ -5,6 +5,7 @@ export interface UserProfile {
   role: string;
   site?: string;
   profileImageUrl?: string;
+  password?: string;
 }
 
 export interface IncidentForm {
