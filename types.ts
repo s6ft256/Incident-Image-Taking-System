@@ -76,4 +76,5 @@ export interface UploadedImage {
   serverUrl?: string; // URL returned from storage server (S3/Cloudinary)
   status: 'pending' | 'uploading' | 'success' | 'error';
   progress: number;
+  errorMessage?: string; // Specific error feedback
 }

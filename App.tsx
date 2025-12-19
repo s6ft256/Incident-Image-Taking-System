@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { AIRTABLE_CONFIG, SAFETY_QUOTES } from './constants';
 import { CreateReportForm } from './components/CreateReportForm';
@@ -5,6 +6,7 @@ import { RecentReports } from './components/RecentReports';
 import { Dashboard } from './components/Dashboard';
 import { UserProfile } from './components/UserProfile';
 import { AuthScreen } from './components/AuthScreen';
+import { TutorialModal } from './components/TutorialModal';
 import { syncOfflineReports } from './services/syncService';
 import { UserProfile as UserProfileType } from './types';
 
@@ -12,10 +14,12 @@ type ViewState = 'dashboard' | 'create' | 'recent' | 'auth';
 
 const PROFILE_KEY = 'hse_guardian_profile';
 const THEME_KEY = 'hse_guardian_theme';
+const TUTORIAL_KEY = 'hse_guardian_tutorial_seen';
 
 function App() {
   const [view, setView] = useState<ViewState>('dashboard');
   const [showProfileCard, setShowProfileCard] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
   const [baseId, setBaseId] = useState(AIRTABLE_CONFIG.BASE_ID);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [syncCount, setSyncCount] = useState(0);
@@ -58,6 +62,11 @@ function App() {
       setView('auth');
     } else {
       setView('dashboard');
+      // Check if tutorial was already seen
+      const tutorialSeen = localStorage.getItem(TUTORIAL_KEY);
+      if (!tutorialSeen) {
+        setShowTutorial(true);
+      }
     }
     setIsInitialized(true);
 
@@ -115,6 +124,17 @@ function App() {
     localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
     setUserProfile(profile);
     setView('dashboard');
+    
+    // Check if tutorial should be shown for this specific session login
+    const tutorialSeen = localStorage.getItem(TUTORIAL_KEY);
+    if (!tutorialSeen) {
+      setShowTutorial(true);
+    }
+  };
+
+  const handleCloseTutorial = () => {
+    localStorage.setItem(TUTORIAL_KEY, 'true');
+    setShowTutorial(false);
   };
 
   const renderContent = () => {
@@ -260,6 +280,8 @@ function App() {
            </div>
         </footer>
       </div>
+
+      {showTutorial && <TutorialModal onClose={handleCloseTutorial} appTheme={appTheme} />}
     </div>
   );
 }

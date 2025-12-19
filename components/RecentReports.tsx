@@ -92,6 +92,39 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
     }
   };
 
+  const uploadClosingImage = async (reportId: string, imageId: string, file: File) => {
+    setClosingImages(prev => ({
+      ...prev,
+      [reportId]: prev[reportId].map(img => 
+        img.id === imageId ? { ...img, status: 'uploading', progress: 10, errorMessage: undefined } : img
+      )
+    }));
+
+    try {
+      const fileToUpload = await compressImage(file);
+      const publicUrl = await uploadImageToStorage(fileToUpload, 'closed');
+      
+      setClosingImages(prev => ({
+        ...prev,
+        [reportId]: prev[reportId].map(img => 
+          img.id === imageId 
+            ? { ...img, status: 'success', serverUrl: publicUrl, progress: 100 } 
+            : img
+        )
+      }));
+    } catch (err: any) {
+      const friendlyError = err.message || "Upload Failed";
+      setClosingImages(prev => ({
+        ...prev,
+        [reportId]: prev[reportId].map(img => 
+          img.id === imageId 
+            ? { ...img, status: 'error', progress: 0, errorMessage: friendlyError } 
+            : img
+        )
+      }));
+    }
+  };
+
   const handleAddClosingImage = async (reportId: string, e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
@@ -113,30 +146,15 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
       }
 
       e.target.value = '';
+      await uploadClosingImage(reportId, newImage.id, file);
+    }
+  };
 
-      try {
-        const fileToUpload = await compressImage(file);
-        const publicUrl = await uploadImageToStorage(fileToUpload, 'closed');
-        
-        setClosingImages(prev => ({
-          ...prev,
-          [reportId]: prev[reportId].map(img => 
-            img.id === newImage.id 
-              ? { ...img, status: 'success', serverUrl: publicUrl, progress: 100 } 
-              : img
-          )
-        }));
-      } catch (err) {
-        console.error("Upload failed", err);
-        setClosingImages(prev => ({
-          ...prev,
-          [reportId]: prev[reportId].map(img => 
-            img.id === newImage.id 
-              ? { ...img, status: 'error', progress: 0 } 
-              : img
-          )
-        }));
-      }
+  const handleRetryClosingImage = (reportId: string, imageId: string) => {
+    const images = closingImages[reportId] || [];
+    const target = images.find(img => img.id === imageId);
+    if (target) {
+      uploadClosingImage(reportId, imageId, target.file);
     }
   };
 
@@ -582,6 +600,22 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
                                                         `${isLight ? 'border-slate-200' : 'border-slate-600'}`
                                                     }`}
                                                   />
+                                                  {img.status === 'error' && (
+                                                    <div className="absolute inset-0 flex flex-col items-center justify-center p-1 bg-red-500/20 backdrop-blur-[1px] rounded-xl">
+                                                       <button 
+                                                         onClick={() => handleRetryClosingImage(report.id, img.id)}
+                                                         className="p-1 bg-red-500 text-white rounded-full shadow-lg hover:bg-red-600 active:scale-95 transition-all mb-1"
+                                                         title={img.errorMessage || "Retry upload"}
+                                                       >
+                                                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                                          </svg>
+                                                       </button>
+                                                       <span className="text-[6px] font-black uppercase text-red-500 text-center leading-[1] px-1 truncate w-full">
+                                                         {img.errorMessage || "Retry"}
+                                                       </span>
+                                                    </div>
+                                                  )}
                                                   <button 
                                                     onClick={() => handleRemoveClosingImage(report.id, img.id)}
                                                     className={`absolute -top-2 -right-2 rounded-full p-1 border shadow-xl transition-colors ${

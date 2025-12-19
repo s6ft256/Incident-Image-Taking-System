@@ -1,3 +1,4 @@
+
 import React, { useState, memo } from 'react';
 import { UploadedImage } from '../types';
 import { MAX_IMAGES, MIN_IMAGES } from '../constants';
@@ -76,6 +77,23 @@ export const ImageGrid: React.FC<ImageGridProps> = memo(({ images, onRemove, onA
                 </div>
               )}
 
+              {img.status === 'error' && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center p-2 text-center bg-rose-500/10 backdrop-blur-[1px]">
+                   <svg className="w-6 h-6 text-rose-500 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                   </svg>
+                   <p className="text-[8px] font-black uppercase text-rose-500 leading-tight mb-2">
+                     {img.errorMessage || "Upload Failed"}
+                   </p>
+                   <button 
+                     onClick={(e) => { e.stopPropagation(); onRetry(img.id); }}
+                     className="px-3 py-1 bg-rose-500 text-white text-[8px] font-black uppercase rounded-lg shadow-lg hover:bg-rose-600 active:scale-95 transition-all"
+                   >
+                     Retry
+                   </button>
+                </div>
+              )}
+
               {img.status === 'success' && (
                 <div className="absolute top-2 right-2 bg-emerald-500 text-white rounded-full p-1 shadow-lg">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
@@ -85,7 +103,7 @@ export const ImageGrid: React.FC<ImageGridProps> = memo(({ images, onRemove, onA
               )}
             </div>
 
-            {img.status !== 'uploading' && img.status !== 'success' && (
+            {img.status !== 'uploading' && (
               <button
                 type="button"
                 onClick={(e) => {

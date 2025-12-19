@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { IncidentForm, UploadedImage, UserProfile } from '../types';
 import { MIN_IMAGES } from '../constants';
@@ -72,7 +73,7 @@ export const useIncidentReport = (baseId: string) => {
 
   const handleRemoveImage = useCallback((id: string) => {
     setImages(prev => {
-      const imageToRemove = prev.find(img => img.id === id);
+      const imageToRemove = prev.find(img => id === id);
       if (imageToRemove) {
         URL.revokeObjectURL(imageToRemove.previewUrl);
       }
@@ -85,7 +86,7 @@ export const useIncidentReport = (baseId: string) => {
     const file = img.file;
 
     setImages(prev => prev.map(i => 
-      i.id === imageId ? { ...i, status: 'uploading', progress: 10 } : i
+      i.id === imageId ? { ...i, status: 'uploading', progress: 10, errorMessage: undefined } : i
     ));
 
     try {
@@ -97,10 +98,11 @@ export const useIncidentReport = (baseId: string) => {
       ));
       return publicUrl;
     } catch (error: any) {
+      const friendlyError = error.message || "Connection Error";
       setImages(prev => prev.map(i => 
-        i.id === imageId ? { ...i, status: 'error', progress: 0 } : i
+        i.id === imageId ? { ...i, status: 'error', progress: 0, errorMessage: friendlyError } : i
       ));
-      throw new Error(`Evidence upload failed for "${file.name}": ${error.message}`);
+      throw new Error(`Evidence upload failed for "${file.name}": ${friendlyError}`);
     }
   }, []);
 
