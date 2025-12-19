@@ -16,7 +16,7 @@ interface AuthScreenProps {
 const LAST_USER_KEY = 'hse_guardian_last_user';
 
 const AuthCard: React.FC<{ children: React.ReactNode, isLight: boolean }> = ({ children, isLight }) => (
-  <div className={`relative w-full max-w-md p-8 sm:p-10 rounded-[3.5rem] border backdrop-blur-3xl transition-all duration-700 animate-in fade-in zoom-in-95 slide-in-from-bottom-10 z-20 overflow-hidden ${
+  <div className={`relative w-full max-md p-8 sm:p-10 rounded-[3.5rem] border backdrop-blur-3xl transition-all duration-700 animate-in fade-in zoom-in-95 slide-in-from-bottom-10 z-20 overflow-hidden ${
     isLight 
       ? 'bg-white/[0.05] border-red-500/40 shadow-[0_0_40px_rgba(239,68,68,0.15)]' 
       : 'bg-slate-950/[0.05] border-red-600/50 shadow-[0_0_50px_rgba(220,38,38,0.3)] ring-1 ring-red-500/20'
@@ -25,6 +25,14 @@ const AuthCard: React.FC<{ children: React.ReactNode, isLight: boolean }> = ({ c
     <div className="relative z-10">
       {children}
     </div>
+  </div>
+);
+
+// Added CardBackgroundGlow to fix the "Cannot find name" error.
+const CardBackgroundGlow: React.FC = () => (
+  <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
+    <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-red-600/10 rounded-full blur-[100px]"></div>
+    <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-600/10 rounded-full blur-[100px]"></div>
   </div>
 );
 
@@ -55,7 +63,7 @@ const VideoBackground: React.FC<{ isLight: boolean }> = ({ isLight }) => (
 );
 
 export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme }) => {
-  const [mode, setMode] = useState<'welcome' | 'signup' | 'login' | 'post-signup-bio'>('welcome');
+  const [mode, setMode] = useState<'welcome' | 'signup' | 'login' | 'biometric-setup'>('welcome');
   const [profile, setProfile] = useState<UserProfile>({ name: '', role: '', site: '', password: '' });
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -64,7 +72,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
   const [previewUrl, setPreviewUrl] = useState('');
   const [bioAvailable, setBioAvailable] = useState(false);
   const [lastUserName, setLastUserName] = useState<string | null>(null);
-  const [newlyCreatedProfile, setNewlyCreatedProfile] = useState<UserProfile | null>(null);
+  const [tempProfile, setTempProfile] = useState<UserProfile | null>(null);
 
   const isLight = appTheme === 'light';
 
@@ -85,7 +93,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
 
   const handleBiometricLogin = async (targetName?: string) => {
     const nameToVerify = targetName || profile.name;
-    if (!nameToVerify) return setError('Please enter your personnel name for biometric verification.');
+    if (!nameToVerify) return setError('Please enter your personnel name.');
     
     setIsProcessing(true);
     setError('');
@@ -93,16 +101,40 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
     try {
       const existing = await getProfileByName(nameToVerify);
       if (!existing || !existing.webauthn_credential_id) {
-        throw new Error('Biometric lock not configured for this identity. Please use Access Key.');
+        throw new Error('Biometric lock not configured for this account.');
       }
 
       const success = await authenticateBiometrics(existing.webauthn_credential_id);
       if (success) {
         localStorage.setItem(LAST_USER_KEY, existing.name);
         onAuthComplete(existing);
+      } else {
+        setError('Biometric verification failed.');
       }
     } catch (err: any) {
-      setError(err.message || 'Biometric authentication failed.');
+      setError(err.message || 'Biometric scanner unavailable.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const startBiometricRegistration = async () => {
+    if (!tempProfile) return;
+    setIsProcessing(true);
+    try {
+      const { credentialId, publicKey } = await registerBiometrics(tempProfile.name);
+      if (tempProfile.id) {
+        await updateProfile(tempProfile.id, {
+          webauthn_credential_id: credentialId,
+          webauthn_public_key: publicKey
+        });
+        const finalProfile = { ...tempProfile, webauthn_credential_id: credentialId, webauthn_public_key: publicKey };
+        onAuthComplete(finalProfile);
+      }
+    } catch (err: any) {
+      setError(err.message || 'Biometric linking failed.');
+      // Continue to app even if biometric fails
+      onAuthComplete(tempProfile);
     } finally {
       setIsProcessing(false);
     }
@@ -114,10 +146,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
       return setError('Identification details and Access Key are required.');
     }
     if (profile.password.length < 6) {
-      return setError('Security protocols require at least 6 characters.');
+      return setError('Access Key must be at least 6 characters.');
     }
     if (profile.password !== confirmPassword) {
-      return setError('Access Key mismatch: Keys must be identical.');
+      return setError('Access Keys do not match.');
     }
     
     setIsProcessing(true);
@@ -131,38 +163,16 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
       }
 
       const newProfile = await registerProfile({ ...profile, profileImageUrl: imageUrl });
-      setNewlyCreatedProfile(newProfile);
       localStorage.setItem(LAST_USER_KEY, newProfile.name);
       
       if (bioAvailable) {
-        setMode('post-signup-bio');
+        setTempProfile(newProfile);
+        setMode('biometric-setup');
       } else {
         onAuthComplete(newProfile);
       }
     } catch (err: any) {
-      setError(err.message || 'System fault: Failed to synchronize new identity.');
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const registerBioAfterSignup = async () => {
-    if (!newlyCreatedProfile) return;
-    setIsProcessing(true);
-    try {
-      const { credentialId, publicKey } = await registerBiometrics(newlyCreatedProfile.name);
-      if (newlyCreatedProfile.id) {
-        await updateProfile(newlyCreatedProfile.id, {
-          webauthn_credential_id: credentialId,
-          webauthn_public_key: publicKey
-        });
-        const finalProfile = { ...newlyCreatedProfile, webauthn_credential_id: credentialId, webauthn_public_key: publicKey };
-        onAuthComplete(finalProfile);
-      }
-    } catch (err: any) {
-      setError(err.message || 'Failed to link biometric scanner.');
-      // Proceed anyway since profile is created
-      onAuthComplete(newlyCreatedProfile);
+      setError(err.message || 'Signup failed. Please check network.');
     } finally {
       setIsProcessing(false);
     }
@@ -182,49 +192,68 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
       if (existing) {
         if (existing.password === profile.password) {
           localStorage.setItem(LAST_USER_KEY, existing.name);
-          onAuthComplete(existing);
+          // If logged in via password but biometrics available and not set, offer setup
+          if (bioAvailable && !existing.webauthn_credential_id) {
+            setTempProfile(existing);
+            setMode('biometric-setup');
+          } else {
+            onAuthComplete(existing);
+          }
         } else {
-          setError('Invalid Credentials: Access Key rejected.');
+          setError('Invalid Access Key.');
         }
       } else {
-        setError('Unauthorized: Profile not found in safety database.');
+        setError('Personnel not found.');
       }
     } catch (err: any) {
-      setError(err.message || 'Verification system timeout.');
+      setError(err.message || 'Authentication timeout.');
     } finally {
       setIsProcessing(false);
     }
   };
 
-  if (mode === 'post-signup-bio') {
+  if (mode === 'biometric-setup') {
     return (
-      <div className="relative min-h-[85vh] flex items-center justify-center p-6">
+      <div className="relative min-h-[85vh] flex items-center justify-center p-6 overflow-hidden">
         <VideoBackground isLight={isLight} />
         <AuthCard isLight={isLight}>
-          <div className="text-center space-y-6">
-            <div className="w-20 h-20 bg-emerald-500/10 border-2 border-emerald-500/30 rounded-full flex items-center justify-center mx-auto text-emerald-500">
-               <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <div className="flex flex-col items-center text-center space-y-8 animate-in zoom-in duration-500">
+            <div className="relative">
+              <div className="absolute inset-0 bg-blue-500/20 blur-2xl rounded-full"></div>
+              <div className="w-24 h-24 rounded-full border-2 border-emerald-500/50 flex items-center justify-center relative z-10 bg-emerald-500/10 text-emerald-500 shadow-[0_0_30px_rgba(16,185,129,0.2)]">
+                <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              </div>
             </div>
-            <div className="space-y-2">
-              <h2 className={`text-2xl font-black tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>Identity Verified</h2>
-              <p className={`text-sm ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>Would you like to link your biometric scanner for faster future access?</p>
+
+            <div className="space-y-3">
+              <h2 className={`text-3xl font-black tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>Link Biometrics</h2>
+              <p className={`text-sm leading-relaxed max-w-[250px] ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+                Link your device's biometric scanner (FaceID / Fingerprint) for instant, secure access.
+              </p>
             </div>
-            <div className="flex flex-col gap-3">
+
+            <div className="w-full space-y-4">
               <button 
-                onClick={registerBioAfterSignup}
+                onClick={startBiometricRegistration}
                 disabled={isProcessing}
-                className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-2xl shadow-xl transition-all flex items-center justify-center gap-3 uppercase tracking-widest text-xs"
+                className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-5 rounded-2xl shadow-2xl transition-all active:scale-[0.98] uppercase tracking-widest text-xs border border-blue-400/30 flex items-center justify-center gap-3"
               >
-                {isProcessing ? 'Linking...' : 'Enable Biometric Lock'}
+                {isProcessing ? 'Communicating with Device...' : 'Setup Biometric Lock'}
               </button>
+              
               <button 
-                onClick={() => newlyCreatedProfile && onAuthComplete(newlyCreatedProfile)}
-                className={`w-full font-black py-4 rounded-2xl border transition-all uppercase tracking-widest text-[10px] ${isLight ? 'bg-slate-100 text-slate-500 border-slate-200' : 'bg-white/5 text-slate-400 border-white/10'}`}
+                onClick={() => tempProfile && onAuthComplete(tempProfile)}
+                className={`w-full font-black py-4 rounded-2xl transition-all uppercase tracking-widest text-[10px] border ${
+                  isLight ? 'bg-slate-100 text-slate-500 border-slate-200' : 'bg-white/5 text-slate-400 border-white/10'
+                }`}
               >
-                Skip for now
+                Continue with Password Only
               </button>
             </div>
+
+            {error && <p className="text-rose-500 text-[10px] font-black uppercase tracking-widest">{error}</p>}
           </div>
+          <CardBackgroundGlow />
         </AuthCard>
       </div>
     );
@@ -262,7 +291,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
                   className="group w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-5 rounded-2xl shadow-2xl transition-all active:scale-[0.98] uppercase tracking-widest text-xs border border-emerald-400/30 flex items-center justify-center gap-3"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                  Login as {lastUserName.split(' ')[0]}
+                  Quick Sign-In: {lastUserName.split(' ')[0]}
                 </button>
               )}
               
@@ -270,29 +299,30 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
                 onClick={() => setMode('signup')}
                 className={`w-full font-black py-5 rounded-2xl transition-all active:scale-[0.98] uppercase tracking-widest text-xs border ${
                   isLight 
-                    ? 'bg-blue-600 text-white hover:bg-blue-500 border-blue-400/30' 
+                    ? 'bg-blue-600 text-white hover:bg-blue-500 border-blue-400/30 shadow-blue-500/20 shadow-lg' 
                     : 'bg-white/10 border-white/10 text-white hover:bg-white/20'
-                } ${lastUserName ? 'py-4' : 'py-5'}`}
+                }`}
               >
-                Establish New Identity
+                Register New Identity
               </button>
               
               <button 
                 onClick={() => setMode('login')}
-                className={`w-full font-black rounded-2xl transition-all active:scale-[0.98] uppercase tracking-widest text-xs border ${
+                className={`w-full font-black py-5 rounded-2xl transition-all active:scale-[0.98] uppercase tracking-widest text-xs border ${
                   isLight 
                     ? 'bg-white/10 border-white/20 text-slate-900 hover:bg-white/20' 
                     : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'
-                } ${lastUserName ? 'py-3.5' : 'py-5'}`}
+                }`}
               >
-                Verify Existing Profile
+                Access Account
               </button>
             </div>
             
             <p className={`mt-10 text-[9px] font-bold uppercase tracking-widest ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
-              Secure Personnel Authentication System
+              High-Security Biometric Authentication
             </p>
           </div>
+          <CardBackgroundGlow />
         </AuthCard>
       ) : (
         <AuthCard isLight={isLight}>
@@ -308,7 +338,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
             </button>
             <div className="text-right">
                <h3 className={`text-xl font-black tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                 {mode === 'signup' ? 'Identity Setup' : 'Restore Access'}
+                 {mode === 'signup' ? 'Profile Setup' : 'Restore Link'}
                </h3>
                <span className="text-[9px] font-black uppercase text-blue-500 tracking-widest">Protocol {mode === 'signup' ? '01-A' : '01-B'}</span>
             </div>
@@ -334,7 +364,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
                     ) : (
                       <div className="flex flex-col items-center text-slate-500">
                         <svg className="h-8 w-8 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" strokeWidth={2.5} /></svg>
-                        <span className="text-[8px] font-black uppercase">Bio Photo</span>
+                        <span className="text-[8px] font-black uppercase">Attach Photo</span>
                       </div>
                     )}
                   </div>
@@ -343,44 +373,39 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
               )}
 
               <div className="space-y-5">
-                <InputField id="name" label="Personnel Name" value={profile.name} onChange={handleFieldChange} required placeholder="Full Name" autoComplete="name" />
+                <InputField id="name" label="Personnel Name" value={profile.name} onChange={handleFieldChange} required placeholder="Full Identity Name" autoComplete="name" />
 
                 {mode === 'signup' && (
                   <>
-                    <InputField id="role" label="Role" value={profile.role} onChange={handleFieldChange} required list={ROLES} />
-                    <InputField id="site" label="Zone" value={profile.site} onChange={handleFieldChange} list={SITES} />
+                    <InputField id="role" label="Organization Role" value={profile.role} onChange={handleFieldChange} required list={ROLES} />
+                    <InputField id="site" label="Assigned Zone" value={profile.site} onChange={handleFieldChange} list={SITES} />
                   </>
                 )}
 
                 <InputField id="password" label="Access Key" type="password" value={profile.password || ''} onChange={handleFieldChange} required placeholder="••••••••" />
 
                 {mode === 'signup' && (
-                   <InputField id="confirmPassword" label="Confirm Key" type="password" value={confirmPassword} onChange={handleFieldChange} required placeholder="••••••••" />
+                   <InputField id="confirmPassword" label="Confirm Access Key" type="password" value={confirmPassword} onChange={handleFieldChange} required placeholder="••••••••" />
                 )}
               </div>
 
               <div className="flex flex-col gap-3">
                 <button type="submit" disabled={isProcessing} className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-5 rounded-2xl shadow-2xl transition-all disabled:opacity-50 uppercase tracking-widest text-xs border border-blue-400/30">
-                  {isProcessing ? 'Synchronizing...' : mode === 'signup' ? 'Establish Identity' : 'Verify Access'}
+                  {isProcessing ? 'Synchronizing...' : mode === 'signup' ? 'Create Identity' : 'Verify Access'}
                 </button>
                 
                 {mode === 'login' && bioAvailable && (
-                  <button type="button" onClick={() => handleBiometricLogin()} disabled={isProcessing} className={`w-full font-black py-4 rounded-2xl border transition-all uppercase tracking-widest text-[10px] flex items-center justify-center gap-3 ${isLight ? 'bg-slate-100 text-slate-500 border-slate-200' : 'bg-white/5 text-blue-400 border-white/10'}`}>
+                  <button type="button" onClick={() => handleBiometricLogin()} disabled={isProcessing} className={`w-full font-black py-4 rounded-2xl border transition-all uppercase tracking-widest text-[10px] flex items-center justify-center gap-3 ${isLight ? 'bg-slate-100 text-slate-500 border-slate-200 shadow-sm' : 'bg-white/5 text-blue-400 border-white/10'}`}>
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                    Use Biometric Lock
+                    Use Device Biometrics
                   </button>
                 )}
               </div>
             </form>
           </div>
+          <CardBackgroundGlow />
         </AuthCard>
       )}
     </div>
   );
 };
-
-const CardBackgroundGlow = () => (
-  <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-[3rem]">
-    <div className="absolute -top-[50%] -left-[50%] w-[200%] h-[200%] bg-gradient-to-br from-red-500/10 via-transparent to-blue-500/10 opacity-30 animate-pulse"></div>
-  </div>
-);
