@@ -16,10 +16,10 @@ interface AuthScreenProps {
 const LAST_USER_KEY = 'hse_guardian_last_user';
 
 const AuthCard: React.FC<{ children: React.ReactNode, isLight: boolean }> = ({ children, isLight }) => (
-  <div className={`relative w-full max-md p-8 sm:p-10 rounded-[3.5rem] border backdrop-blur-3xl transition-all duration-700 animate-in fade-in zoom-in-95 slide-in-from-bottom-10 z-20 overflow-hidden ${
+  <div className={`relative w-full max-w-xs p-6 sm:p-8 rounded-[3rem] border backdrop-blur-sm transition-all duration-700 animate-in fade-in zoom-in-95 slide-in-from-bottom-10 z-20 overflow-hidden ${
     isLight 
-      ? 'bg-white/[0.05] border-red-500/40 shadow-[0_0_40px_rgba(239,68,68,0.15)]' 
-      : 'bg-slate-950/[0.05] border-red-600/50 shadow-[0_0_50px_rgba(220,38,38,0.3)] ring-1 ring-red-500/20'
+      ? 'bg-transparent border-red-500/40 shadow-[0_0_30px_rgba(239,68,68,0.1)]' 
+      : 'bg-transparent border-red-600/50 shadow-[0_0_40px_rgba(220,38,38,0.2)] ring-1 ring-red-500/10'
   }`}>
     <div className="absolute inset-0 bg-gradient-to-br from-red-500/5 via-transparent to-blue-500/5 pointer-events-none"></div>
     <div className="relative z-10">
@@ -183,96 +183,96 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
       {mode === 'welcome' ? (
         <AuthCard isLight={isLight}>
           <div className="flex flex-col items-center text-center relative z-10">
-            <div className="relative mb-8">
-              <div className="absolute inset-0 bg-blue-500/30 blur-3xl rounded-full"></div>
+            <div className="relative mb-6">
+              <div className="absolute inset-0 bg-blue-500/20 blur-2xl rounded-full"></div>
               <img 
                 src="https://www.multiply-marketing.com/trojan-wp/wp-content/uploads/2020/08/tgc-logo-300x300.png" 
-                className="h-28 w-auto relative z-10 drop-shadow-2xl animate-pulse" 
+                className="h-20 w-auto relative z-10 drop-shadow-2xl animate-pulse" 
                 alt="TGC" 
               />
             </div>
             
-            <div className="space-y-3 mb-10">
-              <h2 className={`text-5xl font-black tracking-tighter ${isLight ? 'text-slate-900' : 'text-white'}`}>
+            <div className="space-y-2 mb-8">
+              <h2 className={`text-4xl font-black tracking-tighter ${isLight ? 'text-slate-900' : 'text-white'}`}>
                 HSE <span className="text-blue-500">Guardian</span>
               </h2>
               <div className="flex flex-col items-center">
-                 <div className="h-1 w-12 bg-red-600 mt-2 rounded-full shadow-[0_0_15px_rgba(220,38,38,0.8)] animate-pulse"></div>
+                 <div className="h-1 w-10 bg-red-600 mt-1 rounded-full shadow-[0_0_15px_rgba(220,38,38,0.8)] animate-pulse"></div>
               </div>
             </div>
 
-            <div className="w-full flex flex-col gap-4">
+            <div className="w-full flex flex-col gap-3">
               {lastUserName && bioAvailable && (
                 <button 
                   onClick={() => handleBiometricLogin(lastUserName)}
-                  className="group w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-5 rounded-2xl shadow-2xl transition-all active:scale-[0.98] uppercase tracking-widest text-xs border border-emerald-400/30 flex items-center justify-center gap-3"
+                  className="group w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 rounded-2xl shadow-xl transition-all active:scale-[0.98] uppercase tracking-widest text-[10px] border border-emerald-400/30 flex items-center justify-center gap-2"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                  Quick Sign-In: {lastUserName.split(' ')[0]}
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                  Login: {lastUserName.split(' ')[0]}
                 </button>
               )}
               
               <button 
                 onClick={() => setMode('signup')}
-                className={`w-full font-black py-5 rounded-2xl transition-all active:scale-[0.98] uppercase tracking-widest text-xs border ${
+                className={`w-full font-black py-4 rounded-2xl transition-all active:scale-[0.98] uppercase tracking-widest text-[10px] border ${
                   isLight 
-                    ? 'bg-blue-600 text-white hover:bg-blue-500 border-blue-400/30 shadow-blue-500/20 shadow-lg' 
+                    ? 'bg-blue-600 text-white hover:bg-blue-500 border-blue-400/30 shadow-blue-500/20 shadow-md' 
                     : 'bg-white/10 border-white/10 text-white hover:bg-white/20'
                 }`}
               >
-                Register New Identity
+                Register
               </button>
               
               <button 
                 onClick={() => setMode('login')}
-                className={`w-full font-black py-5 rounded-2xl transition-all active:scale-[0.98] uppercase tracking-widest text-xs border ${
+                className={`w-full font-black py-4 rounded-2xl transition-all active:scale-[0.98] uppercase tracking-widest text-[10px] border ${
                   isLight 
                     ? 'bg-white/10 border-white/20 text-slate-900 hover:bg-white/20' 
                     : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'
                 }`}
               >
-                Access Account
+                Login
               </button>
             </div>
             
-            <p className={`mt-10 text-[9px] font-bold uppercase tracking-widest ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
-              High-Security Biometric Authentication
+            <p className={`mt-8 text-[8px] font-bold uppercase tracking-widest ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+              Secure Personnel Authentication
             </p>
           </div>
           <CardBackgroundGlow />
         </AuthCard>
       ) : (
         <AuthCard isLight={isLight}>
-          <div className="flex items-center justify-between mb-8 relative z-10">
+          <div className="flex items-center justify-between mb-6 relative z-10">
             <button 
               onClick={() => { setMode('welcome'); setError(''); }} 
-              className={`p-3 rounded-2xl transition-all flex items-center gap-2 border ${
+              className={`p-2 rounded-xl transition-all flex items-center gap-1 border ${
                 isLight ? 'hover:bg-white/20 border-white/40 text-slate-900' : 'hover:bg-white/5 border-white/10 text-slate-400'
               }`}
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-              <span className="text-[10px] font-black uppercase tracking-widest pr-1">Back</span>
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+              <span className="text-[8px] font-black uppercase tracking-widest pr-1">Back</span>
             </button>
             <div className="text-right">
-               <h3 className={`text-xl font-black tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                 {mode === 'signup' ? 'Profile Setup' : 'Restore Link'}
+               <h3 className={`text-lg font-black tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                 {mode === 'signup' ? 'Profile' : 'Access'}
                </h3>
-               <span className="text-[9px] font-black uppercase text-blue-500 tracking-widest">Protocol {mode === 'signup' ? '01-A' : '01-B'}</span>
+               <span className="text-[8px] font-black uppercase text-blue-500 tracking-widest">Protocol</span>
             </div>
           </div>
 
           <div className="relative z-10">
             {error && (
-              <div className="bg-rose-500/10 border border-rose-500/20 text-rose-500 p-4 rounded-2xl mb-6 text-[10px] font-black uppercase tracking-widest flex items-center gap-3">
-                 <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+              <div className="bg-rose-500/10 border border-rose-500/20 text-rose-500 p-3 rounded-xl mb-4 text-[8px] font-black uppercase tracking-widest flex items-center gap-2">
+                 <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
                  {error}
               </div>
             )}
             
-            <form onSubmit={mode === 'signup' ? handleSignup : handleLogin} className="space-y-6">
+            <form onSubmit={mode === 'signup' ? handleSignup : handleLogin} className="space-y-4">
               {mode === 'signup' && (
-                <div className="flex flex-col items-center pb-4" onClick={() => fileInputRef.current?.click()}>
-                  <div className={`w-28 h-28 rounded-full border-2 border-dashed flex items-center justify-center cursor-pointer transition-all overflow-hidden relative group shadow-2xl ${
+                <div className="flex flex-col items-center pb-2" onClick={() => fileInputRef.current?.click()}>
+                  <div className={`w-20 h-20 rounded-full border-2 border-dashed flex items-center justify-center cursor-pointer transition-all overflow-hidden relative group shadow-lg ${
                       isLight ? 'bg-white/10 border-white/40 hover:border-blue-400' : 'bg-black/20 border-white/10 hover:border-blue-500'
                     }`}
                   >
@@ -280,8 +280,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
                       <img src={previewUrl} className="w-full h-full object-cover" alt="Preview" />
                     ) : (
                       <div className="flex flex-col items-center text-slate-500">
-                        <svg className="h-8 w-8 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" strokeWidth={2.5} /></svg>
-                        <span className="text-[8px] font-black uppercase">Attach Photo</span>
+                        <svg className="h-6 w-6 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" strokeWidth={2.5} /></svg>
+                        <span className="text-[6px] font-black uppercase">Photo</span>
                       </div>
                     )}
                   </div>
@@ -289,32 +289,32 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
                 </div>
               )}
 
-              <div className="space-y-5">
-                <InputField id="name" label="Personnel Name" value={profile.name} onChange={handleFieldChange} required placeholder="Full Identity Name" autoComplete="name" />
+              <div className="space-y-4">
+                <InputField id="name" label="Name" value={profile.name} onChange={handleFieldChange} required placeholder="Full Identity Name" autoComplete="name" />
 
                 {mode === 'signup' && (
                   <>
-                    <InputField id="role" label="Organization Role" value={profile.role} onChange={handleFieldChange} required list={ROLES} />
-                    <InputField id="site" label="Assigned Zone" value={profile.site} onChange={handleFieldChange} list={SITES} />
+                    <InputField id="role" label="Role" value={profile.role} onChange={handleFieldChange} required list={ROLES} />
+                    <InputField id="site" label="Zone" value={profile.site} onChange={handleFieldChange} list={SITES} />
                   </>
                 )}
 
-                <InputField id="password" label="Access Key" type="password" value={profile.password || ''} onChange={handleFieldChange} required placeholder="••••••••" />
+                <InputField id="password" label="Key" type="password" value={profile.password || ''} onChange={handleFieldChange} required placeholder="••••••••" />
 
                 {mode === 'signup' && (
-                   <InputField id="confirmPassword" label="Confirm Access Key" type="password" value={confirmPassword} onChange={handleFieldChange} required placeholder="••••••••" />
+                   <InputField id="confirmPassword" label="Confirm" type="password" value={confirmPassword} onChange={handleFieldChange} required placeholder="••••••••" />
                 )}
               </div>
 
-              <div className="flex flex-col gap-3">
-                <button type="submit" disabled={isProcessing} className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-5 rounded-2xl shadow-2xl transition-all disabled:opacity-50 uppercase tracking-widest text-xs border border-blue-400/30">
-                  {isProcessing ? 'Synchronizing...' : mode === 'signup' ? 'Create Identity' : 'Verify Access'}
+              <div className="flex flex-col gap-2 pt-2">
+                <button type="submit" disabled={isProcessing} className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-xl shadow-xl transition-all disabled:opacity-50 uppercase tracking-widest text-[10px] border border-blue-400/30">
+                  {isProcessing ? 'Wait...' : mode === 'signup' ? 'Create' : 'Verify'}
                 </button>
                 
                 {mode === 'login' && bioAvailable && (
-                  <button type="button" onClick={() => handleBiometricLogin()} disabled={isProcessing} className={`w-full font-black py-4 rounded-2xl border transition-all uppercase tracking-widest text-[10px] flex items-center justify-center gap-3 ${isLight ? 'bg-slate-100 text-slate-500 border-slate-200 shadow-sm' : 'bg-white/5 text-blue-400 border-white/10'}`}>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                    Use Device Biometrics
+                  <button type="button" onClick={() => handleBiometricLogin()} disabled={isProcessing} className={`w-full font-black py-3 rounded-xl border transition-all uppercase tracking-widest text-[8px] flex items-center justify-center gap-2 ${isLight ? 'bg-slate-100 text-slate-500 border-slate-200' : 'bg-white/5 text-blue-400 border-white/10'}`}>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                    Biometrics
                   </button>
                 )}
               </div>
