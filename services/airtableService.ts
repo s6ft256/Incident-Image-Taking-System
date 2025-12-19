@@ -1,4 +1,3 @@
-
 import { IncidentForm, IncidentRecord, FetchedIncident } from '../types';
 import { AIRTABLE_CONFIG } from '../constants';
 
@@ -56,14 +55,12 @@ const fetchWithRetry = async (
 
         const friendlyMsg = handleAirtableError(response, errorData);
         
-        // Don't retry client-side errors (4xx) except for rate limits or server blips
         const shouldRetry = (response.status >= 500 || response.status === 429) && attempt < maxRetries;
         
         if (!shouldRetry) {
           throw new Error(friendlyMsg);
         }
 
-        // Exponential backoff
         await new Promise(res => setTimeout(res, Math.pow(2, attempt) * 1000));
         continue;
       }
@@ -72,7 +69,6 @@ const fetchWithRetry = async (
     } catch (error: any) {
       lastError = error;
       if (attempt === maxRetries) throw error;
-      // For network errors (fetch failed), always retry
       await new Promise(res => setTimeout(res, Math.pow(2, attempt) * 1000));
     }
   }
@@ -81,6 +77,7 @@ const fetchWithRetry = async (
 
 /**
  * Creates a record in Airtable with robust error handling.
+ * Specifically maps evidence URLs from Supabase to "Open observations".
  */
 export const submitIncidentReport = async (
   form: IncidentForm, 
@@ -96,17 +93,22 @@ export const submitIncidentReport = async (
   }
 
   const url = `https://api.airtable.com/v0/${BASE_ID}/${encodeURIComponent(TABLE_NAME)}`;
-  const evidenceAttachments = images.map(img => ({ url: img.url, filename: img.filename }));
+  
+  // Prepare attachments for Airtable's specific object format
+  const evidenceAttachments = images.map(img => ({ 
+    url: img.url, 
+    filename: img.filename 
+  }));
 
-  const record: IncidentRecord = {
+  // Construct the payload for a new incident
+  const record = {
     fields: {
       "Name": form.name,
       "Role / Position": form.role,
       "Site / Location": form.site,
       "Incident Type": form.category,
       "Observation": form.observation,
-      "Action taken": form.actionTaken,
-      ...(evidenceAttachments.length > 0 && { "Open observations": evidenceAttachments })
+      "Open observations": evidenceAttachments
     }
   };
 

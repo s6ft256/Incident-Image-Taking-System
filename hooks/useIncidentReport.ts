@@ -27,7 +27,6 @@ export const useIncidentReport = (baseId: string) => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
 
   useEffect(() => {
-    // Pre-fill from profile if available
     const savedProfile = localStorage.getItem(PROFILE_KEY);
     if (savedProfile) {
       try {
@@ -51,13 +50,11 @@ export const useIncidentReport = (baseId: string) => {
     };
   }, []);
 
-  // Fix: Add React import and ensure React namespace is available for Event types
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { id, value } = e.target;
     setFormData(prev => ({ ...prev, [id]: value }));
   }, []);
 
-  // Fix: Add React namespace availability for ChangeEvent
   const handleAddImage = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
@@ -83,57 +80,50 @@ export const useIncidentReport = (baseId: string) => {
     });
   }, []);
 
-  const processImageUpload = useCallback(async (imageId: string): Promise<string> => {
-    return new Promise(async (resolve, reject) => {
-      let file: File | undefined;
-      setImages(prev => {
-        file = prev.find(img => img.id === imageId)?.file;
-        return prev;
-      });
+  const processImageUpload = useCallback(async (img: UploadedImage): Promise<string> => {
+    const imageId = img.id;
+    const file = img.file;
 
-      if (!file) {
-        reject(new Error("Image file not found in state."));
-        return;
-      }
+    setImages(prev => prev.map(i => 
+      i.id === imageId ? { ...i, status: 'uploading', progress: 10 } : i
+    ));
 
-      let progress = 0;
-      const interval = setInterval(() => {
-        progress += Math.floor(Math.random() * 10) + 5;
-        if (progress > 90) progress = 90;
-        setImages(prev => prev.map(img => 
-          img.id === imageId ? { ...img, status: 'uploading', progress: progress } : img
-        ));
-      }, 200);
-
-      try {
-        const fileToUpload = await compressImage(file!);
-        const publicUrl = await uploadImageToStorage(fileToUpload);
-        clearInterval(interval);
-        setImages(prev => prev.map(img => 
-          img.id === imageId ? { ...img, status: 'success', progress: 100, serverUrl: publicUrl } : img
-        ));
-        resolve(publicUrl);
-      } catch (error: any) {
-        clearInterval(interval);
-        setImages(prev => prev.map(img => 
-          img.id === imageId ? { ...img, status: 'error', progress: 0 } : img
-        ));
-        reject(new Error(`"${file?.name}" failed: ${error.message}`));
-      }
-    });
+    try {
+      const fileToUpload = await compressImage(file);
+      const publicUrl = await uploadImageToStorage(fileToUpload, 'incident_evidence');
+      
+      setImages(prev => prev.map(i => 
+        i.id === imageId ? { ...i, status: 'success', progress: 100, serverUrl: publicUrl } : i
+      ));
+      return publicUrl;
+    } catch (error: any) {
+      setImages(prev => prev.map(i => 
+        i.id === imageId ? { ...i, status: 'error', progress: 0 } : i
+      ));
+      throw new Error(`Evidence upload failed for "${file.name}": ${error.message}`);
+    }
   }, []);
 
-  // Fix: Ensure React namespace is available for FormEvent
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
 
-    if (!baseId) { setErrorMessage("Base ID missing."); setSubmitStatus('error'); return; }
-    if (!formData.name || !formData.site || !formData.category || !formData.observation) {
-      setErrorMessage("All fields are required."); setSubmitStatus('error'); return;
+    if (!baseId) { 
+      setErrorMessage("Safety Database Configuration Error: Base ID missing."); 
+      setSubmitStatus('error'); 
+      return; 
     }
+    
+    if (!formData.name || !formData.site || !formData.category || !formData.observation) {
+      setErrorMessage("Report Validation Failed: All mandatory information fields must be completed."); 
+      setSubmitStatus('error'); 
+      return;
+    }
+    
     if (images.length < MIN_IMAGES) {
-      setErrorMessage(`Capture at least ${MIN_IMAGES} evidence photo.`); setSubmitStatus('error'); return;
+      setErrorMessage(`Evidence Required: Please capture/upload at least ${MIN_IMAGES} evidence photo(s).`); 
+      setSubmitStatus('error'); 
+      return;
     }
 
     if (!isOnline) {
@@ -142,7 +132,7 @@ export const useIncidentReport = (baseId: string) => {
          await saveOfflineReport(formData, images);
          setSubmitStatus('offline-saved');
        } catch (err: any) {
-         setErrorMessage("Offline save failed: " + err.message);
+         setErrorMessage("Offline Storage Fault: " + err.message);
          setSubmitStatus('error');
        } finally { setIsSubmitting(false); }
        return;
@@ -150,28 +140,46 @@ export const useIncidentReport = (baseId: string) => {
 
     setIsSubmitting(true);
     try {
-      const pendingImages = images.filter(img => img.status !== 'success');
-      const uploadResults = await Promise.allSettled(pendingImages.map(img => processImageUpload(img.id)));
-      
-      const attachments = images
+      const existingAttachments = images
         .filter(img => img.status === 'success' && img.serverUrl)
         .map(img => ({ url: img.serverUrl!, filename: img.file.name }));
-        
+
+      const pendingImages = images.filter(img => img.status !== 'success');
+      const uploadResults = await Promise.allSettled(pendingImages.map(img => processImageUpload(img)));
+      
+      const newAttachments: { url: string; filename: string }[] = [];
+      let uploadFailureCount = 0;
+
       uploadResults.forEach((res, idx) => {
         if (res.status === 'fulfilled') {
-          attachments.push({ 
+          newAttachments.push({ 
             url: (res as PromiseFulfilledResult<string>).value, 
             filename: pendingImages[idx].file.name 
           });
+        } else {
+          uploadFailureCount++;
         }
       });
 
-      await submitIncidentReport(formData, attachments, { baseId });
+      const totalAttachments = [...existingAttachments, ...newAttachments];
+
+      if (totalAttachments.length === 0) {
+        throw new Error("Critical Failure: No evidence could be uploaded to the safety server.");
+      }
+
+      if (uploadFailureCount > 0) {
+        console.warn(`${uploadFailureCount} images failed to upload, but proceeding with ${newAttachments.length} successful ones.`);
+      }
+
+      await submitIncidentReport(formData, totalAttachments, { baseId });
       setSubmitStatus('success');
     } catch (error: any) {
+      console.error("Submission pipeline failure:", error);
       setSubmitStatus('error');
-      setErrorMessage(error.message || "Submission failed.");
-    } finally { setIsSubmitting(false); }
+      setErrorMessage(error.message || "The safety report transmission was interrupted. Please retry.");
+    } finally { 
+      setIsSubmitting(false); 
+    }
   }, [baseId, formData, images, isOnline, processImageUpload]);
 
   return {
@@ -184,7 +192,10 @@ export const useIncidentReport = (baseId: string) => {
     handleInputChange,
     handleAddImage,
     handleRemoveImage,
-    handleRetry: processImageUpload,
+    handleRetry: (id: string) => {
+      const img = images.find(i => i.id === id);
+      if (img) processImageUpload(img);
+    },
     handleSubmit,
     resetStatus: () => setSubmitStatus('idle')
   };
