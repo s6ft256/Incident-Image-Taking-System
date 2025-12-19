@@ -2,11 +2,11 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { UserProfile } from '../types';
 import { ROLES, SITES } from '../constants';
-import { registerProfile, getProfileByName, updateProfile } from '../services/profileService';
+import { registerProfile, getProfileByName } from '../services/profileService';
 import { uploadImageToStorage } from '../services/storageService';
 import { compressImage } from '../utils/imageCompression';
 import { InputField } from './InputField';
-import { isBiometricsAvailable, authenticateBiometrics, registerBiometrics } from '../services/biometricService';
+import { isBiometricsAvailable, authenticateBiometrics } from '../services/biometricService';
 
 interface AuthScreenProps {
   onAuthComplete: (profile: UserProfile) => void;
@@ -28,7 +28,6 @@ const AuthCard: React.FC<{ children: React.ReactNode, isLight: boolean }> = ({ c
   </div>
 );
 
-// Added CardBackgroundGlow to fix the "Cannot find name" error.
 const CardBackgroundGlow: React.FC = () => (
   <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
     <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-red-600/10 rounded-full blur-[100px]"></div>
@@ -63,7 +62,7 @@ const VideoBackground: React.FC<{ isLight: boolean }> = ({ isLight }) => (
 );
 
 export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme }) => {
-  const [mode, setMode] = useState<'welcome' | 'signup' | 'login' | 'biometric-setup'>('welcome');
+  const [mode, setMode] = useState<'welcome' | 'signup' | 'login'>('welcome');
   const [profile, setProfile] = useState<UserProfile>({ name: '', role: '', site: '', password: '' });
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -72,7 +71,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
   const [previewUrl, setPreviewUrl] = useState('');
   const [bioAvailable, setBioAvailable] = useState(false);
   const [lastUserName, setLastUserName] = useState<string | null>(null);
-  const [tempProfile, setTempProfile] = useState<UserProfile | null>(null);
 
   const isLight = appTheme === 'light';
 
@@ -118,28 +116,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
     }
   };
 
-  const startBiometricRegistration = async () => {
-    if (!tempProfile) return;
-    setIsProcessing(true);
-    try {
-      const { credentialId, publicKey } = await registerBiometrics(tempProfile.name);
-      if (tempProfile.id) {
-        await updateProfile(tempProfile.id, {
-          webauthn_credential_id: credentialId,
-          webauthn_public_key: publicKey
-        });
-        const finalProfile = { ...tempProfile, webauthn_credential_id: credentialId, webauthn_public_key: publicKey };
-        onAuthComplete(finalProfile);
-      }
-    } catch (err: any) {
-      setError(err.message || 'Biometric linking failed.');
-      // Continue to app even if biometric fails
-      onAuthComplete(tempProfile);
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!profile.name || !profile.role || !profile.password) {
@@ -164,13 +140,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
 
       const newProfile = await registerProfile({ ...profile, profileImageUrl: imageUrl });
       localStorage.setItem(LAST_USER_KEY, newProfile.name);
-      
-      if (bioAvailable) {
-        setTempProfile(newProfile);
-        setMode('biometric-setup');
-      } else {
-        onAuthComplete(newProfile);
-      }
+      onAuthComplete(newProfile);
     } catch (err: any) {
       setError(err.message || 'Signup failed. Please check network.');
     } finally {
@@ -192,13 +162,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
       if (existing) {
         if (existing.password === profile.password) {
           localStorage.setItem(LAST_USER_KEY, existing.name);
-          // If logged in via password but biometrics available and not set, offer setup
-          if (bioAvailable && !existing.webauthn_credential_id) {
-            setTempProfile(existing);
-            setMode('biometric-setup');
-          } else {
-            onAuthComplete(existing);
-          }
+          onAuthComplete(existing);
         } else {
           setError('Invalid Access Key.');
         }
@@ -211,53 +175,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
       setIsProcessing(false);
     }
   };
-
-  if (mode === 'biometric-setup') {
-    return (
-      <div className="relative min-h-[85vh] flex items-center justify-center p-6 overflow-hidden">
-        <VideoBackground isLight={isLight} />
-        <AuthCard isLight={isLight}>
-          <div className="flex flex-col items-center text-center space-y-8 animate-in zoom-in duration-500">
-            <div className="relative">
-              <div className="absolute inset-0 bg-blue-500/20 blur-2xl rounded-full"></div>
-              <div className="w-24 h-24 rounded-full border-2 border-emerald-500/50 flex items-center justify-center relative z-10 bg-emerald-500/10 text-emerald-500 shadow-[0_0_30px_rgba(16,185,129,0.2)]">
-                <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <h2 className={`text-3xl font-black tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>Link Biometrics</h2>
-              <p className={`text-sm leading-relaxed max-w-[250px] ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
-                Link your device's biometric scanner (FaceID / Fingerprint) for instant, secure access.
-              </p>
-            </div>
-
-            <div className="w-full space-y-4">
-              <button 
-                onClick={startBiometricRegistration}
-                disabled={isProcessing}
-                className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-5 rounded-2xl shadow-2xl transition-all active:scale-[0.98] uppercase tracking-widest text-xs border border-blue-400/30 flex items-center justify-center gap-3"
-              >
-                {isProcessing ? 'Communicating with Device...' : 'Setup Biometric Lock'}
-              </button>
-              
-              <button 
-                onClick={() => tempProfile && onAuthComplete(tempProfile)}
-                className={`w-full font-black py-4 rounded-2xl transition-all uppercase tracking-widest text-[10px] border ${
-                  isLight ? 'bg-slate-100 text-slate-500 border-slate-200' : 'bg-white/5 text-slate-400 border-white/10'
-                }`}
-              >
-                Continue with Password Only
-              </button>
-            </div>
-
-            {error && <p className="text-rose-500 text-[10px] font-black uppercase tracking-widest">{error}</p>}
-          </div>
-          <CardBackgroundGlow />
-        </AuthCard>
-      </div>
-    );
-  }
 
   return (
     <div className="relative min-h-[85vh] flex items-center justify-center p-6 overflow-hidden">
