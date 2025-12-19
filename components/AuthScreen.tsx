@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useCallback } from 'react';
 import { UserProfile } from '../types';
 import { ROLES, SITES } from '../constants';
@@ -12,9 +13,14 @@ interface AuthScreenProps {
 }
 
 const AuthCard: React.FC<{ children: React.ReactNode, isLight: boolean }> = ({ children, isLight }) => (
-  <div className={`relative w-full max-w-md p-8 sm:p-10 rounded-[3rem] border backdrop-blur-3xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] transition-all duration-700 animate-in fade-in zoom-in-95 slide-in-from-bottom-10 z-20 overflow-hidden ${
-    isLight ? 'bg-white/20 border-white/40 shadow-slate-200/50' : 'bg-slate-900/10 border-white/20 shadow-black/80'
+  <div className={`relative w-full max-w-md p-8 sm:p-10 rounded-[3rem] border backdrop-blur-3xl transition-all duration-700 animate-in fade-in zoom-in-95 slide-in-from-bottom-10 z-20 overflow-hidden ${
+    isLight 
+      ? 'bg-white/[0.0005] border-red-500/40 shadow-[0_0_40px_rgba(239,68,68,0.15)]' 
+      : 'bg-slate-950/[0.0005] border-red-600/50 shadow-[0_0_50px_rgba(220,38,38,0.3)] ring-1 ring-red-500/20'
   }`}>
+    {/* Inner Subtle Gradient for contrast */}
+    <div className="absolute inset-0 bg-gradient-to-br from-red-500/5 via-transparent to-blue-500/5 pointer-events-none"></div>
+    
     {/* Content Container */}
     <div className="relative z-10">
       {children}
@@ -152,7 +158,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
                 HSE <span className="text-blue-500">Guardian</span>
               </h2>
               <div className="flex flex-col items-center">
-                 <div className="h-1 w-12 bg-blue-600 mt-2 rounded-full shadow-[0_0_15px_rgba(37,99,235,0.8)]"></div>
+                 <div className="h-1 w-12 bg-red-600 mt-2 rounded-full shadow-[0_0_15px_rgba(220,38,38,0.8)] animate-pulse"></div>
               </div>
             </div>
 
@@ -181,6 +187,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
               Secure Personnel Authentication System
             </p>
           </div>
+          <CardBackgroundGlow />
         </AuthCard>
       ) : (
         <AuthCard isLight={isLight}>
@@ -283,8 +290,15 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
               </button>
             </form>
           </div>
+          <CardBackgroundGlow />
         </AuthCard>
       )}
     </div>
   );
 };
+
+const CardBackgroundGlow = () => (
+  <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-[3rem]">
+    <div className="absolute -top-[50%] -left-[50%] w-[200%] h-[200%] bg-gradient-to-br from-red-500/10 via-transparent to-blue-500/10 opacity-30 animate-pulse"></div>
+  </div>
+);
