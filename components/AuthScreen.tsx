@@ -1,11 +1,12 @@
 
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { UserProfile } from '../types';
 import { ROLES, SITES } from '../constants';
 import { registerProfile, getProfileByName } from '../services/profileService';
 import { uploadImageToStorage } from '../services/storageService';
 import { compressImage } from '../utils/imageCompression';
 import { InputField } from './InputField';
+import { isBiometricsAvailable, authenticateBiometrics, registerBiometrics } from '../services/biometricService';
 
 interface AuthScreenProps {
   onAuthComplete: (profile: UserProfile) => void;
@@ -59,8 +60,13 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
   const [error, setError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [previewUrl, setPreviewUrl] = useState('');
+  const [bioAvailable, setBioAvailable] = useState(false);
 
   const isLight = appTheme === 'light';
+
+  useEffect(() => {
+    isBiometricsAvailable().then(setBioAvailable);
+  }, []);
 
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -77,6 +83,29 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
     }
     if (error) setError('');
   }, [error]);
+
+  const handleBiometricLogin = async () => {
+    if (!profile.name) return setError('Please enter your name for biometric verification.');
+    
+    setIsProcessing(true);
+    setError('');
+
+    try {
+      const existing = await getProfileByName(profile.name);
+      if (!existing || !existing.webauthn_credential_id) {
+        throw new Error('Biometrics not registered for this identity.');
+      }
+
+      const success = await authenticateBiometrics(existing.webauthn_credential_id);
+      if (success) {
+        onAuthComplete(existing);
+      }
+    } catch (err: any) {
+      setError(err.message || 'Biometric authentication failed.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -286,16 +315,28 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
                   </div>
                 )}
 
-                <InputField 
-                  id="password" 
-                  label="Secure Access Key" 
-                  type="password"
-                  value={profile.password || ''} 
-                  onChange={handleFieldChange} 
-                  required 
-                  placeholder="••••••••"
-                  autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
-                />
+                <div className="relative group">
+                  <InputField 
+                    id="password" 
+                    label="Secure Access Key" 
+                    type="password"
+                    value={profile.password || ''} 
+                    onChange={handleFieldChange} 
+                    required 
+                    placeholder="••••••••"
+                    autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+                  />
+                  {mode === 'login' && bioAvailable && (
+                    <button
+                      type="button"
+                      onClick={handleBiometricLogin}
+                      className="absolute right-3 bottom-3 p-1 text-blue-500 hover:text-blue-400 transition-all"
+                      title="Biometric Scanner"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12a10 10 0 0 1 18-6"/><path d="M22 12a10 10 0 0 0-18 6"/><path d="M12 12V2"/><path d="M12 12v10"/><path d="m16 16-4-4 4-4"/><path d="m8 8 4 4-4 4"/></svg>
+                    </button>
+                  )}
+                </div>
 
                 {mode === 'signup' && (
                    <InputField 
@@ -311,18 +352,36 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
                 )}
               </div>
 
-              <button 
-                type="submit"
-                disabled={isProcessing}
-                className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-5 rounded-2xl shadow-2xl transition-all disabled:opacity-50 active:scale-[0.98] uppercase tracking-widest text-xs border border-blue-400/30 flex items-center justify-center gap-3 mt-4"
-              >
-                {isProcessing ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                    Initializing Link...
-                  </>
-                ) : mode === 'signup' ? 'Finalize Credentialing' : 'Authenticate Identity'}
-              </button>
+              <div className="flex flex-col gap-3 mt-4">
+                <button 
+                  type="submit"
+                  disabled={isProcessing}
+                  className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-5 rounded-2xl shadow-2xl transition-all disabled:opacity-50 active:scale-[0.98] uppercase tracking-widest text-xs border border-blue-400/30 flex items-center justify-center gap-3"
+                >
+                  {isProcessing ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                      Initializing Link...
+                    </>
+                  ) : mode === 'signup' ? 'Finalize Credentialing' : 'Authenticate Identity'}
+                </button>
+                
+                {mode === 'login' && bioAvailable && (
+                  <button 
+                    type="button"
+                    onClick={handleBiometricLogin}
+                    disabled={isProcessing || !profile.name}
+                    className={`w-full font-black py-4 rounded-2xl transition-all active:scale-[0.98] uppercase tracking-widest text-[10px] border flex items-center justify-center gap-3 ${
+                      isLight 
+                        ? 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200 disabled:opacity-30' 
+                        : 'bg-white/5 border-white/10 text-blue-400 hover:bg-white/10 disabled:opacity-20'
+                    }`}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z"/><path d="M12 7v5l3 3"/></svg>
+                    Use Biometric Scanner
+                  </button>
+                )}
+              </div>
             </form>
           </div>
           <CardBackgroundGlow />

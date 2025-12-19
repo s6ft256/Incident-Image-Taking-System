@@ -6,6 +6,8 @@ export interface UserProfile {
   site?: string;
   profileImageUrl?: string;
   password?: string;
+  webauthn_credential_id?: string;
+  webauthn_public_key?: string;
 }
 
 export interface IncidentForm {

@@ -4,6 +4,7 @@ import { UserProfile as UserProfileType } from '../types';
 import { uploadImageToStorage } from '../services/storageService';
 import { compressImage } from '../utils/imageCompression';
 import { updateProfile } from '../services/profileService';
+import { isBiometricsAvailable, registerBiometrics } from '../services/biometricService';
 
 interface UserProfileProps {
   onBack: () => void;
@@ -18,6 +19,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
+  const [bioAvailable, setBioAvailable] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isLight = theme === 'light';
@@ -37,6 +39,8 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack }) => {
       setTheme(savedTheme);
       applyTheme(savedTheme);
     }
+
+    isBiometricsAvailable().then(setBioAvailable);
   }, []);
 
   const applyTheme = (t: 'dark' | 'light') => {
@@ -46,6 +50,28 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack }) => {
     } else {
       document.documentElement.classList.remove('light-mode');
       document.documentElement.classList.add('dark');
+    }
+  };
+
+  const handleEnableBiometrics = async () => {
+    setErrorMessage('');
+    try {
+      const { credentialId, publicKey } = await registerBiometrics(profile.name);
+      const updatedProfile = { ...profile, webauthn_credential_id: credentialId, webauthn_public_key: publicKey };
+      
+      if (profile.id) {
+        await updateProfile(profile.id, { 
+          webauthn_credential_id: credentialId, 
+          webauthn_public_key: publicKey 
+        });
+      }
+      
+      setProfile(updatedProfile);
+      localStorage.setItem(PROFILE_KEY, JSON.stringify(updatedProfile));
+      setSaveStatus('saved');
+      setTimeout(() => setSaveStatus('idle'), 2000);
+    } catch (err: any) {
+      setErrorMessage(err.message || "Biometric registration failed.");
     }
   };
 
@@ -168,29 +194,30 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack }) => {
               }`}
             />
           </div>
-          <div className="flex flex-col gap-1">
-            <label className={`text-[8px] font-black uppercase tracking-widest px-1 ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>Role</label>
-            <input 
-              type="text" 
-              value={profile.role} 
-              onChange={(e) => setProfile(prev => ({ ...prev, role: e.target.value }))}
-              placeholder="Organizational Role"
-              className={`border rounded-lg px-3 py-1.5 text-xs focus:border-blue-500 outline-none w-full ${
-                isLight ? 'bg-slate-50 border-slate-200 text-slate-900' : 'bg-black/40 border-white/5 text-white'
-              }`}
-            />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className={`text-[8px] font-black uppercase tracking-widest px-1 ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>Work Location</label>
-            <input 
-              type="text" 
-              value={profile.site} 
-              onChange={(e) => setProfile(prev => ({ ...prev, site: e.target.value }))}
-              placeholder="Site Assignment"
-              className={`border rounded-lg px-3 py-1.5 text-xs focus:border-blue-500 outline-none w-full ${
-                isLight ? 'bg-slate-50 border-slate-200 text-slate-900' : 'bg-black/40 border-white/5 text-white'
-              }`}
-            />
+
+          <div className={`flex flex-col gap-2 p-2 rounded-xl border ${isLight ? 'bg-blue-50 border-blue-100' : 'bg-blue-900/10 border-blue-500/20'}`}>
+             <div className="flex items-center justify-between">
+                <span className={`text-[9px] font-black uppercase tracking-widest ${isLight ? 'text-blue-700' : 'text-blue-400'}`}>Biometric Lock</span>
+                <span className={`text-[8px] font-bold px-2 py-0.5 rounded-full ${profile.webauthn_credential_id ? 'bg-emerald-500 text-white' : 'bg-slate-500 text-white'}`}>
+                  {profile.webauthn_credential_id ? 'Linked' : 'Not Set'}
+                </span>
+             </div>
+             {bioAvailable ? (
+                <button
+                  type="button"
+                  onClick={handleEnableBiometrics}
+                  className={`w-full text-[9px] font-black py-2 rounded-lg transition-all uppercase tracking-widest flex items-center justify-center gap-2 ${
+                    profile.webauthn_credential_id 
+                      ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' 
+                      : 'bg-blue-600 text-white hover:bg-blue-500'
+                  }`}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                  {profile.webauthn_credential_id ? 'Update Device Key' : 'Setup Biometrics'}
+                </button>
+             ) : (
+                <p className="text-[8px] text-slate-500 italic text-center">Biometrics not supported on this device</p>
+             )}
           </div>
         </div>
 
