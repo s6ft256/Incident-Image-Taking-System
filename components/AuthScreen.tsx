@@ -17,7 +17,7 @@ interface AuthScreenProps {
 const LAST_USER_KEY = 'hse_guardian_last_user';
 
 const AuthCard: React.FC<{ children: React.ReactNode, isLight: boolean }> = ({ children, isLight }) => (
-  <div className={`relative w-full max-w-xs p-6 sm:p-8 rounded-[3rem] border backdrop-blur-sm transition-all duration-700 animate-in fade-in zoom-in-95 slide-in-from-bottom-10 z-20 overflow-hidden ${
+  <div className={`relative w-full max-w-xs p-6 sm:p-8 rounded-[3rem] border backdrop-blur-sm transition-all duration-300 animate-in fade-in zoom-in-95 slide-in-from-bottom-4 z-20 overflow-hidden ${
     isLight 
       ? 'bg-transparent border-red-500/40 shadow-[0_0_30px_rgba(239,68,68,0.1)]' 
       : 'bg-transparent border-red-600/50 shadow-[0_0_40px_rgba(220,38,38,0.2)] ring-1 ring-red-500/10'
@@ -53,7 +53,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState('');
   
-  // Consent States
   const [privacyConsent, setPrivacyConsent] = useState(false);
   const [imageConsent, setImageConsent] = useState(false);
   const [showComplianceModal, setShowComplianceModal] = useState(false);

@@ -27,9 +27,9 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
   const [activeTab, setActiveTab] = useState<Tab>('open');
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   
-  // Selection State for Bulk Actions
+  // Selection State for Multi Actions
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [isBulkAssigning, setIsBulkAssigning] = useState(false);
+  const [isMultiAssigning, setIsMultiAssigning] = useState(false);
 
   // Restricted Access State
   const [isArchiveUnlocked, setIsArchiveUnlocked] = useState(false);
@@ -110,9 +110,9 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
     }
   };
 
-  const handleBulkAssign = async (assignee: string) => {
+  const handleMultiAssign = async (assignee: string) => {
     if (selectedIds.size === 0 || !assignee) return;
-    setIsBulkAssigning(true);
+    setIsMultiAssigning(true);
     setResolveErrors({});
 
     try {
@@ -123,13 +123,13 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
         selectedIds.has(r.id) ? { ...r, fields: { ...r.fields, "Assigned To": assignee } } : r
       ));
       
-      setAssignmentSuccess(`Bulk assigned ${selectedIds.size} incidents to ${assignee}`);
+      setAssignmentSuccess(`Multi assigned ${selectedIds.size} incidents to ${assignee}`);
       setSelectedIds(new Set());
       setTimeout(() => setAssignmentSuccess(null), 3500);
     } catch (err: any) {
-      setError("Partial failure in bulk assignment: " + err.message);
+      setError("Partial failure in Multi assignment: " + err.message);
     } finally {
-      setIsBulkAssigning(false);
+      setIsMultiAssigning(false);
     }
   };
 
@@ -454,7 +454,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
           {tabFilteredReports.map((report) => (
             <div key={report.id} className={`rounded-xl overflow-hidden transition-all duration-300 border flex ${expandedId === report.id ? `${isLight ? 'bg-white border-blue-500 ring-2 ring-blue-500/10' : 'bg-slate-800 border-blue-500/50 shadow-2xl shadow-blue-500/10'}` : `${isLight ? 'bg-white border-slate-200' : 'bg-slate-800/80 border-slate-700 hover:border-slate-600'}`}`}>
               
-              {/* Checkbox for Bulk Selection */}
+              {/* Checkbox for Multi Selection */}
               {activeTab === 'open' && (
                 <div 
                   onClick={(e) => toggleSelect(report.id, e)}
@@ -632,7 +632,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
         </div>
       )}
 
-      {/* Bulk Action Bar - Sticky at bottom */}
+      {/* Multi Action Bar - Sticky at bottom */}
       {selectedIds.size > 0 && (
         <div className="fixed bottom-0 left-0 right-0 z-50 p-4 sm:p-6 animate-in slide-in-from-bottom-10">
            <div className={`max-w-xl mx-auto rounded-[2rem] border-2 shadow-[0_-20px_50px_rgba(0,0,0,0.3)] p-6 flex flex-col gap-4 backdrop-blur-xl transition-all ${isLight ? 'bg-white/95 border-blue-500/30' : 'bg-slate-900/95 border-blue-500/50'}`}>
@@ -642,7 +642,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
                       <span className="text-white font-black text-sm">{selectedIds.size}</span>
                    </div>
                    <div>
-                     <h4 className={`text-[10px] font-black uppercase tracking-widest ${isLight ? 'text-slate-900' : 'text-white'}`}>Bulk Actions</h4>
+                     <h4 className={`text-[10px] font-black uppercase tracking-widest ${isLight ? 'text-slate-900' : 'text-white'}`}>Multi assign</h4>
                      <p className="text-[8px] font-black text-blue-500 uppercase tracking-tighter mt-0.5">Selection Gateway Active</p>
                    </div>
                 </div>
@@ -652,11 +652,11 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
               <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
                  <div className="sm:col-span-8">
                     <select 
-                      disabled={isBulkAssigning}
-                      onChange={(e) => handleBulkAssign(e.target.value)}
+                      disabled={isMultiAssigning}
+                      onChange={(e) => handleMultiAssign(e.target.value)}
                       className={`w-full p-4 rounded-2xl border text-[11px] font-black uppercase tracking-widest outline-none transition-all ${isLight ? 'bg-slate-50 border-slate-200 text-slate-900' : 'bg-black/40 border-white/10 text-white'}`}
                     >
-                       <option value="">Bulk Assign To...</option>
+                       <option value="">Multi assign To...</option>
                        <optgroup label="HSE Personnel Directory">
                           {teamMembers.map(name => (
                              <option key={name} value={name}>{name}</option>
@@ -666,8 +666,8 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
                  </div>
                  <div className="sm:col-span-4">
                     <button 
-                      onClick={() => handleBulkAssign(userProfile?.name || '')}
-                      disabled={isBulkAssigning || !userProfile}
+                      onClick={() => handleMultiAssign(userProfile?.name || '')}
+                      disabled={isMultiAssigning || !userProfile}
                       className="w-full h-full bg-blue-600 hover:bg-blue-500 text-white font-black rounded-2xl text-[9px] uppercase tracking-[0.2em] shadow-lg transition-all active:scale-95"
                     >
                       Assign To Me

@@ -182,16 +182,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
 
   return (
     <div className="space-y-4 sm:space-y-6 pb-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <div className={`px-6 sm:px-12 py-5 rounded-[2.5rem] text-center backdrop-blur-md shadow-xl border relative overflow-hidden ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/[0.03] border-white/10'}`}>
-        <div className="absolute top-0 left-0 w-2 h-full bg-blue-500/50"></div>
-        <p className={`text-sm sm:text-base font-medium leading-relaxed max-w-4xl mx-auto italic ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
-          HSE Guardian isn't just software.
-          It's your proactive safety nerve center. A unified system capturing and managing all safety observations and incident data in real-time.
+      {/* Updated Introductory Card background to dark blue (bg-[#020617] or bg-blue-950) */}
+      <div className={`px-6 sm:px-12 py-10 rounded-[2.5rem] text-center shadow-2xl border-2 border-blue-500/30 relative overflow-hidden bg-[#020617]`}>
+        <div className="absolute inset-0 bg-blue-600/5 pointer-events-none"></div>
+        <p className="text-sm sm:text-lg font-black leading-relaxed max-w-4xl mx-auto uppercase tracking-wider text-white">
+          HSE Guardian isn't just software. It's your proactive safety nerve center. A unified system capturing and managing all safety observations and incident data in real-time.
         </p>
-        <div className={`mt-3 pt-3 border-t ${isLight ? 'border-slate-400' : 'border-white/20'} flex justify-center gap-4 text-[10px] font-black uppercase tracking-widest text-blue-500`}>
-          <span>Performance Monitor</span>
-          <span className="opacity-30">•</span>
-          <span>Analytics Live</span>
+        <div className="mt-4 pt-4 border-t border-white/10 flex justify-center gap-6 text-[11px] font-black uppercase tracking-[0.3em] text-red-500">
+          <span className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-red-600 animate-pulse"></div> PERFORMANCE MONITOR</span>
+          <span className="opacity-30 text-white">•</span>
+          <span className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-red-600 animate-pulse"></div> ANALYTICS LIVE</span>
         </div>
       </div>
 
@@ -246,11 +246,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
                     <ResponsiveContainer width="100%" height="90%">
                       <AreaChart data={siteChartData} margin={{ top: 10, right: 30, left: 0, bottom: 40 }}>
                         <defs>
-                          <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
+                          <linearGradient id="colorCount" x1="0" x2="0" y2="1">
                             <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
                             <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
                           </linearGradient>
-                          <linearGradient id="colorCrit" x1="0" y1="0" x2="0" y2="1">
+                          <linearGradient id="colorCrit" x1="0" x2="0" y2="1">
                             <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.3}/>
                             <stop offset="95%" stopColor="#f43f5e" stopOpacity={0}/>
                           </linearGradient>
@@ -385,7 +385,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
               isLight ? 'bg-slate-100 border-slate-200' : 'bg-slate-800 border-white/10'
             }`}>
                <svg xmlns="http://www.w3.org/2000/svg" className={`h-6 w-6 sm:h-8 sm:w-8 ${isLight ? 'text-slate-500' : 'text-slate-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 002-2h2a2 2 0 002 2" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 0 2-2h2a2 2 0 0 0 2 2" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" />
                </svg>
             </div>
             <div className="flex-1 text-left ml-4 sm:ml-6">

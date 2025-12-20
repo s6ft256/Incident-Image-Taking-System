@@ -14,6 +14,7 @@ export const HSEAssistant: React.FC<HSEAssistantProps> = ({ appTheme = 'dark' })
   ]);
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const assistantRef = useRef<HTMLDivElement>(null);
   
   const chatSessionRef = useRef<Chat | null>(null);
 
@@ -24,6 +25,20 @@ export const HSEAssistant: React.FC<HSEAssistantProps> = ({ appTheme = 'dark' })
   useEffect(() => {
     scrollToBottom();
   }, [messages, isOpen]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (assistantRef.current && !assistantRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen]);
 
   const handleSend = async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -93,7 +108,7 @@ You must STRICTLY focus on HSE and HSECES topics. If a user asks about unrelated
   };
 
   return (
-    <div className="relative flex flex-col items-center">
+    <div className="relative flex flex-col items-center" ref={assistantRef}>
       {isOpen && (
         <div className={`absolute bottom-20 right-0 w-80 sm:w-96 h-[500px] max-h-[70vh] ${appTheme === 'dark' ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'} border rounded-[2rem] shadow-2xl flex flex-col overflow-hidden mb-4 animate-in slide-in-from-bottom-5 fade-in duration-300 z-[100]`}>
           <div className={`${appTheme === 'dark' ? 'bg-gradient-to-r from-emerald-900 to-slate-900 border-slate-700' : 'bg-emerald-600 border-emerald-500'} p-5 border-b flex justify-between items-center`}>
@@ -163,24 +178,25 @@ You must STRICTLY focus on HSE and HSECES topics. If a user asks about unrelated
            setIsOpen(!isOpen);
            if (!isOpen) setTimeout(scrollToBottom, 100);
         }}
-        className="group relative flex items-center justify-center w-14 h-14 bg-gradient-to-tr from-emerald-600 to-emerald-500 text-white rounded-full shadow-lg hover:scale-105 transition-all duration-300 border border-emerald-400 p-0 overflow-hidden"
+        className="group relative flex items-center justify-center w-11 h-11 sm:w-12 sm:h-12 bg-gradient-to-tr from-emerald-600 to-emerald-500 text-white rounded-full shadow-lg hover:scale-105 transition-all duration-300 border border-emerald-400 p-0 overflow-hidden active:scale-90"
       >
         {isOpen ? (
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 animate-in zoom-in duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6 animate-in zoom-in duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3.5">
             <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
           </svg>
         ) : (
           <div className="flex flex-col items-center">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="animate-in zoom-in duration-200">
+            {/* Fix: Replaced invalid responsive attributes with Tailwind classes */}
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="w-5 h-5 sm:w-6 sm:h-6 animate-in zoom-in duration-200">
               <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
             </svg>
           </div>
         )}
         
         {!isOpen && (
-            <span className="absolute right-2 top-2 flex h-3.5 w-3.5 z-10">
+            <span className="absolute right-1.5 top-1.5 flex h-3 w-3 z-10">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-blue-500 border-2 border-white"></span>
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-blue-500 border-2 border-white"></span>
             </span>
         )}
       </button>

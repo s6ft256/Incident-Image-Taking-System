@@ -130,7 +130,7 @@ export const BiometricLockModal: React.FC<BiometricLockModalProps> = ({
         <div className="text-center space-y-3 mb-10 relative z-10">
           <div className="flex flex-col items-center">
              <h2 className={`text-2xl font-black tracking-tight uppercase ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                {status === 'scanning' ? 'Scanning Identity' : status === 'success' ? 'Protocol Verified' : 'Personnel Locked'}
+                {status === 'scanning' ? 'Scanning Identity' : status === 'success' ? 'Protocol Verified' : 'Logged out'}
              </h2>
              <div className={`h-1 w-12 rounded-full mt-1.5 transition-colors duration-500 ${
                status === 'scanning' ? 'bg-blue-500 animate-pulse' : 
