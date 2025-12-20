@@ -17,6 +17,7 @@ export interface IncidentForm {
   category: string;
   observation: string;
   actionTaken: string;
+  assignedTo?: string; // New field
 }
 
 export interface IncidentRecord {
@@ -28,6 +29,7 @@ export interface IncidentRecord {
     "Observation": string;
     "Action taken": string;
     "Closed by"?: string;
+    "Assigned To"?: string; // New field
     "Open observations"?: Array<{ 
       url: string; 
       filename?: string; 
@@ -50,6 +52,7 @@ export interface FetchedIncident {
     "Observation": string;
     "Action taken": string;
     "Closed by"?: string;
+    "Assigned To"?: string; // New field
     "Open observations"?: Array<{ 
       url: string; 
       filename: string;

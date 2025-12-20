@@ -1,3 +1,4 @@
+
 import { IncidentForm, IncidentRecord, FetchedIncident } from '../types';
 import { AIRTABLE_CONFIG } from '../constants';
 
@@ -108,6 +109,7 @@ export const submitIncidentReport = async (
       "Site / Location": form.site,
       "Incident Type": form.category,
       "Observation": form.observation,
+      "Assigned To": form.assignedTo || "",
       "Open observations": evidenceAttachments
     }
   };
@@ -161,6 +163,34 @@ export const updateIncidentAction = async (
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({ fields: fieldsToUpdate })
+  });
+
+  return true;
+};
+
+/**
+ * Assigns an incident to a user.
+ */
+export const assignIncident = async (
+  recordId: string,
+  assignee: string,
+  configOverride?: AirtableConfigOverride
+): Promise<boolean> => {
+  const BASE_ID = configOverride?.baseId || AIRTABLE_CONFIG.BASE_ID;
+  const API_KEY = configOverride?.apiKey || AIRTABLE_CONFIG.API_KEY;
+  const TABLE_NAME = AIRTABLE_CONFIG.TABLE_NAME;
+
+  if (!BASE_ID || !API_KEY) throw new Error("Safety Database Configuration missing.");
+
+  const url = `https://api.airtable.com/v0/${BASE_ID}/${encodeURIComponent(TABLE_NAME)}/${recordId}`;
+
+  await fetchWithRetry(url, {
+    method: 'PATCH',
+    headers: {
+      'Authorization': `Bearer ${API_KEY}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ fields: { "Assigned To": assignee } })
   });
 
   return true;

@@ -1,94 +1,46 @@
-# HSE Guardian
 
-**HSE Guardian** is a mobile-friendly web application designed for the modern safety workforce. It streamlines the process of reporting HSE incidents, capturing photographic evidence, and managing remediation actions.
+# HSE Guardian | Incident Image Taking System
 
-## Features
+**HSE Guardian** is a professional-grade, mobile-first safety reporting tool. It is engineered for field safety personnel to capture high-integrity photographic evidence, manage incident lifecycles, and monitor site criticality in real-time.
 
-*   **Create Reports:** Capture incident details (Name, Role, Location, Observation).
-*   **Offline Mode:** Fully functional without internet; auto-syncs when connection is restored.
-*   **Evidence Capture:** Upload multiple images (compressed client-side) to Supabase Storage.
-*   **Dashboard:** View KPI statistics, incident distribution by location, and status (Open/Closed).
-*   **Incident Log:** View recent reports (last 24h) and older reports via the dashboard.
-*   **Resolution:** Close out open observations with action taken details and closing evidence photos.
-*   **Daily Inspiration:** Displays safety leadership quotes to promote a positive safety culture.
+## Professional Features
 
-## Tech Stack
+*   **Secure Access:** Biometric lock (FaceID/Fingerprint) and Password Gateway.
+*   **Evidence Acquisition:** Multi-image capture with local compression and offline queueing.
+*   **Command Dashboard:** Real-time data visualization of site risks and resolution status.
+*   **HSECES Assistant:** AI-powered expert for Critical Equipment and Safety Systems.
+*   **PWA Ready:** Installable on Android and iOS for offline field operations.
 
-*   **Frontend:** React (TypeScript), Tailwind CSS
-*   **Backend / Database:** Airtable (Data), Supabase (Storage)
-*   **Build Tool:** Vite
+## Deployment & GitHub Workflow
 
-## Setup
+To stage, commit, and sync your changes to GitHub, use the following professional workflow:
 
-1.  **Clone the repository:**
-    ```bash
-    git clone <your-repo-url>
-    cd hse-guardian
-    ```
+### 1. Local Staging
+Stage all modified files for the next commit:
+```bash
+git add .
+```
 
-2.  **Install dependencies:**
-    ```bash
-    npm install
-    ```
+### 2. High-Integrity Committing
+Commit your changes with a descriptive message following semantic versioning principles:
+```bash
+git commit -m "feat: implement biometric security and enhanced incident evidence grid"
+```
 
-3.  **Environment Variables:**
-    Copy `.env.example` to `.env` and update with your credentials:
-    ```bash
-    cp .env.example .env
-    ```
-    *   Airtable Base ID & API Key
-    *   Supabase URL, Key, and Bucket Name
+### 3. Repository Synchronization
+Push your local commits to the remote GitHub repository:
+```bash
+git push origin main
+```
 
-4.  **Run Development Server:**
-    ```bash
-    npm run dev
-    ```
+### 4. Automated CI/CD
+The project includes a GitHub Actions workflow (`.github/workflows/main.yml`) that automatically triggers on every push to the `main` branch to verify build integrity.
 
-## How to Push to GitHub (New Repository)
+## Development Setup
 
-1.  **Initialize Git:**
-    ```bash
-    git init
-    ```
-
-2.  **Add files:**
-    ```bash
-    git add .
-    ```
-
-3.  **Commit changes:**
-    ```bash
-    git commit -m "Initial commit: HSE Guardian"
-    ```
-
-4.  **Create Repository on GitHub:**
-    *   Go to [github.com/new](https://github.com/new).
-    *   Name your repository (e.g., `hse-guardian`).
-    *   Click "Create repository".
-
-5.  **Link and Push:**
-    *   Copy the URL provided by GitHub (e.g., `https://github.com/username/hse-guardian.git`).
-    *   Run the following commands:
-    ```bash
-    git branch -M main
-    git remote add origin https://github.com/YOUR_USERNAME/hse-guardian.git
-    git push -u origin main
-    ```
-
-## Deployment
-
-The app is designed to be deployed on static hosting (Vercel, Netlify) or Render.
-
-### Airtable Configuration
-Ensure your Airtable base has a table named "Table 1" with the following columns:
-*   Name (Single line text)
-*   Role / Position (Single line text)
-*   Site / Location (Single line text)
-*   Observation (Long text)
-*   Action taken (Long text)
-*   Open observations (Attachments)
-*   Closed observations (Attachments)
-*   Created (Created time) - *Optional, app uses system createdTime*
+1.  **Clone:** `git clone <repo-url>`
+2.  **Install:** `npm install`
+3.  **Run:** `npm run dev`
 
 ## Developed by
-@Elius
+@Elius - Senior Safety Systems Architect

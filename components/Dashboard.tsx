@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+
+import React, { useEffect, useState, useMemo } from 'react';
 import { getAllReports } from '../services/airtableService';
-import { FetchedIncident } from '../types';
-import { INCIDENT_TYPES } from '../constants';
+import { FetchedIncident, UserProfile } from '../types';
 import {
   AreaChart,
   Area,
@@ -16,9 +16,11 @@ import {
 
 interface DashboardProps {
   baseId: string;
-  onNavigate: (view: 'create' | 'recent') => void;
+  onNavigate: (view: 'create' | 'recent' | 'my-tasks') => void;
   appTheme?: 'dark' | 'light';
 }
+
+const PROFILE_KEY = 'hse_guardian_profile';
 
 const SEVERITY_MAP: Record<string, number> = {
   'Fire Risk': 10,
@@ -69,10 +71,19 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appTheme = 'dark' }) => {
   const [reports, setReports] = useState<FetchedIncident[]>([]);
   const [loading, setLoading] = useState(true);
+  const [userName, setUserName] = useState<string>('');
 
   const isLight = appTheme === 'light';
 
   useEffect(() => {
+    const savedProfile = localStorage.getItem(PROFILE_KEY);
+    if (savedProfile) {
+        try {
+            const profile: UserProfile = JSON.parse(savedProfile);
+            setUserName(profile.name);
+        } catch(e) {}
+    }
+
     const loadData = async () => {
       try {
         const data = await getAllReports({ baseId });
@@ -86,33 +97,49 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
     loadData();
   }, [baseId]);
 
-  const total = reports.length;
-  const closedCount = reports.filter(r => r.fields["Action taken"] && r.fields["Action taken"].trim().length > 0).length;
-  const openCount = total - closedCount;
-  
-  // Site Statistics
-  const siteStats = reports.reduce((acc, curr) => {
-    const site = curr.fields["Site / Location"] || 'Other';
-    const type = curr.fields["Incident Type"] || 'Other';
-    const severity = SEVERITY_MAP[type] || 1;
-    
-    if (!acc[site]) {
-      acc[site] = { count: 0, severityScore: 0 };
-    }
-    acc[site].count += 1;
-    acc[site].severityScore += severity;
-    return acc;
-  }, {} as Record<string, { count: number, severityScore: number }>);
+  const weeklyReports = useMemo(() => {
+    const now = new Date();
+    const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay());
+    startOfWeek.setHours(0, 0, 0, 0);
+    return reports.filter(r => new Date(r.createdTime) >= startOfWeek);
+  }, [reports]);
 
-  // Fix: Explicitly cast Object.entries to solve 'unknown' type errors for count and severityScore
-  const siteChartData = (Object.entries(siteStats) as [string, { count: number, severityScore: number }][])
-    .map(([name, stats]) => ({ 
-      name, 
-      count: stats.count, 
-      criticality: stats.severityScore 
-    }))
-    .sort((a, b) => b.criticality - a.criticality)
-    .slice(0, 10);
+  const total = weeklyReports.length;
+  const closedCount = weeklyReports.filter(r => r.fields["Action taken"] && r.fields["Action taken"].trim().length > 0).length;
+  const openCount = total - closedCount;
+
+  const myTaskCount = useMemo(() => {
+    return reports.filter(r => 
+        r.fields["Assigned To"] === userName && 
+        (!r.fields["Action taken"] || r.fields["Action taken"].trim().length === 0)
+    ).length;
+  }, [reports, userName]);
+  
+  const siteStats = useMemo(() => {
+    return weeklyReports.reduce((acc, curr) => {
+      const site = curr.fields["Site / Location"] || 'Other';
+      const type = curr.fields["Incident Type"] || 'Other';
+      const severity = SEVERITY_MAP[type] || 1;
+      
+      if (!acc[site]) {
+        acc[site] = { count: 0, severityScore: 0 };
+      }
+      acc[site].count += 1;
+      acc[site].severityScore += severity;
+      return acc;
+    }, {} as Record<string, { count: number, severityScore: number }>);
+  }, [weeklyReports]);
+
+  const siteChartData = useMemo(() => {
+    return (Object.entries(siteStats) as [string, { count: number, severityScore: number }][])
+      .map(([name, stats]) => ({ 
+        name, 
+        count: stats.count, 
+        criticality: stats.severityScore 
+      }))
+      .sort((a, b) => b.criticality - a.criticality)
+      .slice(0, 10);
+  }, [siteStats]);
 
   const renderSafetyStatusMap = () => {
     const r = 42;
@@ -147,7 +174,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
         </svg>
         <div className="absolute flex flex-col items-center text-center">
             <span className={`text-4xl sm:text-6xl font-black leading-none tracking-tighter ${isLight ? 'text-slate-900' : 'text-white'}`}>{total}</span>
-            <span className={`text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] mt-1 ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>Total Obs</span>
+            <span className={`text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] mt-1 ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>Weekly Total</span>
         </div>
       </div>
     );
@@ -155,11 +182,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
 
   return (
     <div className="space-y-4 sm:space-y-6 pb-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <div className={`px-4 sm:px-8 py-6 rounded-[2rem] text-center backdrop-blur-md shadow-lg border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/[0.03] border-white/10'}`}>
-        <p className={`text-xs sm:text-sm font-medium leading-relaxed max-w-4xl mx-auto ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
-          HSE Guardian isn't just software; it's your proactive safety nerve center. 
-          Unified system capturing and managing all safety observations and incident data in real-time.
+      <div className={`px-6 sm:px-12 py-8 rounded-[2.5rem] text-center backdrop-blur-md shadow-xl border relative overflow-hidden ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/[0.03] border-white/10'}`}>
+        <div className="absolute top-0 left-0 w-2 h-full bg-blue-500/50"></div>
+        <p className={`text-sm sm:text-base font-medium leading-relaxed max-w-4xl mx-auto italic ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
+          "HSE Guardian isn't just software; it's your proactive safety nerve center. A unified system capturing and managing all safety observations and incident data in real-time."
         </p>
+        <div className={`mt-4 pt-4 border-t ${isLight ? 'border-slate-200' : 'border-white/5'} flex justify-center gap-4 text-[10px] font-black uppercase tracking-widest text-blue-500`}>
+          <span>Weekly Performance Monitor</span>
+          <span className="opacity-30">•</span>
+          <span>Analytics Reset Sun 00:00</span>
+        </div>
       </div>
 
       {loading ? (
@@ -170,9 +202,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
       ) : (
         <>
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
-            {/* SAFETY STATUS MAP - 4 COLUMNS */}
             <div className={`lg:col-span-4 backdrop-blur-2xl p-4 sm:p-6 rounded-3xl border shadow-xl flex flex-col items-center relative overflow-hidden min-h-[320px] sm:min-h-[400px] justify-center ${isLight ? 'bg-white border-slate-200' : 'bg-white/[0.03] border-white/10'}`}>
-                <h3 className={`text-[9px] font-black uppercase tracking-[0.3em] mb-4 absolute top-6 ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>Safety Status Map</h3>
+                <h3 className={`text-[9px] font-black uppercase tracking-[0.3em] mb-4 absolute top-6 ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>Weekly Safety Map</h3>
                 <div className="flex-grow flex items-center justify-center">
                   {renderSafetyStatusMap()}
                 </div>
@@ -188,23 +219,21 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
                 </div>
             </div>
 
-            {/* CRITICALITY BY SITE GRAPH - 8 COLUMNS */}
             <div className={`lg:col-span-8 backdrop-blur-2xl p-4 sm:p-6 rounded-3xl border shadow-xl flex flex-col relative overflow-hidden min-h-[400px] ${isLight ? 'bg-white border-slate-200' : 'bg-white/[0.03] border-white/10'}`}>
                 <div className="flex items-center justify-between mb-8 px-4">
                    <div>
                      <h3 className={`text-lg font-black tracking-tighter ${isLight ? 'text-slate-900' : 'text-white'}`}>Site Criticality Analysis</h3>
-                     <p className={`text-[9px] font-black uppercase tracking-[0.3em] ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>Multi-Site Hazard Trend</p>
+                     <p className={`text-[9px] font-black uppercase tracking-[0.3em] ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>Current Week Trend</p>
                    </div>
                    <div className="flex gap-4">
                      <div className="flex flex-col items-end">
-                       <span className="text-blue-500 text-[9px] font-black uppercase tracking-tighter">TOTAL VOL.</span>
-                       <span className={`text-xs font-mono font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>{reports.length}</span>
+                       <span className="text-blue-500 text-[9px] font-black uppercase tracking-tighter">WK VOL.</span>
+                       <span className={`text-xs font-mono font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>{weeklyReports.length}</span>
                      </div>
                      <div className="w-[1px] h-8 bg-white/10"></div>
                      <div className="flex flex-col items-end">
                        <span className="text-rose-500 text-[9px] font-black uppercase tracking-tighter">AGG. SEV.</span>
                        <span className={`text-xs font-mono font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                        {/* Fix: Explicitly type the arguments of reduce to resolve 'unknown' type errors for severityScore */}
                         {Object.values(siteStats).reduce((a: number, b: { severityScore: number }) => a + b.severityScore, 0)}
                        </span>
                      </div>
@@ -296,7 +325,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
                     </ResponsiveContainer>
                   ) : (
                     <div className="h-full flex items-center justify-center text-slate-700 text-[9px] font-black uppercase tracking-widest animate-pulse">
-                      Awaiting Data Stream...
+                      No Weekly Activity Detected...
                     </div>
                   )}
                 </div>
@@ -305,7 +334,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
         </>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 pt-2">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 pt-2">
           <button
             onClick={() => onNavigate('create')}
             className={`group relative h-24 sm:h-28 flex items-center backdrop-blur-xl border rounded-2xl sm:rounded-[2rem] overflow-hidden transition-all active:scale-[0.98] duration-300 px-6 sm:px-8 ${
@@ -324,6 +353,28 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
           </button>
 
           <button
+            onClick={() => onNavigate('my-tasks')}
+            className={`group relative h-24 sm:h-28 flex items-center backdrop-blur-xl border rounded-2xl sm:rounded-[2rem] overflow-hidden transition-all active:scale-[0.98] duration-300 px-6 sm:px-8 ${
+              isLight ? 'bg-white border-slate-200 hover:bg-slate-50 hover:border-emerald-300' : 'bg-white/[0.04] border-white/10 hover:bg-white/[0.08] hover:border-emerald-500/30'
+            }`}
+          >
+            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-emerald-600 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-2xl group-hover:scale-105 transition-transform shrink-0 border border-emerald-400/30 relative">
+               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 sm:h-8 sm:w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
+               </svg>
+               {myTaskCount > 0 && (
+                 <span className="absolute -top-2 -right-2 bg-red-600 text-white text-[10px] font-black w-6 h-6 rounded-full flex items-center justify-center border-2 border-slate-900 animate-bounce">
+                    {myTaskCount}
+                 </span>
+               )}
+            </div>
+            <div className="flex-1 text-left ml-4 sm:ml-6">
+               <h3 className={`text-lg sm:text-xl font-black tracking-tight leading-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>My Tasks</h3>
+               <p className="text-[8px] sm:text-[9px] font-black text-emerald-400 uppercase tracking-[0.2em] mt-1 opacity-80">Personal Queue</p>
+            </div>
+          </button>
+
+          <button
             onClick={() => onNavigate('recent')}
             className={`group relative h-24 sm:h-28 flex items-center backdrop-blur-xl border rounded-2xl sm:rounded-[2rem] overflow-hidden transition-all active:scale-[0.98] duration-300 px-6 sm:px-8 ${
               isLight ? 'bg-white border-slate-200 hover:bg-slate-50 hover:border-slate-300' : 'bg-white/[0.04] border-white/10 hover:bg-white/[0.08] hover:border-white/20'
@@ -337,7 +388,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
                </svg>
             </div>
             <div className="flex-1 text-left ml-4 sm:ml-6">
-               <h3 className={`text-lg sm:text-xl font-black tracking-tight leading-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>Recent Logs</h3>
+               <h3 className={`text-lg sm:text-xl font-black tracking-tight leading-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>Incident Log</h3>
                <p className={`text-[8px] sm:text-[9px] font-black uppercase tracking-[0.2em] mt-1 opacity-80 ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>Review Evidence</p>
             </div>
           </button>

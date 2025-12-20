@@ -1,10 +1,16 @@
+
 <!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>HSE Guardian</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>HSE Guardian | Incident Image Taking System</title>
     <link rel="icon" href="https://static.vecteezy.com/system/resources/previews/004/734/033/non_2x/hse-icon-with-a-shield-vector.jpg" />
+    <link rel="apple-touch-icon" href="https://static.vecteezy.com/system/resources/previews/004/734/033/non_2x/hse-icon-with-a-shield-vector.jpg" />
+    <link rel="manifest" href="manifest.json" />
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="HSE Guardian">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script type="importmap">
@@ -24,14 +30,13 @@
     <style>
       body {
         font-family: 'Inter', sans-serif;
-        /* Use transform-based transitions for better performance */
         transition: background-color 0.2s ease;
         -webkit-user-select: none;
         user-select: none;
         overflow-x: hidden;
+        overscroll-behavior-y: none;
       }
       
-      /* Speed typing optimization: Ensure inputs are instantaneous */
       input, textarea, select {
         -webkit-user-select: text !important;
         user-select: text !important;
@@ -39,7 +44,6 @@
         will-change: auto;
       }
 
-      /* Reduce paint operations on active elements */
       input:focus, textarea:focus {
         box-shadow: none !important;
         backdrop-filter: none !important;
@@ -51,7 +55,6 @@
         color: #0f172a !important;
       }
 
-      /* Custom scrollbar for a pro feel */
       ::-webkit-scrollbar {
         width: 6px;
       }
@@ -66,9 +69,11 @@
         background: rgba(100, 116, 139, 0.4);
       }
     </style>
-  </head>
+  <link rel="stylesheet" href="/index.css">
+</head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/index.tsx"></script>
-  </body>
+    <script type="module" src="index.tsx"></script>
+  <script type="module" src="/index.tsx"></script>
+</body>
 </html>

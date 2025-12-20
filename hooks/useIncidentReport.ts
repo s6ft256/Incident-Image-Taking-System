@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { IncidentForm, UploadedImage, UserProfile } from '../types';
 import { MIN_IMAGES } from '../constants';
 import { submitIncidentReport } from '../services/airtableService';
@@ -18,9 +18,11 @@ export const useIncidentReport = (baseId: string) => {
     site: '',
     category: '',
     observation: '',
-    actionTaken: '' 
+    actionTaken: '',
+    assignedTo: ''
   });
   
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [images, setImages] = useState<UploadedImage[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<SubmitStatus>('idle');
@@ -51,9 +53,26 @@ export const useIncidentReport = (baseId: string) => {
     };
   }, []);
 
+  const validationErrors = useMemo(() => {
+    const errors: Record<string, string> = {};
+    if (!formData.name.trim()) errors.name = "Observer name is required";
+    if (!formData.role.trim()) errors.role = "Current role is required";
+    if (!formData.site.trim()) errors.site = "Site location is required";
+    if (!formData.category.trim()) errors.category = "Incident type is required";
+    if (!formData.observation.trim()) errors.observation = "Description is required";
+    else if (formData.observation.length < 10) errors.observation = "Please provide more detail (min 10 chars)";
+    
+    return errors;
+  }, [formData]);
+
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { id, value } = e.target;
     setFormData(prev => ({ ...prev, [id]: value }));
+  }, []);
+
+  const handleBlur = useCallback((e: React.FocusEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { id } = e.target;
+    setTouched(prev => ({ ...prev, [id]: true }));
   }, []);
 
   const handleAddImage = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -73,12 +92,14 @@ export const useIncidentReport = (baseId: string) => {
 
   const handleRemoveImage = useCallback((id: string) => {
     setImages(prev => {
-      const imageToRemove = prev.find(img => id === id);
+      const imageToRemove = prev.find(img => img.id === id);
       if (imageToRemove) {
         URL.revokeObjectURL(imageToRemove.previewUrl);
       }
       return prev.filter(img => img.id !== id);
     });
+    // Clear global error if it was about images
+    setErrorMessage(prev => prev.includes("Evidence Required") ? '' : prev);
   }, []);
 
   const processImageUpload = useCallback(async (img: UploadedImage): Promise<string> => {
@@ -110,18 +131,26 @@ export const useIncidentReport = (baseId: string) => {
     e.preventDefault();
     setErrorMessage('');
 
+    // Mark all fields as touched to show validation errors
+    const allTouched: Record<string, boolean> = {};
+    Object.keys(formData).forEach(key => { allTouched[key] = true; });
+    setTouched(allTouched);
+
     if (!baseId) { 
       setErrorMessage("Safety Database Configuration Error: Base ID missing."); 
       setSubmitStatus('error'); 
       return; 
     }
     
-    if (!formData.name || !formData.site || !formData.category || !formData.observation) {
-      setErrorMessage("Report Validation Failed: All mandatory information fields must be completed."); 
+    if (Object.keys(validationErrors).length > 0) {
+      setErrorMessage("Report Validation Failed: Please complete all mandatory fields correctly."); 
       setSubmitStatus('error'); 
       return;
     }
     
+    const successfulImages = images.filter(img => img.status === 'success');
+    const pendingOrErrorImages = images.filter(img => img.status !== 'success');
+
     if (images.length < MIN_IMAGES) {
       setErrorMessage(`Evidence Required: Please capture/upload at least ${MIN_IMAGES} evidence photo(s).`); 
       setSubmitStatus('error'); 
@@ -142,35 +171,36 @@ export const useIncidentReport = (baseId: string) => {
 
     setIsSubmitting(true);
     try {
-      const existingAttachments = images
-        .filter(img => img.status === 'success' && img.serverUrl)
-        .map(img => ({ url: img.serverUrl!, filename: img.file.name }));
-
-      const pendingImages = images.filter(img => img.status !== 'success');
-      const uploadResults = await Promise.allSettled(pendingImages.map(img => processImageUpload(img)));
+      const existingAttachments = successfulImages.map(img => ({ url: img.serverUrl!, filename: img.file.name }));
+      
+      // Attempt to upload any pending or failed images
+      const uploadResults = await Promise.allSettled(pendingOrErrorImages.map(img => processImageUpload(img)));
       
       const newAttachments: { url: string; filename: string }[] = [];
-      let uploadFailureCount = 0;
+      const failedImageNames: string[] = [];
 
       uploadResults.forEach((res, idx) => {
         if (res.status === 'fulfilled') {
           newAttachments.push({ 
             url: (res as PromiseFulfilledResult<string>).value, 
-            filename: pendingImages[idx].file.name 
+            filename: pendingOrErrorImages[idx].file.name 
           });
         } else {
-          uploadFailureCount++;
+          failedImageNames.push(pendingOrErrorImages[idx].file.name);
         }
       });
 
       const totalAttachments = [...existingAttachments, ...newAttachments];
 
       if (totalAttachments.length === 0) {
-        throw new Error("Critical Failure: No evidence could be uploaded to the safety server.");
+        throw new Error("Critical Failure: No evidence could be uploaded to the safety server. Please retry the image uploads.");
       }
 
-      if (uploadFailureCount > 0) {
-        console.warn(`${uploadFailureCount} images failed to upload, but proceeding with ${newAttachments.length} successful ones.`);
+      // If we have some attachments but some failed, we notify the user but proceed with what we have
+      if (failedImageNames.length > 0) {
+        const warning = `Partial Success: Report submitted with ${totalAttachments.length} images. However, ${failedImageNames.length} image(s) failed: ${failedImageNames.join(', ')}. Please verify the report in the logs.`;
+        setErrorMessage(warning);
+        // We still proceed to submit the report to Airtable
       }
 
       await submitIncidentReport(formData, totalAttachments, { baseId });
@@ -182,16 +212,19 @@ export const useIncidentReport = (baseId: string) => {
     } finally { 
       setIsSubmitting(false); 
     }
-  }, [baseId, formData, images, isOnline, processImageUpload]);
+  }, [baseId, formData, images, isOnline, processImageUpload, validationErrors]);
 
   return {
     formData,
+    touched,
+    validationErrors,
     images,
     isSubmitting,
     submitStatus,
     errorMessage,
     isOnline,
     handleInputChange,
+    handleBlur,
     handleAddImage,
     handleRemoveImage,
     handleRetry: (id: string) => {
@@ -199,6 +232,20 @@ export const useIncidentReport = (baseId: string) => {
       if (img) processImageUpload(img);
     },
     handleSubmit,
-    resetStatus: () => setSubmitStatus('idle')
+    resetStatus: () => {
+      setSubmitStatus('idle');
+      setErrorMessage('');
+      setTouched({});
+      setFormData({
+        name: '',
+        role: '',
+        site: '',
+        category: '',
+        observation: '',
+        actionTaken: '',
+        assignedTo: ''
+      });
+      setImages([]);
+    }
   };
 };

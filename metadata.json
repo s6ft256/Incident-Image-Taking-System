@@ -1,7 +1,10 @@
+
 {
   "name": "HSE Guardian",
   "description": "A mobile-first safety reporting tool with offline capabilities, evidence management, and professional incident tracking.",
   "requestFramePermissions": [
-    "camera"
+    "camera",
+    "publickey-credentials-get",
+    "publickey-credentials-create"
   ]
 }

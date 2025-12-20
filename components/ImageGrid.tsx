@@ -42,7 +42,7 @@ export const ImageGrid: React.FC<ImageGridProps> = memo(({ images, onRemove, onA
             <div 
               className={`
                 relative aspect-square overflow-hidden rounded-xl border-2 transition-all duration-300
-                ${img.status === 'error' ? (isLight ? 'border-rose-500 bg-rose-50' : 'border-rose-500 bg-rose-950/20') : 
+                ${img.status === 'error' ? (isLight ? 'border-rose-500 bg-rose-50 shadow-lg shadow-rose-500/10' : 'border-rose-500 bg-rose-950/20 shadow-lg shadow-rose-500/20') : 
                   img.status === 'success' ? (isLight ? 'border-emerald-500 bg-emerald-50' : 'border-emerald-500 ring-1 ring-emerald-500/30') : 
                   img.status === 'uploading' ? (isLight ? 'border-blue-500 bg-blue-50' : 'border-blue-500 ring-2 ring-blue-500/20') :
                   (isLight ? 'border-slate-200 hover:border-blue-400' : 'border-slate-700 hover:border-blue-500/50')}
@@ -55,7 +55,7 @@ export const ImageGrid: React.FC<ImageGridProps> = memo(({ images, onRemove, onA
                 alt="Evidence" 
                 className={`h-full w-full object-cover transition-transform duration-500 ${
                   img.status === 'uploading' ? 'blur-[2px] opacity-70 grayscale-[0.3]' : 
-                  img.status === 'error' ? 'grayscale opacity-40' :
+                  img.status === 'error' ? 'grayscale opacity-40 blur-[1px]' :
                   'group-hover:scale-110'
                 }`}
               />
@@ -78,24 +78,24 @@ export const ImageGrid: React.FC<ImageGridProps> = memo(({ images, onRemove, onA
               )}
 
               {img.status === 'error' && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center p-2 text-center bg-rose-500/10 backdrop-blur-[1px]">
-                   <svg className="w-6 h-6 text-rose-500 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                <div className="absolute inset-0 flex flex-col items-center justify-center p-3 text-center bg-black/40 backdrop-blur-[2px] z-10">
+                   <svg className="w-8 h-8 text-rose-500 mb-2 drop-shadow-lg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                    </svg>
-                   <p className="text-[8px] font-black uppercase text-rose-500 leading-tight mb-2">
-                     {img.errorMessage || "Upload Failed"}
+                   <p className="text-[9px] font-black uppercase text-white leading-tight mb-3 drop-shadow-md px-1">
+                     {img.errorMessage || "System Connection Failure"}
                    </p>
                    <button 
                      onClick={(e) => { e.stopPropagation(); onRetry(img.id); }}
-                     className="px-3 py-1 bg-rose-500 text-white text-[8px] font-black uppercase rounded-lg shadow-lg hover:bg-rose-600 active:scale-95 transition-all"
+                     className="w-full py-2 bg-rose-500 text-white text-[9px] font-black uppercase rounded-lg shadow-xl hover:bg-rose-600 active:scale-95 transition-all border border-rose-400/30"
                    >
-                     Retry
+                     Retry Capture
                    </button>
                 </div>
               )}
 
               {img.status === 'success' && (
-                <div className="absolute top-2 right-2 bg-emerald-500 text-white rounded-full p-1 shadow-lg">
+                <div className="absolute top-2 right-2 bg-emerald-500 text-white rounded-full p-1.5 shadow-lg border border-emerald-400/50">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                   </svg>
@@ -110,11 +110,11 @@ export const ImageGrid: React.FC<ImageGridProps> = memo(({ images, onRemove, onA
                   e.stopPropagation();
                   onRemove(img.id);
                 }}
-                className={`absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full text-slate-400 hover:bg-rose-500 hover:text-white border shadow-lg z-30 transition-all ${
+                className={`absolute -top-2 -right-2 flex h-7 w-7 items-center justify-center rounded-full text-slate-400 hover:bg-rose-500 hover:text-white border shadow-xl z-30 transition-all ${
                   isLight ? 'bg-white border-slate-200' : 'bg-slate-800 border-slate-700'
                 }`}
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="18" y1="6" x2="6" y2="18"></line>
                   <line x1="6" y1="6" x2="18" y2="18"></line>
                 </svg>

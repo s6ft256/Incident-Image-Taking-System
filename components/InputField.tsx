@@ -6,6 +6,7 @@ interface InputFieldProps {
   id: string;
   value: string;
   onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
+  onBlur?: (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
   placeholder?: string;
   type?: 'text' | 'select' | 'textarea' | 'password';
   options?: string[];
@@ -16,6 +17,8 @@ interface InputFieldProps {
   spellCheck?: boolean;
   autoCorrect?: "on" | "off";
   autoCapitalize?: "none" | "sentences" | "words" | "characters";
+  error?: string;
+  touched?: boolean;
 }
 
 export const InputField: React.FC<InputFieldProps> = memo(({ 
@@ -23,6 +26,7 @@ export const InputField: React.FC<InputFieldProps> = memo(({
   id, 
   value, 
   onChange, 
+  onBlur,
   placeholder, 
   type = 'text', 
   options = [],
@@ -32,12 +36,22 @@ export const InputField: React.FC<InputFieldProps> = memo(({
   autoComplete = 'off',
   spellCheck = false,
   autoCorrect = "off",
-  autoCapitalize = "sentences"
+  autoCapitalize = "sentences",
+  error,
+  touched
 }) => {
   const dataListId = list && list.length > 0 ? `${id}-list` : undefined;
+  const hasError = touched && !!error;
 
-  const baseClasses = "w-full rounded-xl border px-4 py-3.5 outline-none transition-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 text-sm";
-  const themeClasses = "border-slate-700 bg-slate-900/40 text-slate-100 placeholder:text-slate-600 light-mode:bg-white light-mode:border-slate-300 light-mode:text-slate-900";
+  const baseClasses = `w-full rounded-xl border px-4 py-3.5 outline-none transition-all duration-200 text-sm ${
+    hasError 
+      ? 'border-rose-500 ring-1 ring-rose-500/20' 
+      : 'focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500'
+  }`;
+  
+  const themeClasses = `bg-slate-900/40 text-slate-100 placeholder:text-slate-600 light-mode:bg-white light-mode:text-slate-900 ${
+    !hasError ? 'border-slate-700 light-mode:border-slate-300' : ''
+  }`;
 
   const renderInput = () => {
     switch (type) {
@@ -48,6 +62,7 @@ export const InputField: React.FC<InputFieldProps> = memo(({
               id={id}
               value={value}
               onChange={onChange}
+              onBlur={onBlur}
               className={`${baseClasses} ${themeClasses} appearance-none pr-10`}
               required={required}
               autoComplete={autoComplete}
@@ -70,6 +85,7 @@ export const InputField: React.FC<InputFieldProps> = memo(({
             id={id}
             value={value}
             onChange={onChange}
+            onBlur={onBlur}
             placeholder={placeholder}
             rows={rows}
             spellCheck={spellCheck}
@@ -87,6 +103,7 @@ export const InputField: React.FC<InputFieldProps> = memo(({
             id={id}
             value={value}
             onChange={onChange}
+            onBlur={onBlur}
             placeholder={placeholder}
             autoComplete={autoComplete}
             className={`${baseClasses} ${themeClasses}`}
@@ -101,6 +118,7 @@ export const InputField: React.FC<InputFieldProps> = memo(({
               id={id}
               value={value}
               onChange={onChange}
+              onBlur={onBlur}
               placeholder={placeholder}
               list={dataListId}
               autoComplete={autoComplete}
@@ -123,10 +141,17 @@ export const InputField: React.FC<InputFieldProps> = memo(({
   };
 
   return (
-    <div className="flex flex-col gap-2">
-      <label htmlFor={id} className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 px-1">
-        {label}
-      </label>
+    <div className="flex flex-col gap-1.5">
+      <div className="flex justify-between items-center px-1">
+        <label htmlFor={id} className={`text-[10px] font-black uppercase tracking-[0.2em] ${hasError ? 'text-rose-500' : 'text-slate-500'}`}>
+          {label} {required && <span className="text-rose-500 ml-0.5">*</span>}
+        </label>
+        {hasError && (
+          <span className="text-[9px] font-bold text-rose-500 animate-in fade-in slide-in-from-right-2 uppercase">
+            {error}
+          </span>
+        )}
+      </div>
       {renderInput()}
     </div>
   );

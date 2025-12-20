@@ -60,6 +60,21 @@ export const getProfileByName = async (name: string): Promise<UserProfile | null
   };
 };
 
+export const getAllProfiles = async (): Promise<UserProfile[]> => {
+  const { data, error } = await supabase
+    .from(TABLE_NAME)
+    .select('name, role, site, profile_image_url');
+  
+  if (error) throw new Error(error.message);
+  
+  return (data || []).map(d => ({
+    name: d.name,
+    role: d.role,
+    site: d.site,
+    profileImageUrl: d.profile_image_url
+  }));
+};
+
 export const getProfileByCredentialId = async (credentialId: string): Promise<UserProfile | null> => {
   const { data, error } = await supabase
     .from(TABLE_NAME)

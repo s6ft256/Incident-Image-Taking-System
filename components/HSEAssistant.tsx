@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { GoogleGenAI, Chat, GenerateContentResponse } from "@google/genai";
 
@@ -107,10 +108,10 @@ You must STRICTLY focus on HSE and HSECES topics. If a user asks about unrelated
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end pointer-events-none">
+    <div className="fixed bottom-24 right-6 z-50 flex flex-col items-end pointer-events-none">
       {isOpen && (
-        <div className={`pointer-events-auto w-80 sm:w-96 h-[500px] max-h-[70vh] ${appTheme === 'dark' ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'} border rounded-xl shadow-2xl flex flex-col overflow-hidden mb-4 animate-in slide-in-from-bottom-5 fade-in duration-300`}>
-          <div className={`${appTheme === 'dark' ? 'bg-gradient-to-r from-emerald-900 to-slate-900 border-slate-700' : 'bg-emerald-600 border-emerald-500'} p-4 border-b flex justify-between items-center`}>
+        <div className={`pointer-events-auto w-80 sm:w-96 h-[500px] max-h-[70vh] ${appTheme === 'dark' ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'} border rounded-[2rem] shadow-2xl flex flex-col overflow-hidden mb-4 animate-in slide-in-from-bottom-5 fade-in duration-300`}>
+          <div className={`${appTheme === 'dark' ? 'bg-gradient-to-r from-emerald-900 to-slate-900 border-slate-700' : 'bg-emerald-600 border-emerald-500'} p-5 border-b flex justify-between items-center`}>
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-full overflow-hidden border-2 border-white/50 shadow-lg bg-white">
                 <img 
@@ -120,8 +121,8 @@ You must STRICTLY focus on HSE and HSECES topics. If a user asks about unrelated
                 />
               </div>
               <div>
-                <h3 className="text-sm font-bold text-white">HSECES Assistant</h3>
-                <p className={`text-[10px] ${appTheme === 'dark' ? 'text-emerald-300' : 'text-emerald-50'}`}>Critical Systems AI • developed by @Elius</p>
+                <h3 className="text-sm font-black text-white">HSECES Assistant</h3>
+                <p className={`text-[8px] font-black uppercase tracking-widest ${appTheme === 'dark' ? 'text-emerald-300' : 'text-emerald-50'}`}>Critical Systems AI</p>
               </div>
             </div>
             <button onClick={() => setIsOpen(false)} className="text-white opacity-80 hover:opacity-100 transition-opacity">
@@ -131,7 +132,7 @@ You must STRICTLY focus on HSE and HSECES topics. If a user asks about unrelated
             </button>
           </div>
 
-          <div className={`flex-1 overflow-y-auto p-4 space-y-4 ${appTheme === 'dark' ? 'bg-slate-900/50' : 'bg-slate-50'} scrollbar-thin`}>
+          <div className={`flex-1 overflow-y-auto p-4 space-y-4 ${appTheme === 'dark' ? 'bg-slate-900/50' : 'bg-slate-50'} scrollbar-hide`}>
             {messages.map((msg, idx) => (
               <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 <div 
@@ -157,14 +158,14 @@ You must STRICTLY focus on HSE and HSECES topics. If a user asks about unrelated
             <div ref={messagesEndRef} />
           </div>
 
-          <form onSubmit={handleSend} className={`p-3 border-t ${appTheme === 'dark' ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-100'}`}>
+          <form onSubmit={handleSend} className={`p-4 border-t ${appTheme === 'dark' ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-100'}`}>
             <div className="relative flex items-center">
               <input
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="Ask about critical equipment..."
-                className={`w-full ${appTheme === 'dark' ? 'bg-slate-900 text-white border-slate-600' : 'bg-slate-100 text-slate-900 border-slate-200'} text-sm rounded-full pl-4 pr-10 py-2.5 border focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 placeholder-slate-500`}
+                placeholder="Query safety barriers..."
+                className={`w-full ${appTheme === 'dark' ? 'bg-slate-900 text-white border-slate-600' : 'bg-slate-100 text-slate-900 border-slate-200'} text-xs rounded-full pl-4 pr-10 py-3 border focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 placeholder-slate-500`}
               />
               <button type="submit" disabled={!input.trim() || isLoading} className="absolute right-1.5 p-1.5 bg-emerald-600 text-white rounded-full hover:bg-emerald-500 disabled:opacity-50 transition-colors">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
@@ -184,15 +185,18 @@ You must STRICTLY focus on HSE and HSECES topics. If a user asks about unrelated
         className="pointer-events-auto group relative flex items-center justify-center w-14 h-14 bg-gradient-to-tr from-emerald-600 to-emerald-500 text-white rounded-full shadow-lg hover:scale-105 transition-all duration-300 border border-emerald-400 p-0 overflow-hidden"
       >
         {isOpen ? (
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 animate-in zoom-in duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 animate-in zoom-in duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
           </svg>
         ) : (
-          <img 
-            src="https://static.vecteezy.com/system/resources/previews/004/734/033/non_2x/hse-icon-with-a-shield-vector.jpg" 
-            alt="HSE Assistant" 
-            className="h-full w-full object-cover animate-in zoom-in duration-200"
-          />
+          <div className="flex flex-col items-center">
+            <img 
+              src="https://static.vecteezy.com/system/resources/previews/004/734/033/non_2x/hse-icon-with-a-shield-vector.jpg" 
+              alt="HSE Assistant" 
+              className="w-full h-full object-cover animate-in zoom-in duration-200"
+            />
+            <div className="absolute inset-0 bg-emerald-600/20 group-hover:bg-transparent transition-colors"></div>
+          </div>
         )}
         
         {!isOpen && (

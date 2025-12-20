@@ -20,20 +20,30 @@ const base64ToBuffer = (base64: string): Uint8Array => {
 
 /**
  * Checks if the current device/browser supports biometrics (FaceID/Fingerprint)
+ * Handles potential SecurityErrors caused by Permissions Policy restrictions.
  */
 export const isBiometricsAvailable = async (): Promise<boolean> => {
-  return !!(
-    window.PublicKeyCredential &&
-    await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
-  );
+  try {
+    // Basic check for API support
+    if (!window.PublicKeyCredential) return false;
+    
+    // Check if the feature is allowed by Permissions Policy
+    // Some browsers throw SecurityError immediately if 'publickey-credentials-get' is not allowed.
+    return await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+  } catch (error: any) {
+    if (error.name === 'SecurityError') {
+      console.warn("HSE Guardian: Biometric features restricted by environment Permissions Policy (publickey-credentials-get).");
+    } else {
+      console.warn("HSE Guardian: WebAuthn check failed:", error);
+    }
+    return false;
+  }
 };
 
 /**
- * Registers a new biometric signature (The Web equivalent of BiometricPrompt)
- * This triggers the native system dialog on Android/iOS.
+ * Registers a new biometric signature
  */
 export const registerBiometrics = async (userName: string): Promise<{ credentialId: string; publicKey: string }> => {
-  // Generate random challenges required by the security protocol
   const challenge = window.crypto.getRandomValues(new Uint8Array(32));
   const userId = window.crypto.getRandomValues(new Uint8Array(16));
 
@@ -74,6 +84,9 @@ export const registerBiometrics = async (userName: string): Promise<{ credential
     if (error.name === 'NotAllowedError') {
       throw new Error("Biometric registration was declined.");
     }
+    if (error.name === 'SecurityError') {
+      throw new Error("Security Policy: Biometric registration (publickey-credentials-create) is blocked by the host environment.");
+    }
     throw error;
   }
 };
@@ -99,6 +112,10 @@ export const authenticateBiometrics = async (storedCredentialId: string): Promis
     const assertion = await navigator.credentials.get({ publicKey: options });
     return !!assertion;
   } catch (error: any) {
+    if (error.name === 'SecurityError') {
+      console.error("Biometric 'get' operation blocked by Permissions Policy.");
+      throw new Error("Security Policy Violation: This environment restricts biometric features. Please use your Access Key.");
+    }
     console.error("Biometric auth error:", error);
     return false;
   }
