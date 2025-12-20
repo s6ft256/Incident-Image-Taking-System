@@ -1,25 +1,85 @@
 
 import React, { useState } from 'react';
-import { ENVIRONMENTAL_POLICY, OHS_POLICY } from '../constants/policies';
+import { ENVIRONMENTAL_POLICY, OHS_POLICY, PRIVACY_POLICY } from '../constants/policies';
 
 interface PolicyModalProps {
   onClose: () => void;
   appTheme?: 'dark' | 'light';
+  initialTab?: PolicyTab;
 }
 
-type PolicyTab = 'environmental' | 'ohs';
+export type PolicyTab = 'environmental' | 'ohs' | 'privacy';
 
-export const PolicyModal: React.FC<PolicyModalProps> = ({ onClose, appTheme = 'dark' }) => {
-  const [activeTab, setActiveTab] = useState<PolicyTab>('environmental');
+/**
+ * A small utility component to render text with markdown-style links [Text](URL)
+ */
+const PolicyContentRenderer: React.FC<{ content: string; accentColor: string }> = ({ content, accentColor }) => {
+  // Regex to match [text](url)
+  const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
+  const parts = [];
+  let lastIndex = 0;
+  let match;
+
+  while ((match = linkRegex.exec(content)) !== null) {
+    const [fullMatch, text, url] = match;
+    const index = match.index;
+
+    // Push text before match
+    if (index > lastIndex) {
+      parts.push(content.substring(lastIndex, index));
+    }
+
+    // Push link
+    parts.push(
+      <a 
+        key={index} 
+        href={url} 
+        target={url.startsWith('mailto:') ? '_self' : '_blank'} 
+        rel="noopener noreferrer"
+        className={`${accentColor} underline decoration-current/30 hover:decoration-current transition-all cursor-pointer`}
+      >
+        {text}
+      </a>
+    );
+
+    lastIndex = index + fullMatch.length;
+  }
+
+  // Push remaining text
+  if (lastIndex < content.length) {
+    parts.push(content.substring(lastIndex));
+  }
+
+  return <>{parts}</>;
+};
+
+export const PolicyModal: React.FC<PolicyModalProps> = ({ onClose, appTheme = 'dark', initialTab = 'environmental' }) => {
+  const [activeTab, setActiveTab] = useState<PolicyTab>(initialTab);
   const isLight = appTheme === 'light';
   
-  const currentPolicy = activeTab === 'environmental' ? ENVIRONMENTAL_POLICY : OHS_POLICY;
-  const accentColor = activeTab === 'environmental' ? 'text-emerald-500' : 'text-blue-500';
-  const accentBg = activeTab === 'environmental' ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-blue-500/10 border-blue-500/20';
+  const getPolicy = () => {
+    switch (activeTab) {
+      case 'environmental': return ENVIRONMENTAL_POLICY;
+      case 'ohs': return OHS_POLICY;
+      case 'privacy': return PRIVACY_POLICY;
+    }
+  };
+
+  const currentPolicy = getPolicy();
+
+  const getAccentColor = () => {
+    switch (activeTab) {
+      case 'environmental': return 'text-emerald-500';
+      case 'ohs': return 'text-blue-500';
+      case 'privacy': return 'text-rose-500';
+    }
+  };
+
+  const accentColor = getAccentColor();
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-8 overflow-hidden">
-      {/* Background Overlay - High opacity solid background for the modal layer */}
+      {/* Background Overlay */}
       <div 
         className="absolute inset-0 bg-slate-950/95 animate-in fade-in duration-500"
         onClick={onClose}
@@ -29,7 +89,7 @@ export const PolicyModal: React.FC<PolicyModalProps> = ({ onClose, appTheme = 'd
         isLight ? 'bg-white border-slate-200' : 'bg-slate-900 border-white/10'
       }`}>
         
-        {/* TCG Corporate Watermark Background - Constant/Fixed, 100% Visibility, No Blur, No Transparency */}
+        {/* TCG Corporate Watermark Background */}
         <div 
           className="absolute inset-0 pointer-events-none opacity-100 z-0 select-none"
           style={{
@@ -41,7 +101,7 @@ export const PolicyModal: React.FC<PolicyModalProps> = ({ onClose, appTheme = 'd
           }}
         />
 
-        {/* Header - Solid Opaque */}
+        {/* Header */}
         <div className={`p-6 sm:p-8 border-b shrink-0 flex items-center justify-between z-20 ${isLight ? 'bg-white border-slate-100' : 'bg-slate-900 border-white/5'}`}>
           <div className="flex items-center gap-4">
              <div className={`p-3 rounded-2xl border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-800 border-white/5'}`}>
@@ -59,13 +119,13 @@ export const PolicyModal: React.FC<PolicyModalProps> = ({ onClose, appTheme = 'd
           </button>
         </div>
 
-        {/* Tab Navigation - Solid Opaque */}
+        {/* Tab Navigation */}
         <div className={`p-2 flex gap-2 shrink-0 border-b z-20 ${isLight ? 'bg-white border-slate-100' : 'bg-slate-900 border-white/5'}`}>
           <button 
             onClick={() => setActiveTab('environmental')}
             className={`flex-1 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${
               activeTab === 'environmental' 
-                ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-900/20' 
+                ? 'bg-emerald-600 text-white shadow-lg' 
                 : `${isLight ? 'text-slate-400 hover:bg-slate-100' : 'text-slate-500 hover:bg-white/5'}`
             }`}
           >
@@ -75,27 +135,36 @@ export const PolicyModal: React.FC<PolicyModalProps> = ({ onClose, appTheme = 'd
             onClick={() => setActiveTab('ohs')}
             className={`flex-1 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${
               activeTab === 'ohs' 
-                ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' 
+                ? 'bg-blue-600 text-white shadow-lg' 
                 : `${isLight ? 'text-slate-400 hover:bg-slate-100' : 'text-slate-500 hover:bg-white/5'}`
             }`}
           >
             OHS Safety
+          </button>
+          <button 
+            onClick={() => setActiveTab('privacy')}
+            className={`flex-1 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${
+              activeTab === 'privacy' 
+                ? 'bg-rose-600 text-white shadow-lg' 
+                : `${isLight ? 'text-slate-400 hover:bg-slate-100' : 'text-slate-500 hover:bg-white/5'}`
+            }`}
+          >
+            Privacy
           </button>
         </div>
 
         {/* Content Area */}
         <div className="flex-1 overflow-y-auto p-6 sm:p-12 scrollbar-hide relative z-10">
           <div className="space-y-10">
-            {/* Policy Title Card - For Standard theme: 10% transparency (90% opacity) and 10% blur styling */}
             <div className={`p-8 rounded-[2.5rem] border relative overflow-hidden group shadow-2xl transition-all duration-500 ${
               isLight 
                 ? 'bg-white/90 border-slate-300 backdrop-blur-[10px]' 
-                : 'bg-slate-950/2 border-white/20 backdrop-blur-[1px]'
+                : 'bg-slate-950/5 border-white/20 backdrop-blur-[2px]'
             }`}>
               <div className="relative z-10">
                 <h1 className={`text-3xl font-black tracking-tighter mb-2 ${isLight ? 'text-slate-900' : 'text-white'}`}>{currentPolicy.title}</h1>
                 <div className="flex items-center gap-2">
-                   <div className={`w-2.5 h-2.5 rounded-full animate-pulse ${activeTab === 'environmental' ? 'bg-emerald-500' : 'bg-blue-500'}`}></div>
+                   <div className={`w-2.5 h-2.5 rounded-full animate-pulse ${activeTab === 'environmental' ? 'bg-emerald-500' : activeTab === 'ohs' ? 'bg-blue-500' : 'bg-rose-500'}`}></div>
                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">Last Reviewed:</span>
                    <span className={`text-[10px] font-black uppercase tracking-[0.2em] ${accentColor}`}>{currentPolicy.lastReviewed}</span>
                 </div>
@@ -105,21 +174,19 @@ export const PolicyModal: React.FC<PolicyModalProps> = ({ onClose, appTheme = 'd
             <div className="space-y-12 pb-20">
               {currentPolicy.sections.map((section, idx) => (
                 <div key={idx} className="group/section">
-                  {/* Section Heading */}
                   <div className="flex items-center gap-4 mb-4">
-                    <div className={`w-2.5 h-7 rounded-full shadow-lg transition-all duration-300 group-hover/section:scale-y-125 ${activeTab === 'environmental' ? 'bg-emerald-500 shadow-emerald-500/20' : 'bg-blue-500 shadow-blue-500/20'}`}></div>
-                    <h3 className={`text-[15px] font-black uppercase tracking-[0.25em] ${isLight ? 'text-slate-900 underline decoration-slate-300' : 'text-white underline decoration-white/10'}`}>
+                    <div className={`w-2.5 h-7 rounded-full shadow-lg transition-all duration-300 group-hover/section:scale-y-125 ${activeTab === 'environmental' ? 'bg-emerald-500' : activeTab === 'ohs' ? 'bg-blue-500' : 'bg-rose-500'}`}></div>
+                    <h3 className={`text-[15px] font-black uppercase tracking-[0.25em] ${isLight ? 'text-slate-900' : 'text-white'}`}>
                       {section.heading}
                     </h3>
                   </div>
                   
-                  {/* Section Content - For Standard theme: 10% transparency (90% opacity) and 10% blur styling */}
                   <div className={`text-sm leading-relaxed text-justify whitespace-pre-wrap px-8 py-8 rounded-[2rem] border transition-all shadow-xl font-bold ${
                     isLight 
                       ? 'bg-white/90 text-slate-900 border-slate-400 backdrop-blur-[10px]' 
-                      : 'bg-slate-950/2 text-white border-white/40 backdrop-blur-[1px]'
+                      : 'bg-slate-950/10 text-white border-white/40 backdrop-blur-[2px]'
                   }`}>
-                    {section.content}
+                    <PolicyContentRenderer content={section.content} accentColor={accentColor} />
                   </div>
                 </div>
               ))}
@@ -127,7 +194,7 @@ export const PolicyModal: React.FC<PolicyModalProps> = ({ onClose, appTheme = 'd
           </div>
         </div>
 
-        {/* Footer - Solid Opaque */}
+        {/* Footer */}
         <div className={`p-5 border-t text-center shrink-0 z-20 ${isLight ? 'bg-white border-slate-100' : 'bg-slate-950 border-white/5'}`}>
           <div className="flex items-center justify-center gap-6">
             <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.4em]">Trojan Construction Group</p>

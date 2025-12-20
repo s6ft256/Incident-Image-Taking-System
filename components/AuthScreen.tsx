@@ -7,6 +7,7 @@ import { uploadImageToStorage } from '../services/storageService';
 import { compressImage } from '../utils/imageCompression';
 import { InputField } from './InputField';
 import { isBiometricsAvailable, authenticateBiometrics } from '../services/biometricService';
+import { PolicyModal } from './PolicyModal';
 
 interface AuthScreenProps {
   onAuthComplete: (profile: UserProfile) => void;
@@ -67,6 +68,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState('');
+  const [privacyConsent, setPrivacyConsent] = useState(false);
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [previewUrl, setPreviewUrl] = useState('');
   const [bioAvailable, setBioAvailable] = useState(false);
@@ -123,6 +126,9 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!privacyConsent) {
+      return setError('You must consent to the Privacy Policy.');
+    }
     if (!profile.name || !profile.role || !profile.password) {
       return setError('Identification details required.');
     }
@@ -311,6 +317,21 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
                 )}
               </div>
 
+              {mode === 'signup' && (
+                <div className="flex items-center gap-3 px-1 py-2">
+                   <input 
+                     type="checkbox" 
+                     id="privacyConsent"
+                     checked={privacyConsent}
+                     onChange={(e) => setPrivacyConsent(e.target.checked)}
+                     className="w-4 h-4 rounded border-slate-700 bg-slate-900 text-blue-600 focus:ring-blue-500 focus:ring-offset-slate-900" 
+                   />
+                   <label htmlFor="privacyConsent" className={`text-[8px] font-black uppercase tracking-widest ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+                      I agree to the <button type="button" onClick={() => setShowPrivacyModal(true)} className="text-blue-500 underline decoration-blue-500/30">Privacy Policy</button>
+                   </label>
+                </div>
+              )}
+
               <div className="flex flex-col gap-2 pt-2">
                 {mode === 'login' && bioAvailable && (
                   <button 
@@ -328,7 +349,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
 
                 <button 
                   type="submit" 
-                  disabled={isProcessing} 
+                  disabled={isProcessing || (mode === 'signup' && !privacyConsent)} 
                   className={`w-full font-black py-4 rounded-xl shadow-xl transition-all disabled:opacity-50 uppercase tracking-widest text-[10px] border ${
                     isLight ? 'bg-blue-600 text-white border-blue-400' : 'bg-white/10 border-white/10 text-white'
                   }`}
@@ -340,6 +361,14 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
           </div>
           <CardBackgroundGlow />
         </AuthCard>
+      )}
+
+      {showPrivacyModal && (
+        <PolicyModal 
+          appTheme={appTheme} 
+          initialTab="privacy" 
+          onClose={() => setShowPrivacyModal(false)} 
+        />
       )}
     </div>
   );

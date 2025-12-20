@@ -124,3 +124,54 @@ export const OHS_POLICY = {
     }
   ]
 };
+
+export const PRIVACY_POLICY = {
+  title: "Privacy Policy",
+  lastReviewed: "March 2024",
+  sections: [
+    {
+      heading: "1. Introduction",
+      content: "Welcome to [HSE Guardian](https://incident-image-taking-system.vercel.app/) (“we”, “us”, “our”). This Privacy Policy explains how we collect, use, disclose, and protect your information when you visit and interact with our Service. Your privacy matters to us and we are committed to transparency and data protection. You agree to the terms of this policy by using our Service."
+    },
+    {
+      heading: "2. Information We Collect",
+      content: "2.1 Personal Data: We may collect personal data you provide directly, such as name, role, site location, profile imagery, and uploaded incident data.\n\n2.2 Usage Data: We automatically collect data when you access the Website, including IP address, browser type, and duration of pages visited.\n\n2.3 Cookies & Tracking: We use local storage and cookies to improve experience, analyze traffic, and remember settings."
+    },
+    {
+      heading: "3. How We Use Your Information",
+      content: "We use collected information to provide and improve the Service, communicate updates, respond to inquiries, analyze usage trends, and ensure system security. We do not sell personal information to third parties."
+    },
+    {
+      heading: "4. Legal Basis for Processing",
+      content: "We process personal data based on your explicit consent, our legitimate interests in operating the Service, and compliance with applicable legal and regulatory standards."
+    },
+    {
+      heading: "5. Sharing and Disclosure",
+      content: "We may share information with service providers assisting in operation (e.g., hosting) or legal authorities if required by law. We do not disclose personal data for commercial marketing."
+    },
+    {
+      heading: "6. Data Security",
+      content: "We implement robust technical and administrative safeguards to protect personal data from unauthorized access or misuse. However, no digital system can be guaranteed 100% secure."
+    },
+    {
+      heading: "7. Data Retention",
+      content: "We retain personal data only as long as necessary to fulfill operational purposes or to comply with corporate and legal audit requirements."
+    },
+    {
+      heading: "8. Children’s Privacy",
+      content: "Our Service is not directed at children under 13 and we do not knowingly collect personal data from minors. If identified, such data will be purged immediately."
+    },
+    {
+      heading: "9. User Rights",
+      content: "Depending on location, you have rights to access, correct, or delete your personal data, and to restrict or object to processing. Contact us to exercise these rights."
+    },
+    {
+      heading: "10. Third-Party Links",
+      content: "Our Service may contain links to external sites (e.g. storage providers). We are not responsible for their privacy practices. Review their policies independently."
+    },
+    {
+      heading: "11. Contact Us",
+      content: "For questions about this Privacy Policy or your data rights, contact us at:\nEmail: [Developer](mailto:niwamanyaelius95@gmail.com)\nWebsite: [HSE Guardian](https://incident-image-taking-system.vercel.app/)"
+    }
+  ]
+};
