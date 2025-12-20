@@ -25,9 +25,18 @@ export const HSEAssistant: React.FC<HSEAssistantProps> = ({ appTheme = 'dark' })
     scrollToBottom();
   }, [messages, isOpen]);
 
-  const initializeChat = () => {
-    if (!chatSessionRef.current) {
-      try {
+  const handleSend = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (!input.trim()) return;
+
+    const userMessage = input.trim();
+    setInput('');
+    setMessages(prev => [...prev, { role: 'user', text: userMessage }]);
+    setIsLoading(true);
+
+    try {
+      // Create a new instance and chat session right before sending to ensure fresh state/keys
+      if (!chatSessionRef.current) {
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         chatSessionRef.current = ai.chats.create({
           model: 'gemini-3-pro-preview',
@@ -57,25 +66,7 @@ You must STRICTLY focus on HSE and HSECES topics. If a user asks about unrelated
             temperature: 0.4,
           },
         });
-      } catch (error) {
-        console.error("Failed to initialize Gemini:", error);
-        throw error;
       }
-    }
-  };
-
-  const handleSend = async (e?: React.FormEvent) => {
-    e?.preventDefault();
-    if (!input.trim()) return;
-
-    const userMessage = input.trim();
-    setInput('');
-    setMessages(prev => [...prev, { role: 'user', text: userMessage }]);
-    setIsLoading(true);
-
-    try {
-      initializeChat();
-      if (!chatSessionRef.current) throw new Error("Chat could not be initialized.");
 
       const result = await chatSessionRef.current.sendMessageStream({ message: userMessage });
       
