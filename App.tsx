@@ -149,38 +149,53 @@ function App() {
 
   if (!isInitialized) return null;
 
+  const isSpecialQuote = quote === "A safe workplace is everyone’s responsibility.";
+
   return (
     <div className={`min-h-screen transition-colors duration-300 main-app-container relative selection:bg-blue-500/30 overflow-x-hidden flex flex-col ${appTheme === 'dark' ? 'bg-[#020617]' : 'bg-white'}`}>
       {appTheme === 'dark' && <div className="absolute inset-0 bg-gradient-to-b from-slate-950/70 via-slate-950/50 to-slate-950/70 z-0 pointer-events-none"></div>}
 
       <div className="relative z-10 flex flex-col flex-grow">
         <header className={`sticky top-0 z-40 backdrop-blur-2xl border-b transition-all duration-300 ${appTheme === 'dark' ? 'bg-[#020617]/90 border-white/5 shadow-[0_4px_30px_rgba(0,0,0,0.5)]' : 'bg-white border-slate-200 shadow-sm'} ${view === 'auth' ? 'hidden' : ''}`}>
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-6 flex items-center justify-between gap-2 sm:gap-4">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6 flex items-center justify-between gap-2 sm:gap-4">
+             {/* Company Info Card */}
              <div className="flex-1 flex justify-start">
-               <img 
-                 src="https://www.multiply-marketing.com/trojan-wp/wp-content/uploads/2020/08/tgc-logo-300x300.png" 
-                 alt="TGC Logo" 
-                 className="h-8 w-auto sm:h-14 object-contain cursor-pointer"
+               <div 
                  onClick={() => setView('dashboard')}
-               />
+                 className={`group flex flex-col items-center p-2 sm:p-3 rounded-2xl border transition-all cursor-pointer ${appTheme === 'dark' ? 'bg-white/5 border-white/10 hover:bg-white/10' : 'bg-slate-50 border-slate-200 hover:bg-slate-100 shadow-sm'}`}
+               >
+                 <img 
+                   src="https://www.multiply-marketing.com/trojan-wp/wp-content/uploads/2020/08/tgc-logo-300x300.png" 
+                   alt="TGC Logo" 
+                   className="h-10 w-auto sm:h-16 object-contain transition-transform group-hover:scale-105"
+                 />
+                 <span className={`text-[8px] sm:text-[10px] font-black uppercase tracking-widest mt-1.5 ${appTheme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>TGC Group</span>
+               </div>
              </div>
 
+             {/* Main App Title */}
              <div className="flex flex-[2] flex-col items-center text-center">
                <h1 className="text-3xl sm:text-6xl font-black tracking-tighter cursor-pointer" onClick={() => setView('dashboard')}>
                  <span className={appTheme === 'dark' ? 'text-white' : 'text-slate-900'}>HSE</span> <span className="text-blue-500">Guardian</span>
                </h1>
              </div>
              
-             <div className="flex-1 flex justify-end items-center gap-2 sm:gap-3 relative">
-               <button 
+             {/* User Info Card */}
+             <div className="flex-1 flex justify-end items-center relative">
+               <div 
                 onClick={() => setShowProfileCard(!showProfileCard)}
-                className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full border-2 transition-all duration-300 overflow-hidden flex items-center justify-center ${showProfileCard ? 'border-blue-400 ring-4 ring-blue-500/20' : 'border-white/10 hover:border-white/30 bg-white/5'}`}
+                className={`group flex flex-col items-center p-2 sm:p-3 rounded-2xl border transition-all cursor-pointer ${showProfileCard ? 'border-blue-400 ring-4 ring-blue-500/20 bg-blue-500/5' : (appTheme === 'dark' ? 'bg-white/5 border-white/10 hover:bg-white/10' : 'bg-slate-50 border-slate-200 hover:bg-slate-100 shadow-sm')}`}
                >
-                  {userProfile?.profileImageUrl ? <img src={userProfile.profileImageUrl} alt="Profile" className="w-full h-full object-cover" /> : <div className="text-slate-400"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="sm:w-6 sm:h-6"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>}
-               </button>
+                  <div className={`w-10 h-10 sm:w-16 sm:h-16 rounded-full border-2 transition-all overflow-hidden flex items-center justify-center ${showProfileCard ? 'border-blue-400' : 'border-white/10'}`}>
+                    {userProfile?.profileImageUrl ? <img src={userProfile.profileImageUrl} alt="Profile" className="w-full h-full object-cover" /> : <div className="text-slate-400"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="sm:w-8 sm:h-8"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>}
+                  </div>
+                  <span className={`text-[8px] sm:text-[10px] font-black uppercase tracking-widest mt-1.5 max-w-[60px] sm:max-w-[100px] truncate ${appTheme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
+                    {userProfile?.name?.split(' ')[0] || 'User'}
+                  </span>
+               </div>
 
                {showProfileCard && (
-                 <div className="absolute top-14 right-0 w-72 sm:w-80 z-50 animate-in fade-in slide-in-from-top-4 duration-300">
+                 <div className="absolute top-20 sm:top-28 right-0 w-72 sm:w-80 z-50 animate-in fade-in slide-in-from-top-4 duration-300">
                     <UserProfile onBack={() => setShowProfileCard(false)} baseId={baseId} />
                  </div>
                )}
@@ -195,12 +210,20 @@ function App() {
         </main>
 
         <footer className={`py-6 px-4 flex flex-col items-center gap-4 mt-auto ${view === 'auth' ? 'hidden' : ''}`}>
-           <div className="max-w-2xl text-center px-4 animate-in fade-in slide-in-from-bottom-2 duration-1000">
-              <p className={`text-xs sm:text-sm font-black italic leading-relaxed tracking-tight ${appTheme === 'dark' ? 'text-blue-400/80' : 'text-blue-600'}`}>
+           <div className={`max-w-2xl text-center px-8 py-4 rounded-[2rem] transition-all duration-700 animate-in fade-in slide-in-from-bottom-2 duration-1000 ${
+             isSpecialQuote 
+               ? `border-2 border-red-600 bg-red-600/5 shadow-[0_0_25px_rgba(220,38,38,0.5)]` 
+               : ''
+           }`}>
+              <p className={`text-xs sm:text-sm font-black italic leading-relaxed tracking-tight ${
+                isSpecialQuote 
+                  ? 'text-red-500' 
+                  : (appTheme === 'dark' ? 'text-blue-400/80' : 'text-blue-600')
+              }`}>
                 {quote}
               </p>
               <div className="flex justify-center mt-2">
-                 <div className="h-0.5 w-12 rounded-full bg-blue-500/30"></div>
+                 <div className={`h-0.5 w-12 rounded-full ${isSpecialQuote ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]' : 'bg-blue-500/30'}`}></div>
               </div>
            </div>
            

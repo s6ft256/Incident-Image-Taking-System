@@ -43,7 +43,7 @@ export const ImageGrid: React.FC<ImageGridProps> = memo(({ images, onRemove, onA
               className={`
                 relative aspect-square overflow-hidden rounded-xl border-2 transition-all duration-300
                 ${img.status === 'error' ? (isLight ? 'border-rose-500 bg-rose-50 shadow-lg shadow-rose-500/10' : 'border-rose-500 bg-rose-950/20 shadow-lg shadow-rose-500/20') : 
-                  img.status === 'success' ? (isLight ? 'border-emerald-500 bg-emerald-50' : 'border-emerald-500 ring-1 ring-emerald-500/30') : 
+                  img.status === 'success' ? (isLight ? 'border-red-500 bg-red-50 shadow-[0_0_15px_rgba(239,68,68,0.4)] ring-1 ring-red-500/20' : 'border-red-600 shadow-[0_0_20px_rgba(220,38,38,0.7)] ring-2 ring-red-500/40 animate-pulse') : 
                   img.status === 'uploading' ? (isLight ? 'border-blue-500 bg-blue-50' : 'border-blue-500 ring-2 ring-blue-500/20') :
                   (isLight ? 'border-slate-200 hover:border-blue-400' : 'border-slate-700 hover:border-blue-500/50')}
                 ${img.status !== 'uploading' && img.status !== 'error' ? 'cursor-zoom-in' : ''}
@@ -95,7 +95,7 @@ export const ImageGrid: React.FC<ImageGridProps> = memo(({ images, onRemove, onA
               )}
 
               {img.status === 'success' && (
-                <div className="absolute top-2 right-2 bg-emerald-500 text-white rounded-full p-1.5 shadow-lg border border-emerald-400/50">
+                <div className="absolute top-2 right-2 bg-red-600 text-white rounded-full p-1.5 shadow-lg border border-red-400/50 animate-bounce">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                   </svg>
