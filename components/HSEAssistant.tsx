@@ -31,15 +31,25 @@ export const HSEAssistant: React.FC<HSEAssistantProps> = ({ appTheme = 'dark' })
 
     const userMessage = input.trim();
     setInput('');
+    
+    // Update local state for UI responsiveness
     setMessages(prev => [...prev, { role: 'user', text: userMessage }]);
     setIsLoading(true);
 
     try {
-      // Create a new instance and chat session right before sending to ensure fresh state/keys
+      // Initialize or reuse chat session for continuous conversational memory
       if (!chatSessionRef.current) {
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        
+        // Pass the existing message history to the chat session
+        const history = messages.map(msg => ({
+          role: msg.role,
+          parts: [{ text: msg.text }]
+        }));
+
         chatSessionRef.current = ai.chats.create({
           model: 'gemini-3-pro-preview',
+          history: history,
           config: {
             systemInstruction: `You are an expert Technical Authority and Assistant specialized in Health, Safety, and Environment (HSE), with a comprehensive focus on **HSECES (Health, Safety, and Environmental Critical Equipment and Systems)**.
 
@@ -68,6 +78,7 @@ You must STRICTLY focus on HSE and HSECES topics. If a user asks about unrelated
         });
       }
 
+      // Stream the response. The chat object automatically updates the internal history.
       const result = await chatSessionRef.current.sendMessageStream({ message: userMessage });
       
       let fullResponse = '';
@@ -86,13 +97,10 @@ You must STRICTLY focus on HSE and HSECES topics. If a user asks about unrelated
       }
     } catch (error: any) {
       console.error("Error sending message:", error);
-      let errorMessage = "I'm having trouble connecting to the safety database right now. Please try again.";
-      if (error.message && (error.message.includes("API Key") || error.message.includes("401") || error.message.includes("403"))) {
-        errorMessage = "System Error: API Configuration is missing or invalid. Please check your application settings.";
-      } else if (error.message) {
-         errorMessage = `Connection Error: ${error.message}`;
-      }
+      const errorMessage = "AI Assistant is under development contact developer via feed for more info";
       setMessages(prev => [...prev, { role: 'model', text: errorMessage }]);
+      // Clear session on error to reset the memory and prevent logic issues
+      chatSessionRef.current = null;
     } finally {
       setIsLoading(false);
     }

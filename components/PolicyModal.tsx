@@ -86,11 +86,11 @@ export const PolicyModal: React.FC<PolicyModalProps> = ({ onClose, appTheme = 'd
         {/* Content Area */}
         <div className="flex-1 overflow-y-auto p-6 sm:p-12 scrollbar-hide relative z-10">
           <div className="space-y-10">
-            {/* Policy Title Card - 2% Opacity (98% Transparency), 1% Blur (1px), Distinct Borders */}
-            <div className={`p-8 rounded-[2.5rem] border backdrop-blur-[1px] relative overflow-hidden group shadow-2xl ${
+            {/* Policy Title Card - For Standard theme: 10% transparency (90% opacity) and 10% blur styling */}
+            <div className={`p-8 rounded-[2.5rem] border relative overflow-hidden group shadow-2xl transition-all duration-500 ${
               isLight 
-                ? 'bg-white/2 border-slate-300' 
-                : 'bg-slate-950/2 border-white/20'
+                ? 'bg-white/90 border-slate-300 backdrop-blur-[10px]' 
+                : 'bg-slate-950/2 border-white/20 backdrop-blur-[1px]'
             }`}>
               <div className="relative z-10">
                 <h1 className={`text-3xl font-black tracking-tighter mb-2 ${isLight ? 'text-slate-900' : 'text-white'}`}>{currentPolicy.title}</h1>
@@ -113,11 +113,11 @@ export const PolicyModal: React.FC<PolicyModalProps> = ({ onClose, appTheme = 'd
                     </h3>
                   </div>
                   
-                  {/* Section Content - 2% Opacity, 1% Blur, Bold Text, Explicit Border Lines */}
-                  <div className={`text-sm leading-relaxed text-justify whitespace-pre-wrap px-8 py-8 rounded-[2rem] border backdrop-blur-[1px] transition-all shadow-xl font-bold ${
+                  {/* Section Content - For Standard theme: 10% transparency (90% opacity) and 10% blur styling */}
+                  <div className={`text-sm leading-relaxed text-justify whitespace-pre-wrap px-8 py-8 rounded-[2rem] border transition-all shadow-xl font-bold ${
                     isLight 
-                      ? 'bg-white/2 text-slate-900 border-slate-400' 
-                      : 'bg-slate-950/2 text-white border-white/40'
+                      ? 'bg-white/90 text-slate-900 border-slate-400 backdrop-blur-[10px]' 
+                      : 'bg-slate-950/2 text-white border-white/40 backdrop-blur-[1px]'
                   }`}>
                     {section.content}
                   </div>

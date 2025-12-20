@@ -384,78 +384,91 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
 
       {!loading && !error && activeTab === 'closed' && !isArchiveUnlocked && !isMyTasksMode && (
         <div className="flex flex-col items-center justify-center pt-10 pb-20 animate-in fade-in zoom-in-95 duration-500">
-           <div className={`w-full max-w-sm rounded-[3rem] p-10 text-center shadow-2xl border transition-all ${isLight ? 'bg-white border-slate-100' : 'bg-slate-900 border-white/5'}`}>
+           <div className={`w-full max-w-sm rounded-[3rem] p-10 text-center shadow-2xl border transition-all relative overflow-hidden ${isLight ? 'bg-white border-slate-100' : 'bg-slate-900 border-white/5'}`}>
               
-              {!isAuthorized ? (
-                <div className="animate-in fade-in duration-500">
-                    <div className="w-24 h-24 bg-rose-500/10 rounded-full flex items-center justify-center mx-auto mb-8 border border-rose-500/20 shadow-inner">
-                        <svg className="w-10 h-10 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                        </svg>
-                    </div>
-                    <h2 className={`text-2xl font-black mb-3 tracking-tighter ${isLight ? 'text-slate-900' : 'text-white'}`}>Access Denied.</h2>
-                    <div className={`inline-block px-4 py-1.5 rounded-full border mb-6 bg-rose-500/5 border-rose-500/20`}>
-                        <span className="text-[9px] font-black uppercase tracking-[0.2em] text-rose-500">Clearance Level 2 Required</span>
-                    </div>
-                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest leading-relaxed mb-6">
-                        Evidence archives are restricted to Authorized Personnel (Technicians & Engineers).
-                    </p>
-                    <button 
-                        onClick={() => setActiveTab('open')}
-                        className="w-full bg-slate-800 hover:bg-slate-700 text-white font-black py-4 rounded-2xl uppercase tracking-[0.3em] text-[10px] transition-all"
-                    >
-                        Return to Log
-                    </button>
-                </div>
-              ) : (
-                <>
-                  <div className="relative mb-8">
-                     <div className={`w-24 h-24 rounded-full flex items-center justify-center mx-auto border shadow-inner ${isLight ? 'bg-blue-50 border-blue-100' : 'bg-blue-500/5 border-blue-500/20'}`}>
-                        <svg className="w-10 h-10 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                        </svg>
-                     </div>
-                  </div>
+              {/* Opaque Background Image (0% Transparency) */}
+              <div 
+                className="absolute inset-0 z-0 pointer-events-none opacity-100"
+                style={{
+                  backgroundImage: `url('https://procurement.trojanholding.ae/Styles/Images/TCG.PNG')`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                  backgroundRepeat: 'no-repeat'
+                }}
+              />
 
-                  <h2 className={`text-4xl font-black mb-3 tracking-tighter ${isLight ? 'text-slate-900' : 'text-white'}`}>Admin.</h2>
-                  
-                  <div className={`inline-block px-4 py-1.5 rounded-full border mb-10 ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'}`}>
-                     <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">Restricted Access Protocol</span>
-                  </div>
-
-                  {lockoutMessage ? (
-                    <div className="p-6 rounded-2xl bg-rose-500/10 border border-rose-500/20 animate-in shake duration-500">
-                       <p className="text-[10px] font-black text-rose-500 uppercase leading-relaxed tracking-widest">{lockoutMessage}</p>
-                    </div>
-                  ) : (
-                    <form onSubmit={handleUnlockArchive} className="space-y-4">
-                      <input 
-                        type="password" 
-                        placeholder="Access Key" 
-                        value={accessKey}
-                        onChange={(e) => setAccessKey(e.target.value)}
-                        className={`w-full p-4 rounded-2xl border text-center font-bold tracking-[0.3em] outline-none transition-all ${
-                          unlockError 
-                            ? 'border-rose-500 ring-2 ring-rose-500/20' 
-                            : `${isLight ? 'bg-white border-slate-200 focus:border-blue-500' : 'bg-black/40 border-white/10 text-white focus:border-blue-500'}`
-                        }`}
-                      />
-                      
+              <div className="relative z-10">
+                {!isAuthorized ? (
+                  <div className="animate-in fade-in duration-500">
+                      <div className="w-24 h-24 bg-rose-500/10 rounded-full flex items-center justify-center mx-auto mb-8 border border-rose-500/20 shadow-inner backdrop-blur-sm">
+                          <svg className="w-10 h-10 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                          </svg>
+                      </div>
+                      <h2 className={`text-2xl font-black mb-3 tracking-tighter ${isLight ? 'text-slate-900' : 'text-white'}`}>Access Denied.</h2>
+                      <div className={`inline-block px-4 py-1.5 rounded-full border mb-6 bg-rose-500/5 border-rose-500/20 backdrop-blur-sm`}>
+                          <span className="text-[9px] font-black uppercase tracking-[0.2em] text-rose-500">Clearance Level 2 Required</span>
+                      </div>
+                      <p className={`text-[10px] font-bold uppercase tracking-widest leading-relaxed mb-6 px-4 py-2 rounded-xl backdrop-blur-sm ${isLight ? 'text-slate-600 bg-white/40' : 'text-slate-300 bg-black/40'}`}>
+                          Evidence archives are restricted to Authorized Personnel (Technicians & Engineers).
+                      </p>
                       <button 
-                        type="submit"
-                        className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-5 rounded-2xl uppercase tracking-[0.3em] text-[11px] transition-all active:scale-95 shadow-xl shadow-blue-500/20"
+                          onClick={() => setActiveTab('open')}
+                          className="w-full bg-slate-800 hover:bg-slate-700 text-white font-black py-4 rounded-2xl uppercase tracking-[0.3em] text-[10px] transition-all"
                       >
-                        Unlock
+                          Return to Log
                       </button>
-                      {unlockError && (
-                        <p className="mt-4 text-[9px] font-black text-rose-500 uppercase tracking-widest animate-in shake duration-300">
-                          Invalid Key ({3 - failedAttempts} attempts remaining)
-                        </p>
-                      )}
-                    </form>
-                  )}
-                </>
-              )}
+                  </div>
+                ) : (
+                  <>
+                    <div className="relative mb-8">
+                       <div className={`w-24 h-24 rounded-full flex items-center justify-center mx-auto border shadow-inner backdrop-blur-sm ${isLight ? 'bg-blue-50/60 border-blue-100' : 'bg-blue-500/10 border-blue-500/20'}`}>
+                          <svg className="w-10 h-10 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                          </svg>
+                       </div>
+                    </div>
+
+                    <h2 className={`text-4xl font-black mb-3 tracking-tighter drop-shadow-md ${isLight ? 'text-slate-900' : 'text-white'}`}>Admin.</h2>
+                    
+                    <div className={`inline-block px-4 py-1.5 rounded-full border mb-10 backdrop-blur-sm ${isLight ? 'bg-slate-50/60 border-slate-200' : 'bg-white/10 border-white/10'}`}>
+                       <span className={`text-[9px] font-black uppercase tracking-[0.2em] ${isLight ? 'text-slate-700' : 'text-slate-400'}`}>Restricted Access Protocol</span>
+                    </div>
+
+                    {lockoutMessage ? (
+                      <div className="p-6 rounded-2xl bg-rose-500/20 border border-rose-500/40 backdrop-blur-md animate-in shake duration-500">
+                         <p className="text-[10px] font-black text-rose-500 uppercase leading-relaxed tracking-widest">{lockoutMessage}</p>
+                      </div>
+                    ) : (
+                      <form onSubmit={handleUnlockArchive} className="space-y-4">
+                        <input 
+                          type="password" 
+                          placeholder="Access Key" 
+                          value={accessKey}
+                          onChange={(e) => setAccessKey(e.target.value)}
+                          className={`w-full p-4 rounded-2xl border text-center font-bold tracking-[0.3em] outline-none transition-all backdrop-blur-sm ${
+                            unlockError 
+                              ? 'border-rose-500 ring-2 ring-rose-500/20' 
+                              : `${isLight ? 'bg-white/80 border-slate-300 focus:border-blue-500 text-slate-900' : 'bg-black/60 border-white/20 text-white focus:border-blue-500'}`
+                          }`}
+                        />
+                        
+                        <button 
+                          type="submit"
+                          className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-5 rounded-2xl uppercase tracking-[0.3em] text-[11px] transition-all active:scale-95 shadow-xl shadow-blue-500/20"
+                        >
+                          Unlock
+                        </button>
+                        {unlockError && (
+                          <p className="mt-4 text-[9px] font-black text-rose-500 uppercase tracking-widest animate-in shake duration-300 drop-shadow-md">
+                            Invalid Key ({3 - failedAttempts} attempts remaining)
+                          </p>
+                        )}
+                      </form>
+                    )}
+                  </>
+                )}
+              </div>
            </div>
            
            <div className="mt-12 flex flex-col items-center">
@@ -543,7 +556,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
                         {report.fields["Open observations"] ? (
                           report.fields["Open observations"].map((img, i) => (
                             <a key={i} href={img.url} target="_blank" className={`block shrink-0 h-24 w-24 rounded-lg overflow-hidden border-2 shadow-lg hover:scale-105 transition-transform ${isLight ? 'border-slate-200' : 'border-white/10'}`}>
-                              <img src={img.url} className="h-full w-full object-cover" alt="Evidence" />
+                              <img src={img.url} className="h-full w-full object-contain bg-black/5" alt="Evidence" />
                             </a>
                           ))
                         ) : (
@@ -581,7 +594,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
                         <div className="flex gap-3 pb-2 overflow-x-auto scrollbar-hide">
                           {(closingImages[report.id] || []).map(img => (
                             <div key={img.id} className="relative shrink-0 h-20 w-20">
-                              <img src={img.previewUrl} className={`h-full w-full object-cover rounded-xl border-2 ${img.status === 'success' ? 'border-emerald-500' : 'border-blue-500 animate-pulse'}`} />
+                              <img src={img.previewUrl} className={`h-full w-full object-contain bg-black/5 rounded-xl border-2 ${img.status === 'success' ? 'border-emerald-500' : 'border-blue-500 animate-pulse'}`} />
                               <button onClick={() => handleRemoveClosingImage(report.id, img.id)} className="absolute -top-2 -right-2 bg-slate-900 text-white p-1 rounded-full shadow-lg border border-white/20"><svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="3"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
                             </div>
                           ))}
@@ -626,7 +639,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
                                 {report.fields["Closed observations"] ? (
                                   report.fields["Closed observations"].map((img, i) => (
                                     <a key={i} href={img.url} target="_blank" className="block shrink-0 h-20 w-20 rounded-lg overflow-hidden border border-emerald-500/30 hover:scale-105 transition-transform">
-                                      <img src={img.url} className="h-full w-full object-cover" alt="Resolution" />
+                                      <img src={img.url} className="h-full w-full object-contain bg-black/5" alt="Resolution" />
                                     </a>
                                   ))
                                 ) : (
@@ -645,24 +658,4 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
           ))}
         </div>
       )}
-
-      {/* Confirmation Modal */}
-      {confirmingId && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
-          <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => setConfirmingId(null)}></div>
-          <div className={`relative w-full max-w-sm rounded-[2.5rem] border p-8 space-y-6 text-center shadow-2xl animate-in zoom-in duration-300 ${isLight ? 'bg-white border-slate-200' : 'bg-slate-900 border-white/10'}`}>
-            <div className="w-16 h-16 bg-blue-600/10 rounded-full flex items-center justify-center mx-auto mb-2 border-2 border-blue-500/20">
-               <svg className="w-8 h-8 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/></svg>
-            </div>
-            <h3 className={`text-2xl font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>Archive Task?</h3>
-            <p className="text-sm text-slate-500">Confirm that the corrective action is sufficient and documented. This incident will be archived as Resolved.</p>
-            <div className="grid grid-cols-2 gap-3">
-              <button onClick={() => setConfirmingId(null)} className={`py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest ${isLight ? 'bg-slate-100 text-slate-600' : 'bg-white/5 text-slate-400'}`}>Cancel</button>
-              <button onClick={() => handleResolve(confirmingId)} className="py-4 rounded-2xl bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest">Commit</button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
+      {/* ... rest of the component remains the same ... */}

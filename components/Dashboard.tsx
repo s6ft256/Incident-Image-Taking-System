@@ -174,7 +174,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
         </svg>
         <div className="absolute flex flex-col items-center text-center">
             <span className={`text-4xl sm:text-6xl font-black leading-none tracking-tighter ${isLight ? 'text-slate-900' : 'text-white'}`}>{total}</span>
-            <span className={`text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] mt-1 ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>Weekly Total</span>
+            <span className={`text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] mt-1 ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>TOTAL OBVS</span>
         </div>
       </div>
     );
@@ -189,9 +189,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
           It's your proactive safety nerve center. A unified system capturing and managing all safety observations and incident data in real-time.
         </p>
         <div className={`mt-3 pt-3 border-t ${isLight ? 'border-slate-400' : 'border-white/20'} flex justify-center gap-4 text-[10px] font-black uppercase tracking-widest text-blue-500`}>
-          <span>Weekly Performance Monitor</span>
+          <span>Performance Monitor</span>
           <span className="opacity-30">•</span>
-          <span>Analytics Reset Sun 00:00</span>
+          <span>Analytics Live</span>
         </div>
       </div>
 
@@ -204,7 +204,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
         <>
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
             <div className={`lg:col-span-4 backdrop-blur-2xl p-4 sm:p-6 rounded-3xl border shadow-xl flex flex-col items-center relative overflow-hidden min-h-[320px] sm:min-h-[400px] justify-center ${isLight ? 'bg-white border-slate-200' : 'bg-white/[0.03] border-white/10'}`}>
-                <h3 className={`text-[9px] font-black uppercase tracking-[0.3em] mb-4 absolute top-6 ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>Weekly Safety Map</h3>
+                <h3 className={`text-[9px] font-black uppercase tracking-[0.3em] mb-4 absolute top-6 ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>Cumulative Safety Map</h3>
                 <div className="flex-grow flex items-center justify-center">
                   {renderSafetyStatusMap()}
                 </div>
@@ -224,11 +224,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
                 <div className="flex items-center justify-between mb-8 px-4">
                    <div>
                      <h3 className={`text-lg font-black tracking-tighter ${isLight ? 'text-slate-900' : 'text-white'}`}>Site Criticality Analysis</h3>
-                     <p className={`text-[9px] font-black uppercase tracking-[0.3em] ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>Current Week Trend</p>
+                     <p className={`text-[9px] font-black uppercase tracking-[0.3em] ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>Current Period Trend</p>
                    </div>
                    <div className="flex gap-4">
                      <div className="flex flex-col items-end">
-                       <span className="text-blue-500 text-[9px] font-black uppercase tracking-tighter">WK VOL.</span>
+                       <span className="text-blue-500 text-[9px] font-black uppercase tracking-tighter">VOL.</span>
                        <span className={`text-xs font-mono font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>{weeklyReports.length}</span>
                      </div>
                      <div className="w-[1px] h-8 bg-white/10"></div>
@@ -326,7 +326,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
                     </ResponsiveContainer>
                   ) : (
                     <div className="h-full flex items-center justify-center text-slate-700 text-[9px] font-black uppercase tracking-widest animate-pulse">
-                      No Weekly Activity Detected...
+                      No Activity Detected...
                     </div>
                   )}
                 </div>
