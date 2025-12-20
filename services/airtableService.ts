@@ -1,4 +1,3 @@
-
 import { IncidentForm, IncidentRecord, FetchedIncident } from '../types';
 import { AIRTABLE_CONFIG } from '../constants';
 
@@ -23,9 +22,11 @@ const handleAirtableError = (response: Response, errorData: any): string => {
   if (response.status === 422) {
     const detail = errorData?.error?.message || "";
     if (detail.includes("Unknown field name")) {
-      return `Database structure mismatch: Field ${detail.split('name')[1]} is missing in Airtable.`;
+      const fieldMatch = detail.match(/field\s+(['"])(.*?)\1/i) || detail.match(/name\s+(['"])(.*?)\1/i);
+      const fieldName = fieldMatch ? fieldMatch[2] : "Unknown";
+      return `Database structure mismatch: Field "${fieldName}" is missing in Airtable. Ensure columns match exactly (case-sensitive).`;
     }
-    return "The safety data format is incompatible with the database. Please contact support.";
+    return errorData?.error?.message || "The safety data format is incompatible with the database. Please contact support.";
   }
   if (response.status >= 500) return "The safety database is currently experiencing high traffic. Retrying connection...";
   
@@ -51,11 +52,10 @@ const fetchWithRetry = async (
         try {
           errorData = await response.json();
         } catch {
-          errorData = { error: 'Unknown server response format' };
+          errorData = { error: { message: 'Unknown server response format' } };
         }
 
         const friendlyMsg = handleAirtableError(response, errorData);
-        
         const shouldRetry = (response.status >= 500 || response.status === 429) && attempt < maxRetries;
         
         if (!shouldRetry) {
@@ -78,7 +78,6 @@ const fetchWithRetry = async (
 
 /**
  * Creates a record in Airtable with robust error handling.
- * Specifically maps evidence URLs from Supabase to "Open observations".
  */
 export const submitIncidentReport = async (
   form: IncidentForm, 
@@ -95,13 +94,11 @@ export const submitIncidentReport = async (
 
   const url = `https://api.airtable.com/v0/${BASE_ID}/${encodeURIComponent(TABLE_NAME)}`;
   
-  // Prepare attachments for Airtable's specific object format
   const evidenceAttachments = images.map(img => ({ 
     url: img.url, 
     filename: img.filename 
   }));
 
-  // Construct the payload for a new incident
   const record = {
     fields: {
       "Name": form.name,
@@ -162,7 +159,7 @@ export const updateIncidentAction = async (
       'Authorization': `Bearer ${API_KEY}`,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ fields: fieldsToUpdate })
+    body: JSON.stringify({ fields: fieldsToUpdate, typecast: true })
   });
 
   return true;
@@ -190,7 +187,7 @@ export const assignIncident = async (
       'Authorization': `Bearer ${API_KEY}`,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ fields: { "Assigned To": assignee } })
+    body: JSON.stringify({ fields: { "Assigned To": assignee }, typecast: true })
   });
 
   return true;
