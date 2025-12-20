@@ -144,7 +144,6 @@ function App() {
       case 'create': return <CreateReportForm baseId={baseId} appTheme={appTheme} onBack={() => setView('dashboard')} />;
       case 'recent': return <RecentReports baseId={baseId} appTheme={appTheme} onBack={() => setView('dashboard')} />;
       case 'my-tasks': return <RecentReports baseId={baseId} appTheme={appTheme} onBack={() => setView('dashboard')} filterAssignee={userProfile?.name} />;
-      // Removed the unused 'quote' prop to fix TypeScript error and prevent redundancy as it is shown globally.
       default: return <Dashboard baseId={baseId} appTheme={appTheme} onNavigate={(target) => setView(target)} />;
     }
   };
@@ -157,30 +156,28 @@ function App() {
 
       <div className="relative z-10 flex flex-col flex-grow">
         <header className={`sticky top-0 z-40 backdrop-blur-2xl border-b transition-all duration-300 ${appTheme === 'dark' ? 'bg-[#020617]/90 border-white/5 shadow-[0_4px_30px_rgba(0,0,0,0.5)]' : 'bg-white border-slate-200 shadow-sm'} ${view === 'auth' ? 'hidden' : ''}`}>
-          <div className="max-w-7xl mx-auto px-6 py-4 sm:py-6 flex items-center justify-between gap-4">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-6 flex items-center justify-between gap-2 sm:gap-4">
              <div className="flex-1 flex justify-start">
-               <div className="flex flex-col items-center">
-                 <img 
-                   src="https://www.multiply-marketing.com/trojan-wp/wp-content/uploads/2020/08/tgc-logo-300x300.png" 
-                   alt="TGC Logo" 
-                   className="h-10 w-auto sm:h-14 object-contain cursor-pointer"
-                   onClick={() => setView('dashboard')}
-                 />
-               </div>
+               <img 
+                 src="https://www.multiply-marketing.com/trojan-wp/wp-content/uploads/2020/08/tgc-logo-300x300.png" 
+                 alt="TGC Logo" 
+                 className="h-8 w-auto sm:h-14 object-contain cursor-pointer"
+                 onClick={() => setView('dashboard')}
+               />
              </div>
 
-             <div className="hidden sm:flex flex-[2] flex-col items-center text-center">
-               <h1 className="text-xl sm:text-3xl font-black tracking-tighter" onClick={() => setView('dashboard')}>
+             <div className="flex flex-[2] flex-col items-center text-center">
+               <h1 className="text-sm sm:text-3xl font-black tracking-tighter cursor-pointer" onClick={() => setView('dashboard')}>
                  <span className={appTheme === 'dark' ? 'text-white' : 'text-slate-900'}>HSE</span> <span className="text-blue-500">Guardian</span>
                </h1>
              </div>
              
-             <div className="flex-1 flex justify-end items-center gap-3 relative">
+             <div className="flex-1 flex justify-end items-center gap-2 sm:gap-3 relative">
                <button 
                 onClick={() => setShowProfileCard(!showProfileCard)}
-                className={`w-10 h-10 rounded-full border-2 transition-all duration-300 overflow-hidden flex items-center justify-center ${showProfileCard ? 'border-blue-400 ring-4 ring-blue-500/20' : 'border-white/10 hover:border-white/30 bg-white/5'}`}
+                className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full border-2 transition-all duration-300 overflow-hidden flex items-center justify-center ${showProfileCard ? 'border-blue-400 ring-4 ring-blue-500/20' : 'border-white/10 hover:border-white/30 bg-white/5'}`}
                >
-                  {userProfile?.profileImageUrl ? <img src={userProfile.profileImageUrl} alt="Profile" className="w-full h-full object-cover" /> : <div className="text-slate-400"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>}
+                  {userProfile?.profileImageUrl ? <img src={userProfile.profileImageUrl} alt="Profile" className="w-full h-full object-cover" /> : <div className="text-slate-400"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="sm:w-6 sm:h-6"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>}
                </button>
 
                {showProfileCard && (
@@ -194,12 +191,11 @@ function App() {
           {!isOnline && <div className="bg-amber-600 text-white text-[10px] font-black uppercase tracking-widest text-center py-1">Offline Mode • Queued</div>}
         </header>
 
-        <main className="max-w-7xl mx-auto px-4 pt-6 flex-grow w-full overflow-y-auto">
+        <main className="max-w-7xl mx-auto px-4 pt-4 sm:pt-6 flex-grow w-full overflow-y-auto">
           {renderContent()}
         </main>
 
         <footer className={`py-6 px-4 flex flex-col items-center gap-4 mt-auto ${view === 'auth' ? 'hidden' : ''}`}>
-           {/* Global Safety Quote - Centered at the bottom */}
            <div className="max-w-2xl text-center px-4 animate-in fade-in slide-in-from-bottom-2 duration-1000">
               <p className={`text-xs sm:text-sm font-black italic leading-relaxed tracking-tight ${appTheme === 'dark' ? 'text-blue-400/80' : 'text-blue-600'}`}>
                 {quote}
@@ -219,7 +215,6 @@ function App() {
       
       {view !== 'auth' && (
         <>
-          {/* Policy Toggle - Bottom Left */}
           <button 
             onClick={() => setShowPolicy(true)}
             className={`fixed bottom-6 left-6 z-50 p-4 rounded-2xl border shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center gap-3 ${
