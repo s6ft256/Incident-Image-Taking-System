@@ -144,6 +144,7 @@ function App() {
       case 'create': return <CreateReportForm baseId={baseId} appTheme={appTheme} onBack={() => setView('dashboard')} />;
       case 'recent': return <RecentReports baseId={baseId} appTheme={appTheme} onBack={() => setView('dashboard')} />;
       case 'my-tasks': return <RecentReports baseId={baseId} appTheme={appTheme} onBack={() => setView('dashboard')} filterAssignee={userProfile?.name} />;
+      // Removed the unused 'quote' prop to fix TypeScript error and prevent redundancy as it is shown globally.
       default: return <Dashboard baseId={baseId} appTheme={appTheme} onNavigate={(target) => setView(target)} />;
     }
   };
@@ -151,10 +152,10 @@ function App() {
   if (!isInitialized) return null;
 
   return (
-    <div className={`min-h-screen transition-colors duration-300 main-app-container relative selection:bg-blue-500/30 overflow-x-hidden ${appTheme === 'dark' ? 'bg-[#020617]' : 'bg-white'}`}>
+    <div className={`min-h-screen transition-colors duration-300 main-app-container relative selection:bg-blue-500/30 overflow-x-hidden flex flex-col ${appTheme === 'dark' ? 'bg-[#020617]' : 'bg-white'}`}>
       {appTheme === 'dark' && <div className="absolute inset-0 bg-gradient-to-b from-slate-950/70 via-slate-950/50 to-slate-950/70 z-0 pointer-events-none"></div>}
 
-      <div className="relative z-10 flex flex-col min-h-screen">
+      <div className="relative z-10 flex flex-col flex-grow">
         <header className={`sticky top-0 z-40 backdrop-blur-2xl border-b transition-all duration-300 ${appTheme === 'dark' ? 'bg-[#020617]/90 border-white/5 shadow-[0_4px_30px_rgba(0,0,0,0.5)]' : 'bg-white border-slate-200 shadow-sm'} ${view === 'auth' ? 'hidden' : ''}`}>
           <div className="max-w-7xl mx-auto px-6 py-4 sm:py-6 flex items-center justify-between gap-4">
              <div className="flex-1 flex justify-start">
@@ -197,8 +198,18 @@ function App() {
           {renderContent()}
         </main>
 
-        <footer className={`py-8 px-4 max-w-7xl mx-auto w-full flex justify-center mt-auto ${view === 'auth' ? 'hidden' : ''}`}>
-           <div className="text-slate-500 text-[9px] font-black uppercase tracking-[0.4em]">© 2025 ELIUS256 • SAFETY FIRST</div>
+        <footer className={`py-6 px-4 flex flex-col items-center gap-4 mt-auto ${view === 'auth' ? 'hidden' : ''}`}>
+           {/* Global Safety Quote - Centered at the bottom */}
+           <div className="max-w-2xl text-center px-4 animate-in fade-in slide-in-from-bottom-2 duration-1000">
+              <p className={`text-xs sm:text-sm font-black italic leading-relaxed tracking-tight ${appTheme === 'dark' ? 'text-blue-400/80' : 'text-blue-600'}`}>
+                {quote}
+              </p>
+              <div className="flex justify-center mt-2">
+                 <div className="h-0.5 w-12 rounded-full bg-blue-500/30"></div>
+              </div>
+           </div>
+           
+           <div className="text-slate-500 text-[9px] font-black uppercase tracking-[0.4em] opacity-60">© 2025 ELIUS256 • SAFETY FIRST</div>
         </footer>
       </div>
 

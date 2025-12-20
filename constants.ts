@@ -55,7 +55,7 @@ export const INCIDENT_TYPES = [
 ];
 
 export const SAFETY_QUOTES = [
-  "“Safety is not a gadget, but a state of mind.” — Eleanor Everet",
+  "“Safety is not a gadget, but a state of mind.”",
   "“The best safety device is a careful worker.”",
   "“If you think safety is expensive, try an accident.”",
   "“Working safely may get old, but so do those who practice it.”",
