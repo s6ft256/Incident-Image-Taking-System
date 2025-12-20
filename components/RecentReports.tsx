@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState, useMemo } from 'react';
 import { FetchedIncident, UploadedImage, UserProfile } from '../types';
 import { getAllReports, updateIncidentAction, assignIncident } from '../services/airtableService';
@@ -294,6 +295,8 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
   const tabFilteredReports = sortedReports.filter(report => {
     const isClosed = report.fields["Action taken"]?.trim().length > 0;
     const assignedTo = report.fields["Assigned To"]?.trim() || "";
+    // If set to none or left empty, it's considered unassigned
+    const isUnassigned = !assignedTo || assignedTo === "None";
     
     if (isMyTasksMode) {
       return !isClosed && assignedTo === filterAssignee;
@@ -303,7 +306,8 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
       return isClosed;
     }
 
-    return !isClosed && !assignedTo;
+    // Open pool includes unassigned items
+    return !isClosed && isUnassigned;
   });
 
   return (
@@ -347,7 +351,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
             >
             Open
             <span className="ml-2 bg-blue-500/30 text-blue-100 text-[10px] px-1.5 py-0.5 rounded-full">
-                {allReports.filter(r => !r.fields["Action taken"]?.trim() && !r.fields["Assigned To"]?.trim()).length}
+                {allReports.filter(r => !r.fields["Action taken"]?.trim() && (!r.fields["Assigned To"]?.trim() || r.fields["Assigned To"] === "None")).length}
             </span>
             </button>
             <button
@@ -479,7 +483,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
                 <div className={`hidden sm:block flex-1 text-[10px] font-black uppercase truncate tracking-widest ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>{report.fields["Site / Location"]}</div>
                 <div className="shrink-0">
                   <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase border ${report.fields["Action taken"]?.trim() ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'}`}>
-                    {report.fields["Action taken"]?.trim() ? 'Closed' : (report.fields["Assigned To"]?.trim() ? 'Assigned' : 'Unassigned')}
+                    {report.fields["Action taken"]?.trim() ? 'Closed' : ((report.fields["Assigned To"]?.trim() && report.fields["Assigned To"] !== "None") ? 'Assigned' : 'Unassigned')}
                   </span>
                 </div>
                 <div className={`shrink-0 transition-transform ${expandedId === report.id ? 'rotate-90 text-blue-500' : 'text-slate-600'}`}>
@@ -565,7 +569,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
                               value={report.fields["Assigned To"] || ''} 
                               className={`w-full p-4 rounded-xl border text-sm outline-none cursor-not-allowed opacity-75 ${isLight ? 'bg-slate-100 border-slate-200' : 'bg-black/20 border-white/10 text-slate-400'}`} 
                             />
-                            {!report.fields["Assigned To"] && (
+                            {(!report.fields["Assigned To"] || report.fields["Assigned To"] === "None") && (
                                 <p className="text-[8px] font-black text-amber-500 uppercase tracking-widest px-1 mt-1 animate-pulse">Assignment Required to Resolve</p>
                             )}
                         </div>
@@ -591,7 +595,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
 
                         <button 
                           onClick={() => setConfirmingId(report.id)} 
-                          disabled={submittingIds.has(report.id) || !actionInputs[report.id]?.trim() || !report.fields["Assigned To"]} 
+                          disabled={submittingIds.has(report.id) || !actionInputs[report.id]?.trim() || !report.fields["Assigned To"] || report.fields["Assigned To"] === "None"} 
                           className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:bg-slate-700 text-white font-black py-5 rounded-xl transition-all uppercase tracking-widest text-[10px] shadow-xl shadow-blue-900/20 active:scale-95"
                         >
                           {submittingIds.has(report.id) ? 'Processing Submission...' : 'Commit Final Resolution'}

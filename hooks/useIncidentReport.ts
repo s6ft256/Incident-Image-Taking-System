@@ -67,7 +67,9 @@ export const useIncidentReport = (baseId: string) => {
 
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { id, value } = e.target;
-    setFormData(prev => ({ ...prev, [id]: value }));
+    // Normalize "None" to an empty string for consistent unassigned logic
+    const normalizedValue = (id === 'assignedTo' && value === 'None') ? '' : value;
+    setFormData(prev => ({ ...prev, [id]: normalizedValue }));
   }, []);
 
   const handleBlur = useCallback((e: React.FocusEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
