@@ -4,9 +4,8 @@ import { UserProfile as UserProfileType } from '../types';
 import { uploadImageToStorage } from '../services/storageService';
 import { compressImage } from '../utils/imageCompression';
 import { updateProfile } from '../services/profileService';
+import { registerBiometrics } from '../services/biometricService';
 import { InputField } from './InputField';
-import { getAllReports } from '../services/airtableService';
-import { syncToGitHub } from '../services/githubService';
 
 interface UserProfileProps {
   onBack: () => void;
@@ -15,7 +14,6 @@ interface UserProfileProps {
 
 const PROFILE_KEY = 'hse_guardian_profile';
 const THEME_KEY = 'hse_guardian_theme';
-const BYPASS_KEY = 'hse_guardian_bypass_sw';
 
 export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
   const [profile, setProfile] = useState<UserProfileType>({ name: '', role: '', site: '', profileImageUrl: '' });
@@ -24,20 +22,9 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
   
-  // GitHub Integration State - Defaulting to your specific repo name
-  const [githubToken, setGithubToken] = useState(localStorage.getItem('gh_pat') || '');
-  const [githubRepo, setGithubRepo] = useState('Incident-Image-Taking-System');
-  const [githubUser, setGithubUser] = useState('s6ft256');
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [syncStatus, setSyncStatus] = useState<'idle' | 'success' | 'error'>('idle');
-  const [syncMsg, setSyncMsg] = useState('');
-
-  const [isResetting, setIsResetting] = useState(false);
-  const [swStatus, setSwStatus] = useState<'Running' | 'Bypassed' | 'None'>('None');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isLight = theme === 'light';
-  const isBypassed = localStorage.getItem(BYPASS_KEY) === 'true';
 
   useEffect(() => {
     const saved = localStorage.getItem(PROFILE_KEY);
@@ -49,68 +36,48 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
     }
 
     const savedTheme = localStorage.getItem(THEME_KEY) as 'dark' | 'light';
-    if (savedTheme) { setTheme(savedTheme); applyTheme(savedTheme); }
-
-    const checkSW = async () => {
-      if ('serviceWorker' in navigator) {
-        try {
-          const regs = await navigator.serviceWorker.getRegistrations();
-          if (isBypassed) setSwStatus('Bypassed');
-          else setSwStatus(regs.length > 0 ? 'Running' : 'None');
-        } catch (e) {
-          setSwStatus(isBypassed ? 'Bypassed' : 'None');
-        }
-      }
-    };
-    checkSW();
-  }, [isBypassed]);
+    if (savedTheme) { 
+      setTheme(savedTheme); 
+      applyTheme(savedTheme); 
+    }
+  }, []);
 
   const applyTheme = (t: 'dark' | 'light') => {
-    if (t === 'light') { document.documentElement.classList.add('light-mode'); document.documentElement.classList.remove('dark'); }
-    else { document.documentElement.classList.remove('light-mode'); document.documentElement.classList.add('dark'); }
-  };
-
-  const handleGitHubSync = async () => {
-    if (!githubToken || !githubRepo || !githubUser) {
-      setSyncMsg("GitHub Config incomplete.");
-      setSyncStatus('error');
-      return;
-    }
-    
-    setIsSyncing(true);
-    setSyncStatus('idle');
-    setSyncMsg("Acquiring records...");
-
-    try {
-      const reports = await getAllReports({ baseId });
-      setSyncMsg("Syncing to GitHub...");
-      const link = await syncToGitHub(githubToken, githubRepo, githubUser, reports);
-      localStorage.setItem('gh_pat', githubToken);
-      setSyncStatus('success');
-      setSyncMsg("Commit Successful.");
-      setTimeout(() => setSyncStatus('idle'), 3000);
-    } catch (err: any) {
-      setSyncStatus('error');
-      setSyncMsg(err.message || "Sync failed.");
-    } finally {
-      setIsSyncing(false);
+    if (t === 'light') { 
+      document.documentElement.classList.add('light-mode'); 
+      document.documentElement.classList.remove('dark'); 
+    } else { 
+      document.documentElement.classList.remove('light-mode'); 
+      document.documentElement.classList.add('dark'); 
     }
   };
 
-  const handleForceReset = async () => {
-    setIsResetting(true);
-    try {
-      localStorage.setItem(BYPASS_KEY, 'true');
-      if ('serviceWorker' in navigator) {
-        const registrations = await navigator.serviceWorker.getRegistrations();
-        for (let registration of registrations) await registration.unregister();
+  const handleToggleTheme = () => {
+    const newTheme = theme === 'dark' ? 'light' : 'dark';
+    setTheme(newTheme);
+    applyTheme(newTheme);
+    localStorage.setItem(THEME_KEY, newTheme);
+    window.dispatchEvent(new CustomEvent('themeChanged', { detail: newTheme }));
+  };
+
+  const handleToggleBiometrics = async () => {
+    if (profile.webauthn_credential_id) {
+      // Logic to disable
+      const updated = { ...profile, webauthn_credential_id: undefined, webauthn_public_key: undefined };
+      setProfile(updated);
+      if (profile.id) await updateProfile(profile.id, { webauthn_credential_id: '', webauthn_public_key: '' });
+      localStorage.setItem(PROFILE_KEY, JSON.stringify(updated));
+    } else {
+      // Logic to enable
+      try {
+        const cred = await registerBiometrics(profile.name);
+        const updated = { ...profile, webauthn_credential_id: cred.credentialId, webauthn_public_key: cred.publicKey };
+        setProfile(updated);
+        if (profile.id) await updateProfile(profile.id, { webauthn_credential_id: cred.credentialId, webauthn_public_key: cred.publicKey });
+        localStorage.setItem(PROFILE_KEY, JSON.stringify(updated));
+      } catch (err: any) {
+        setErrorMessage(err.message || "Biometric registration failed");
       }
-      const cacheNames = await caches.keys();
-      for (let name of cacheNames) await caches.delete(name);
-    } catch (err) {
-      console.warn("Storage cleanup incomplete", err);
-    } finally {
-      window.location.reload();
     }
   };
 
@@ -137,10 +104,8 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
     try {
       if (profile.id) await updateProfile(profile.id, { name: profile.name, role: profile.role, site: profile.site });
       localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
-      localStorage.setItem(THEME_KEY, theme);
       setSaveStatus('saved');
       window.dispatchEvent(new Event('profileUpdated'));
-      window.dispatchEvent(new CustomEvent('themeChanged', { detail: theme }));
       setTimeout(() => setSaveStatus('idle'), 2000);
     } catch (err: any) {
       setErrorMessage(err.message);
@@ -149,62 +114,124 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
   };
 
   return (
-    <div className={`backdrop-blur-2xl rounded-2xl border shadow-2xl overflow-hidden flex flex-col p-5 space-y-4 max-h-[85vh] overflow-y-auto scrollbar-hide ${
-      isLight ? 'bg-white border-slate-200' : 'bg-slate-900/95 border-white/10'
+    <div className={`backdrop-blur-3xl rounded-[2.5rem] border shadow-2xl overflow-hidden flex flex-col p-6 space-y-6 max-h-[85vh] overflow-y-auto scrollbar-hide ${
+      isLight ? 'bg-white border-slate-200' : 'bg-[#0f172a]/95 border-white/10'
     }`}>
-      <div className="flex items-center justify-between border-b border-white/5 pb-3">
-        <h3 className={`text-[10px] font-black uppercase tracking-widest ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>Security Profile</h3>
-        <button onClick={onBack} className="text-slate-500 hover:text-white">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      {/* Header */}
+      <div className="flex items-center justify-between border-b border-white/5 pb-4">
+        <h3 className={`text-[11px] font-black uppercase tracking-[0.3em] ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>Profile Settings</h3>
+        <button onClick={onBack} className="text-slate-500 hover:text-white transition-colors">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M18 6 6 18M6 6l12 12"/></svg>
         </button>
       </div>
 
-      <div className="flex flex-col items-center py-2">
+      {/* Profile Header */}
+      <div className="flex flex-col items-center pt-2">
         <div className="relative mb-4">
-          <div className={`w-20 h-20 rounded-full flex items-center justify-center border-2 overflow-hidden shadow-2xl ${
-            isLight ? 'bg-slate-100 border-slate-200' : 'bg-slate-800 border-slate-700'
+          <div className={`w-28 h-28 rounded-full flex items-center justify-center border-2 overflow-hidden shadow-2xl transition-all duration-500 ${
+            isLight ? 'bg-slate-100 border-slate-200' : 'bg-slate-800 border-white/10 ring-8 ring-white/5'
           }`}>
             {profile.profileImageUrl ? (
               <img src={profile.profileImageUrl} alt="Profile" className="w-full h-full object-cover" />
             ) : (
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-600"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-slate-600"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
             )}
           </div>
-          <button type="button" onClick={() => fileInputRef.current?.click()} className="absolute bottom-0 right-0 bg-blue-600 p-1.5 rounded-full border-2 border-slate-900 text-white"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg></button>
+          <button 
+            type="button" 
+            onClick={() => fileInputRef.current?.click()} 
+            className="absolute bottom-1 right-1 bg-blue-600 p-2 rounded-full border-2 border-[#0f172a] text-white shadow-xl hover:scale-110 active:scale-95 transition-all"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+          </button>
           <input type="file" ref={fileInputRef} onChange={handleImageChange} accept="image/*" className="hidden" />
         </div>
+        <h2 className={`text-xl font-black tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>{profile.name || 'HSE Reporter'}</h2>
+        <span className="text-[9px] font-black text-blue-500 uppercase tracking-[0.4em] mt-1">Access Tier 1</span>
       </div>
 
-      <form onSubmit={handleSave} className="space-y-4">
-        <InputField id="name" label="Full Identity" value={profile.name} onChange={(e) => setProfile(p => ({...p, name: e.target.value}))} />
-        <button type="submit" className="w-full bg-blue-600 text-white text-[10px] font-black py-4 rounded-xl uppercase tracking-widest">
-          {saveStatus === 'saving' ? 'Syncing...' : 'Update Profile'}
+      {/* Main Settings Form */}
+      <form onSubmit={handleSave} className="space-y-6">
+        <div className="space-y-4">
+          <h4 className={`text-[10px] font-black uppercase tracking-widest ${isLight ? 'text-slate-400' : 'text-slate-600'}`}>Identity</h4>
+          <InputField 
+            id="name" 
+            label="Full Name" 
+            value={profile.name} 
+            onChange={(e) => setProfile(p => ({...p, name: e.target.value}))} 
+          />
+        </div>
+
+        {/* Toggles */}
+        <div className="space-y-3">
+          <div className={`p-4 rounded-2xl border flex items-center justify-between transition-colors ${
+            isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/5'
+          }`}>
+            <div>
+              <p className={`text-[10px] font-black uppercase tracking-widest ${isLight ? 'text-slate-900' : 'text-white'}`}>Biometric Lock</p>
+              <p className={`text-[8px] font-black uppercase tracking-tighter mt-1 ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>
+                {profile.webauthn_credential_id ? 'Native Scanner Enabled' : 'Native Scanner Disabled'}
+              </p>
+            </div>
+            <button 
+              type="button"
+              onClick={handleToggleBiometrics}
+              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                profile.webauthn_credential_id ? 'bg-blue-600' : 'bg-slate-700'
+              }`}
+            >
+              <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                profile.webauthn_credential_id ? 'translate-x-5' : 'translate-x-0'
+              }`} />
+            </button>
+          </div>
+
+          <div className={`p-4 rounded-2xl border flex items-center justify-between transition-colors ${
+            isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/5'
+          }`}>
+            <div>
+              <p className={`text-[10px] font-black uppercase tracking-widest ${isLight ? 'text-slate-900' : 'text-white'}`}>Interface Theme</p>
+              <p className={`text-[8px] font-black uppercase tracking-tighter mt-1 ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>
+                {theme === 'dark' ? 'Dark Protocol' : 'Standard Protocol'}
+              </p>
+            </div>
+            <button 
+              type="button"
+              onClick={handleToggleTheme}
+              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                theme === 'dark' ? 'bg-blue-600' : 'bg-slate-300'
+              }`}
+            >
+              <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                theme === 'dark' ? 'translate-x-5' : 'translate-x-0'
+              }`} />
+            </button>
+          </div>
+        </div>
+
+        <button 
+          type="submit" 
+          disabled={saveStatus === 'saving'}
+          className="w-full bg-blue-600 hover:bg-blue-500 text-white text-[11px] font-black py-4 rounded-2xl uppercase tracking-[0.2em] shadow-xl shadow-blue-500/20 active:scale-95 transition-all"
+        >
+          {saveStatus === 'saving' ? 'Syncing...' : 'Commit Changes'}
         </button>
       </form>
 
-      <div className={`p-4 rounded-2xl border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/5'}`}>
-         <h4 className="text-[10px] font-black uppercase tracking-widest text-emerald-500 mb-4">GitHub Integrity</h4>
-         <div className="space-y-3 mb-4">
-            <input type="password" placeholder="GitHub Access Token" value={githubToken} onChange={(e) => setGithubToken(e.target.value)} className={`w-full p-3 rounded-xl border text-[10px] font-mono ${isLight ? 'bg-white border-slate-200' : 'bg-black/30 border-white/5 text-white'}`} />
-            <input type="text" placeholder="GitHub Username" value={githubUser} onChange={(e) => setGithubUser(e.target.value)} className={`w-full p-3 rounded-xl border text-[10px] ${isLight ? 'bg-white border-slate-200' : 'bg-black/30 border-white/5 text-white'}`} />
-            <input type="text" placeholder="Repo Name" value={githubRepo} onChange={(e) => setGithubRepo(e.target.value)} className={`w-full p-3 rounded-xl border text-[10px] ${isLight ? 'bg-white border-slate-200' : 'bg-black/30 border-white/5 text-white'}`} />
-         </div>
-         <button onClick={handleGitHubSync} disabled={isSyncing} className={`w-full py-4 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all ${
-           isSyncing ? 'bg-slate-700 text-slate-500' : 'bg-emerald-600 text-white hover:bg-emerald-500 shadow-lg'
-         }`}>
-           {isSyncing ? 'Syncing...' : 'Commit Changes to Git'}
-         </button>
-         {syncMsg && <p className={`text-[8px] font-black uppercase text-center mt-2 ${syncStatus === 'error' ? 'text-rose-500' : 'text-emerald-500'}`}>{syncMsg}</p>}
-      </div>
+      <button 
+        onClick={() => { localStorage.removeItem(PROFILE_KEY); window.location.reload(); }} 
+        className={`w-full py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] border transition-all ${
+          isLight ? 'text-slate-400 border-slate-200 hover:bg-slate-50' : 'bg-white/5 text-slate-500 border-white/5 hover:bg-white/10'
+        }`}
+      >
+        Sign Out
+      </button>
 
-      <div className={`p-4 rounded-2xl border ${isLight ? 'bg-rose-50 border-rose-100' : 'bg-rose-500/5 border-rose-500/10'}`}>
-         <h4 className="text-[10px] font-black uppercase tracking-widest text-rose-500 mb-2">IDE Fix</h4>
-         <button onClick={handleForceReset} disabled={isResetting || isBypassed} className="w-full py-4 rounded-xl bg-rose-600 text-white text-[10px] font-black uppercase tracking-widest transition-all">
-           {isResetting ? 'Processing...' : isBypassed ? 'Gateway Unblocked' : 'Apply Gateway Fix'}
-         </button>
-      </div>
-
-      <button onClick={() => {localStorage.removeItem(PROFILE_KEY); window.location.reload();}} className={`w-full py-3 rounded-xl text-[10px] font-black uppercase border ${isLight ? 'text-slate-400 border-slate-200' : 'text-slate-600 border-white/5'}`}>Sign Out</button>
+      {errorMessage && (
+        <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl">
+           <p className="text-rose-500 text-[8px] font-black uppercase text-center">{errorMessage}</p>
+        </div>
+      )}
     </div>
   );
 };

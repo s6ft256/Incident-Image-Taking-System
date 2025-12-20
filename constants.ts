@@ -1,3 +1,4 @@
+
 // Configuration for the Application
 // In a real deployment, these should be environment variables (process.env.REACT_APP_... or import.meta.env.VITE_...)
 
@@ -55,14 +56,14 @@ export const INCIDENT_TYPES = [
 ];
 
 export const SAFETY_QUOTES = [
-  "“Safety is not a gadget, but a state of mind.”",
-  "“The best safety device is a careful worker.”",
-  "“If you think safety is expensive, try an accident.”",
-  "“Working safely may get old, but so do those who practice it.”",
-  "“There are no shortcuts to safety.”",
-  "“Safety doesn’t happen by accident.”",
-  "“Safety starts with me.”",
-  "“The right thing to do is always the safe thing to do.”",
-  "“Production may win today, but safety wins every day.”",
-  "“A safe workplace is everyone’s responsibility.”"
+  "Safety is not a gadget, but a state of mind.",
+  "The best safety device is a careful worker.",
+  "If you think safety is expensive, try an accident.",
+  "Working safely may get old, but so do those who practice it.",
+  "There are no shortcuts to safety.",
+  "Safety doesn’t happen by accident.",
+  "Safety starts with me.",
+  "The right thing to do is always the safe thing to do.",
+  "Production may win today, but safety wins every day.",
+  "A safe workplace is everyone’s responsibility."
 ];
