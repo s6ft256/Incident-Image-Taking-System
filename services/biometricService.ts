@@ -20,28 +20,19 @@ const base64ToBuffer = (base64: string): Uint8Array => {
 
 /**
  * Checks if the current device/browser supports biometrics (FaceID/Fingerprint)
- * Handles potential SecurityErrors caused by Permissions Policy restrictions.
  */
 export const isBiometricsAvailable = async (): Promise<boolean> => {
   try {
-    // Basic check for API support
     if (!window.PublicKeyCredential) return false;
-    
-    // Check if the feature is allowed by Permissions Policy
-    // Some browsers throw SecurityError immediately if 'publickey-credentials-get' is not allowed.
     return await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
   } catch (error: any) {
-    if (error.name === 'SecurityError') {
-      console.warn("HSE Guardian: Biometric features restricted by environment Permissions Policy (publickey-credentials-get).");
-    } else {
-      console.warn("HSE Guardian: WebAuthn check failed:", error);
-    }
     return false;
   }
 };
 
 /**
  * Registers a new biometric signature
+ * Metadata optimized for Google Password Manager Compliance
  */
 export const registerBiometrics = async (userName: string): Promise<{ credentialId: string; publicKey: string }> => {
   const challenge = window.crypto.getRandomValues(new Uint8Array(32));
@@ -50,13 +41,14 @@ export const registerBiometrics = async (userName: string): Promise<{ credential
   const options: PublicKeyCredentialCreationOptions = {
     challenge,
     rp: { 
-      name: "HSE Guardian", 
+      // This name appears in the Google Password Manager / OS Dialog
+      name: "HSE Guardian Command", 
       id: window.location.hostname 
     },
     user: {
       id: userId,
       name: userName,
-      displayName: userName,
+      displayName: `Personnel: ${userName}`,
     },
     pubKeyCredParams: [
       { alg: -7, type: "public-key" }, // ES256
@@ -72,7 +64,7 @@ export const registerBiometrics = async (userName: string): Promise<{ credential
 
   try {
     const credential = (await navigator.credentials.create({ publicKey: options })) as PublicKeyCredential;
-    if (!credential) throw new Error("Biometric registration cancelled by user.");
+    if (!credential) throw new Error("Biometric registration cancelled.");
 
     const response = credential.response as AuthenticatorAttestationResponse;
 
@@ -81,12 +73,7 @@ export const registerBiometrics = async (userName: string): Promise<{ credential
       publicKey: bufferToBase64(response.getPublicKey()),
     };
   } catch (error: any) {
-    if (error.name === 'NotAllowedError') {
-      throw new Error("Biometric registration was declined.");
-    }
-    if (error.name === 'SecurityError') {
-      throw new Error("Security Policy: Biometric registration (publickey-credentials-create) is blocked by the host environment.");
-    }
+    if (error.name === 'NotAllowedError') throw new Error("Verification declined.");
     throw error;
   }
 };
@@ -99,6 +86,7 @@ export const authenticateBiometrics = async (storedCredentialId: string): Promis
 
   const options: PublicKeyCredentialRequestOptions = {
     challenge,
+    rpId: window.location.hostname,
     allowCredentials: [{
       id: base64ToBuffer(storedCredentialId),
       type: "public-key",
@@ -112,11 +100,6 @@ export const authenticateBiometrics = async (storedCredentialId: string): Promis
     const assertion = await navigator.credentials.get({ publicKey: options });
     return !!assertion;
   } catch (error: any) {
-    if (error.name === 'SecurityError') {
-      console.error("Biometric 'get' operation blocked by Permissions Policy.");
-      throw new Error("Security Policy Violation: This environment restricts biometric features. Please use your Access Key.");
-    }
-    console.error("Biometric auth error:", error);
     return false;
   }
 };
