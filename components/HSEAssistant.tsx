@@ -32,16 +32,13 @@ export const HSEAssistant: React.FC<HSEAssistantProps> = ({ appTheme = 'dark' })
     const userMessage = input.trim();
     setInput('');
     
-    // Update local state for UI responsiveness
     setMessages(prev => [...prev, { role: 'user', text: userMessage }]);
     setIsLoading(true);
 
     try {
-      // Initialize or reuse chat session for continuous conversational memory
       if (!chatSessionRef.current) {
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         
-        // Pass the existing message history to the chat session
         const history = messages.map(msg => ({
           role: msg.role,
           parts: [{ text: msg.text }]
@@ -52,33 +49,23 @@ export const HSEAssistant: React.FC<HSEAssistantProps> = ({ appTheme = 'dark' })
           history: history,
           config: {
             systemInstruction: `You are an expert Technical Authority and Assistant specialized in Health, Safety, and Environment (HSE), with a comprehensive focus on **HSECES (Health, Safety, and Environmental Critical Equipment and Systems)**.
-
 Your mandate is to assist users in managing risks associated with equipment whose failure could cause a major accident or whose purpose is to prevent/limit the consequences of one.
-
 **Your knowledge base covers all HSECES groups, including but not limited to:**
-1.  **Structure & Maritime Integrity:** Hulls, jackets, mooring systems.
-2.  **Process Containment:** Pressure vessels, piping, PSVs (Pressure Safety Valves), isolation valves.
-3.  **Ignition Control:** Ex-rated equipment, earthing/bonding, flame arrestors.
-4.  **Detection Systems:** Fire and Gas (F&G) detection systems, smoke detectors.
-5.  **Protection Systems:** Deluge systems, firewater pumps, passive fire protection (PFP).
-6.  **Shutdown Systems:** ESD (Emergency Shutdown) logic, blowdown valves.
-7.  **Emergency Response:** Lifeboats, TEMPSC, life jackets, escape routes, communications.
-8.  **Life Saving:** H2S breathing apparatus, portable gas detectors.
-
-**Your Responsibilities:**
-*   **Incident Reporting:** Help users describe failures in these systems accurately (e.g., "The ESD valve failed to close within the specified time").
-*   **Root Cause Analysis:** Suggest potential failure mechanisms (corrosion, calibration drift, logic error) for critical equipment.
-*   **Mitigation:** Advise on interim safety measures if an HSECES is impaired (e.g., "If the fire pump is out, stop hot work immediately").
-*   **Performance Standards:** Explain the functionality, availability, reliability, and survivability required for these systems.
-
+1. Structure & Maritime Integrity: Hulls, jackets, mooring systems.
+2. Process Containment: Pressure vessels, piping, PSVs (Pressure Safety Valves), isolation valves.
+3. Ignition Control: Ex-rated equipment, earthing/bonding, flame arrestors.
+4. Detection Systems: Fire and Gas (F&G) detection systems, smoke detectors.
+5. Protection Systems: Deluge systems, firewater pumps, passive fire protection (PFP).
+6. Shutdown Systems: ESD (Emergency Shutdown) logic, blowdown valves.
+7. Emergency Response: Lifeboats, TEMPSC, life jackets, escape routes, communications.
+8. Life Saving: H2S breathing apparatus, portable gas detectors.
 **Strict Constraint:**
-You must STRICTLY focus on HSE and HSECES topics. If a user asks about unrelated topics (like coding, cooking, sports, or general trivia), politely decline and state that your function is restricted to Critical Safety Systems and HSE management.`,
+You must STRICTLY focus on HSE and HSECES topics. If a user asks about unrelated topics, politely decline.`,
             temperature: 0.4,
           },
         });
       }
 
-      // Stream the response. The chat object automatically updates the internal history.
       const result = await chatSessionRef.current.sendMessageStream({ message: userMessage });
       
       let fullResponse = '';
@@ -99,7 +86,6 @@ You must STRICTLY focus on HSE and HSECES topics. If a user asks about unrelated
       console.error("Error sending message:", error);
       const errorMessage = "AI Assistant is under development contact developer via feed for more info";
       setMessages(prev => [...prev, { role: 'model', text: errorMessage }]);
-      // Clear session on error to reset the memory and prevent logic issues
       chatSessionRef.current = null;
     } finally {
       setIsLoading(false);
@@ -107,17 +93,13 @@ You must STRICTLY focus on HSE and HSECES topics. If a user asks about unrelated
   };
 
   return (
-    <div className="fixed bottom-24 right-6 z-50 flex flex-col items-end pointer-events-none">
+    <div className="relative flex flex-col items-center">
       {isOpen && (
-        <div className={`pointer-events-auto w-80 sm:w-96 h-[500px] max-h-[70vh] ${appTheme === 'dark' ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'} border rounded-[2rem] shadow-2xl flex flex-col overflow-hidden mb-4 animate-in slide-in-from-bottom-5 fade-in duration-300`}>
+        <div className={`absolute bottom-20 right-0 w-80 sm:w-96 h-[500px] max-h-[70vh] ${appTheme === 'dark' ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'} border rounded-[2rem] shadow-2xl flex flex-col overflow-hidden mb-4 animate-in slide-in-from-bottom-5 fade-in duration-300 z-[100]`}>
           <div className={`${appTheme === 'dark' ? 'bg-gradient-to-r from-emerald-900 to-slate-900 border-slate-700' : 'bg-emerald-600 border-emerald-500'} p-5 border-b flex justify-between items-center`}>
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-full overflow-hidden border-2 border-white/50 shadow-lg bg-white">
-                <img 
-                  src="https://static.vecteezy.com/system/resources/previews/004/734/033/non_2x/hse-icon-with-a-shield-vector.jpg" 
-                  alt="HSE Icon"
-                  className="h-full w-full object-cover"
-                />
+              <div className="h-10 w-10 rounded-full overflow-hidden border-2 border-white/50 shadow-lg bg-emerald-500 flex items-center justify-center text-white">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
               </div>
               <div>
                 <h3 className="text-sm font-black text-white">HSECES Assistant</h3>
@@ -181,7 +163,7 @@ You must STRICTLY focus on HSE and HSECES topics. If a user asks about unrelated
            setIsOpen(!isOpen);
            if (!isOpen) setTimeout(scrollToBottom, 100);
         }}
-        className="pointer-events-auto group relative flex items-center justify-center w-14 h-14 bg-gradient-to-tr from-emerald-600 to-emerald-500 text-white rounded-full shadow-lg hover:scale-105 transition-all duration-300 border border-emerald-400 p-0 overflow-hidden"
+        className="group relative flex items-center justify-center w-14 h-14 bg-gradient-to-tr from-emerald-600 to-emerald-500 text-white rounded-full shadow-lg hover:scale-105 transition-all duration-300 border border-emerald-400 p-0 overflow-hidden"
       >
         {isOpen ? (
           <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 animate-in zoom-in duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
@@ -189,12 +171,9 @@ You must STRICTLY focus on HSE and HSECES topics. If a user asks about unrelated
           </svg>
         ) : (
           <div className="flex flex-col items-center">
-            <img 
-              src="https://static.vecteezy.com/system/resources/previews/004/734/033/non_2x/hse-icon-with-a-shield-vector.jpg" 
-              alt="HSE Assistant" 
-              className="w-full h-full object-cover animate-in zoom-in duration-200"
-            />
-            <div className="absolute inset-0 bg-emerald-600/20 group-hover:bg-transparent transition-colors"></div>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="animate-in zoom-in duration-200">
+              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+            </svg>
           </div>
         )}
         
