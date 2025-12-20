@@ -176,16 +176,6 @@ function App() {
              
              <div className="flex-1 flex justify-end items-center gap-3 relative">
                <button 
-                onClick={() => setShowPolicy(true)}
-                className={`group flex items-center gap-2 px-4 py-2 rounded-full border text-[9px] font-black uppercase tracking-widest transition-all ${
-                  appTheme === 'dark' ? 'bg-white/5 border-white/10 text-white hover:bg-white/10' : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200'
-                }`}
-               >
-                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                 <span className="hidden lg:inline">Policy</span>
-               </button>
-
-               <button 
                 onClick={() => setShowProfileCard(!showProfileCard)}
                 className={`w-10 h-10 rounded-full border-2 transition-all duration-300 overflow-hidden flex items-center justify-center ${showProfileCard ? 'border-blue-400 ring-4 ring-blue-500/20' : 'border-white/10 hover:border-white/30 bg-white/5'}`}
                >
@@ -218,6 +208,22 @@ function App() {
       
       {view !== 'auth' && (
         <>
+          {/* Policy Toggle - Bottom Left */}
+          <button 
+            onClick={() => setShowPolicy(true)}
+            className={`fixed bottom-6 left-6 z-50 p-4 rounded-2xl border shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center gap-3 ${
+              appTheme === 'dark' 
+                ? 'bg-slate-900/80 border-white/10 text-white backdrop-blur-md hover:bg-slate-800' 
+                : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+            }`}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+            </svg>
+            <span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">Policies</span>
+          </button>
+
           <HSEAssistant appTheme={appTheme} />
           <FeedbackAssistant appTheme={appTheme} userName={userProfile?.name} />
         </>
