@@ -16,7 +16,6 @@ interface UserProfileProps {
 const PROFILE_KEY = 'hse_guardian_profile';
 const THEME_KEY = 'hse_guardian_theme';
 const BYPASS_KEY = 'hse_guardian_bypass_sw';
-const GITHUB_CONFIG_KEY = 'hse_guardian_github_config';
 
 export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
   const [profile, setProfile] = useState<UserProfileType>({ name: '', role: '', site: '', profileImageUrl: '' });
@@ -25,10 +24,10 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
   
-  // GitHub Integration State
+  // GitHub Integration State - Defaulting to your specific repo name
   const [githubToken, setGithubToken] = useState(localStorage.getItem('gh_pat') || '');
-  const [githubRepo, setGithubRepo] = useState('HSE-Guardian-Backup');
-  const [githubUser, setGithubUser] = useState('');
+  const [githubRepo, setGithubRepo] = useState('Incident-Image-Taking-System');
+  const [githubUser, setGithubUser] = useState('s6ft256');
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncStatus, setSyncStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [syncMsg, setSyncMsg] = useState('');
@@ -46,8 +45,6 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
       try {
         const parsed = JSON.parse(saved);
         setProfile(parsed);
-        // Try to guess github user from name if not set
-        if (!githubUser) setGithubUser(parsed.name.toLowerCase().replace(/\s/g, '-'));
       } catch (e) { console.error("Profile parse fail", e); }
     }
 
