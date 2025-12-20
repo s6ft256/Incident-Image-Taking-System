@@ -20,6 +20,13 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState<Tab>('open');
+  
+  // Restricted Access State
+  const [isArchiveUnlocked, setIsArchiveUnlocked] = useState(false);
+  const [accessKey, setAccessKey] = useState('');
+  const [unlockError, setUnlockError] = useState(false);
+  const [failedAttempts, setFailedAttempts] = useState(0);
+  const [lockoutMessage, setLockoutMessage] = useState('');
 
   const isLight = appTheme === 'light';
   const isMyTasksMode = !!filterAssignee;
@@ -57,6 +64,35 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
       setTeamMembers(names);
     } catch (err) {
       console.error("Failed to load team members", err);
+    }
+  };
+
+  const handleUnlockArchive = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (lockoutMessage) return;
+
+    // Security Protocol Update: New Access Key Implementation
+    if (accessKey === 'AmxC@123@') {
+      setIsArchiveUnlocked(true);
+      setUnlockError(false);
+      setFailedAttempts(0);
+    } else {
+      const nextAttempts = failedAttempts + 1;
+      setFailedAttempts(nextAttempts);
+      setUnlockError(true);
+      
+      if (nextAttempts >= 3) {
+        setLockoutMessage("Access Denied. Multiple failed attempts detected. Please contact the developer via the Feedback channel in your dashboard.");
+        setTimeout(() => {
+          setActiveTab('open');
+          setLockoutMessage('');
+          setFailedAttempts(0);
+          setAccessKey('');
+          setUnlockError(false);
+        }, 4500);
+      } else {
+        setTimeout(() => setUnlockError(false), 2000);
+      }
     }
   };
 
@@ -170,7 +206,6 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
     setResolveErrors(prev => { const n = {...prev}; delete n[id]; return n; });
 
     const actionTaken = actionInputs[id];
-    // Rule Enforcement: Closed By is strictly the person assigned.
     const closedBy = report.fields["Assigned To"];
     
     if (!closedBy?.trim()) {
@@ -285,7 +320,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
                 : `${isLight ? 'text-slate-500 hover:text-slate-900 hover:bg-slate-200' : 'text-slate-400 hover:text-white hover:bg-slate-700/50'}`
             }`}
             >
-            Unassigned Open
+            Open
             <span className="ml-2 bg-blue-500/30 text-blue-100 text-[10px] px-1.5 py-0.5 rounded-full">
                 {allReports.filter(r => !r.fields["Action taken"]?.trim() && !r.fields["Assigned To"]?.trim()).length}
             </span>
@@ -298,7 +333,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
                 : `${isLight ? 'text-slate-500 hover:text-slate-900 hover:bg-slate-200' : 'text-slate-400 hover:text-white hover:bg-slate-700/50'}`
             }`}
             >
-            Closed Archive
+            Archive
             <span className="ml-2 bg-emerald-500/30 text-emerald-100 text-[10px] px-1.5 py-0.5 rounded-full">
                 {allReports.filter(r => r.fields["Action taken"]?.trim()).length}
             </span>
@@ -318,12 +353,69 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
         </div>
       )}
 
-      {!loading && !error && (
+      {!loading && !error && activeTab === 'closed' && !isArchiveUnlocked && !isMyTasksMode && (
+        <div className="flex flex-col items-center justify-center pt-10 pb-20 animate-in fade-in zoom-in-95 duration-500">
+           <div className={`w-full max-w-sm rounded-[3rem] p-10 text-center shadow-2xl border transition-all ${isLight ? 'bg-white border-slate-100' : 'bg-slate-900 border-white/5'}`}>
+              <div className="relative mb-8">
+                 <div className={`w-24 h-24 rounded-full flex items-center justify-center mx-auto border shadow-inner ${isLight ? 'bg-blue-50 border-blue-100' : 'bg-blue-500/5 border-blue-500/20'}`}>
+                    <svg className="w-10 h-10 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                 </div>
+              </div>
+
+              <h2 className={`text-4xl font-black mb-3 tracking-tighter ${isLight ? 'text-slate-900' : 'text-white'}`}>Admin.</h2>
+              
+              <div className={`inline-block px-4 py-1.5 rounded-full border mb-10 ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'}`}>
+                 <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">Restricted Access Protocol</span>
+              </div>
+
+              {lockoutMessage ? (
+                <div className="p-6 rounded-2xl bg-rose-500/10 border border-rose-500/20 animate-in shake duration-500">
+                   <p className="text-[10px] font-black text-rose-500 uppercase leading-relaxed tracking-widest">{lockoutMessage}</p>
+                </div>
+              ) : (
+                <form onSubmit={handleUnlockArchive} className="space-y-4">
+                  <input 
+                    type="password" 
+                    placeholder="Access Key" 
+                    value={accessKey}
+                    onChange={(e) => setAccessKey(e.target.value)}
+                    className={`w-full p-4 rounded-2xl border text-center font-bold tracking-[0.3em] outline-none transition-all ${
+                      unlockError 
+                        ? 'border-rose-500 ring-2 ring-rose-500/20' 
+                        : `${isLight ? 'bg-white border-slate-200 focus:border-blue-500' : 'bg-black/40 border-white/10 text-white focus:border-blue-500'}`
+                    }`}
+                  />
+                  
+                  <button 
+                    type="submit"
+                    className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-5 rounded-2xl uppercase tracking-[0.3em] text-[11px] transition-all active:scale-95 shadow-xl shadow-blue-500/20"
+                  >
+                    Unlock
+                  </button>
+                  {unlockError && (
+                    <p className="mt-4 text-[9px] font-black text-rose-500 uppercase tracking-widest animate-in shake duration-300">
+                      Invalid Key ({3 - failedAttempts} attempts remaining)
+                    </p>
+                  )}
+                </form>
+              )}
+           </div>
+           
+           <div className="mt-12 flex flex-col items-center">
+             <div className="h-0.5 w-8 bg-blue-500/40 rounded-full"></div>
+             <p className="text-[7px] font-black text-slate-500 uppercase tracking-[0.5em] mt-3">High-Integrity Evidence Gateway</p>
+           </div>
+        </div>
+      )}
+
+      {!loading && !error && (activeTab === 'open' || isArchiveUnlocked || isMyTasksMode) && (
         <div className="flex flex-col gap-3">
           {tabFilteredReports.length === 0 && (
             <div className={`text-center py-20 rounded-[2rem] border-2 border-dashed ${isLight ? 'bg-slate-50 border-slate-200 text-slate-400' : 'bg-slate-800/20 border-slate-800 text-slate-500'}`}>
               <p className="text-sm font-black uppercase tracking-[0.2em]">
-                {isMyTasksMode ? 'Clear Schedule' : `No unassigned ${activeTab} observations`}
+                {isMyTasksMode ? 'Clear Schedule' : `No ${activeTab} observations`}
               </p>
             </div>
           )}
