@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { UserProfile as UserProfileType } from '../types';
 import { uploadImageToStorage } from '../services/storageService';
 import { compressImage } from '../utils/imageCompression';
@@ -14,6 +14,8 @@ interface UserProfileProps {
 
 const PROFILE_KEY = 'hse_guardian_profile';
 const THEME_KEY = 'hse_guardian_theme';
+// Updated RBAC roles (Case-insensitive matching)
+const AUTHORIZED_ADMIN_ROLES = ['technician', 'engineer'];
 
 export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
   const [profile, setProfile] = useState<UserProfileType>({ name: '', role: '', site: '', profileImageUrl: '' });
@@ -25,6 +27,16 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isLight = theme === 'light';
+
+  // Case-Insensitive Authorization Logic
+  const isSecureIdentity = useMemo(() => {
+    if (!profile.role) return false;
+    return AUTHORIZED_ADMIN_ROLES.includes(profile.role.toLowerCase());
+  }, [profile.role]);
+
+  const clearanceLevel = useMemo(() => {
+    return isSecureIdentity ? 'Level 2' : 'Level 1';
+  }, [isSecureIdentity]);
 
   useEffect(() => {
     const saved = localStorage.getItem(PROFILE_KEY);
@@ -62,13 +74,11 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
 
   const handleToggleBiometrics = async () => {
     if (profile.webauthn_credential_id) {
-      // Logic to disable
       const updated = { ...profile, webauthn_credential_id: undefined, webauthn_public_key: undefined };
       setProfile(updated);
       if (profile.id) await updateProfile(profile.id, { webauthn_credential_id: '', webauthn_public_key: '' });
       localStorage.setItem(PROFILE_KEY, JSON.stringify(updated));
     } else {
-      // Logic to enable
       try {
         const cred = await registerBiometrics(profile.name);
         const updated = { ...profile, webauthn_credential_id: cred.credentialId, webauthn_public_key: cred.publicKey };
@@ -102,7 +112,9 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
     e.preventDefault();
     setSaveStatus('saving');
     try {
-      if (profile.id) await updateProfile(profile.id, { name: profile.name, role: profile.role, site: profile.site });
+      // Identity and Role are protected - only updating site if allowed, 
+      // but current UX locks all fields once set.
+      if (profile.id) await updateProfile(profile.id, { name: profile.name, site: profile.site });
       localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
       setSaveStatus('saved');
       window.dispatchEvent(new Event('profileUpdated'));
@@ -119,7 +131,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
     }`}>
       {/* Header */}
       <div className="flex items-center justify-between border-b border-white/5 pb-4">
-        <h3 className={`text-[11px] font-black uppercase tracking-[0.3em] ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>Profile Settings</h3>
+        <h3 className={`text-[11px] font-black uppercase tracking-[0.3em] ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>Security Configuration</h3>
         <button onClick={onBack} className="text-slate-500 hover:text-white transition-colors">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M18 6 6 18M6 6l12 12"/></svg>
         </button>
@@ -130,7 +142,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
         <div className="relative mb-4">
           <div className={`w-28 h-28 rounded-full flex items-center justify-center border-2 overflow-hidden shadow-2xl transition-all duration-500 ${
             isLight ? 'bg-slate-100 border-slate-200' : 'bg-slate-800 border-white/10 ring-8 ring-white/5'
-          }`}>
+          } ${isSecureIdentity ? 'ring-emerald-500/20' : ''}`}>
             {profile.profileImageUrl ? (
               <img src={profile.profileImageUrl} alt="Profile" className="w-full h-full object-cover" />
             ) : (
@@ -146,20 +158,41 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
           </button>
           <input type="file" ref={fileInputRef} onChange={handleImageChange} accept="image/*" className="hidden" />
         </div>
-        <h2 className={`text-xl font-black tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>{profile.name || 'HSE Reporter'}</h2>
-        <span className="text-[9px] font-black text-blue-500 uppercase tracking-[0.4em] mt-1">Access Tier 1</span>
+        <div className="flex items-center gap-2">
+            <h2 className={`text-xl font-black tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>{profile.name || 'HSE Reporter'}</h2>
+            {isSecureIdentity && (
+                <div className="bg-emerald-500/20 text-emerald-500 p-1 rounded-md border border-emerald-500/30">
+                    <svg width="10" height="10" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L3 7v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-9-5z"/></svg>
+                </div>
+            )}
+        </div>
+        <span className={`text-[9px] font-black uppercase tracking-[0.4em] mt-1 ${isSecureIdentity ? 'text-emerald-500' : 'text-blue-500'}`}>Clearance {clearanceLevel}</span>
       </div>
 
       {/* Main Settings Form */}
       <form onSubmit={handleSave} className="space-y-6">
         <div className="space-y-4">
-          <h4 className={`text-[10px] font-black uppercase tracking-widest ${isLight ? 'text-slate-400' : 'text-slate-600'}`}>Identity</h4>
-          <InputField 
-            id="name" 
-            label="Full Name" 
-            value={profile.name} 
-            onChange={(e) => setProfile(p => ({...p, name: e.target.value}))} 
-          />
+          <div className="flex justify-between items-center px-1">
+             <h4 className={`text-[10px] font-black uppercase tracking-widest ${isLight ? 'text-slate-400' : 'text-slate-600'}`}>Identity Protocol</h4>
+             <span className="text-[7px] font-black text-rose-500 uppercase tracking-widest bg-rose-500/5 px-2 py-0.5 rounded-full border border-rose-500/10">Locked Field</span>
+          </div>
+          
+          <div className="space-y-4 relative">
+              <div className="absolute inset-0 bg-transparent z-20 cursor-not-allowed"></div>
+              <InputField 
+                id="name" 
+                label="Full Name" 
+                value={profile.name} 
+                onChange={() => {}} 
+              />
+              <InputField 
+                id="role" 
+                label="Designated Role" 
+                value={profile.role} 
+                onChange={() => {}} 
+              />
+          </div>
+          <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest text-center px-4">Role-based clearance can only be modified by a Safety Administrator in the core database.</p>
         </div>
 
         {/* Toggles */}
@@ -211,10 +244,10 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
 
         <button 
           type="submit" 
-          disabled={saveStatus === 'saving'}
-          className="w-full bg-blue-600 hover:bg-blue-500 text-white text-[11px] font-black py-4 rounded-2xl uppercase tracking-[0.2em] shadow-xl shadow-blue-500/20 active:scale-95 transition-all"
+          disabled={true}
+          className="w-full bg-slate-800 text-slate-500 text-[11px] font-black py-4 rounded-2xl uppercase tracking-[0.2em] cursor-not-allowed opacity-50"
         >
-          {saveStatus === 'saving' ? 'Syncing...' : 'Commit Changes'}
+          {saveStatus === 'saving' ? 'Syncing...' : 'Changes Committed'}
         </button>
       </form>
 

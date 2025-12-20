@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { FetchedIncident, UploadedImage } from '../types';
+import React, { useEffect, useState, useMemo } from 'react';
+import { FetchedIncident, UploadedImage, UserProfile } from '../types';
 import { getAllReports, updateIncidentAction, assignIncident } from '../services/airtableService';
 import { uploadImageToStorage } from '../services/storageService';
 import { compressImage } from '../utils/imageCompression';
@@ -14,12 +14,17 @@ interface RecentReportsProps {
 
 type Tab = 'open' | 'closed';
 
+// Updated RBAC roles (Case-insensitive matching)
+const AUTHORIZED_ADMIN_ROLES = ['technician', 'engineer'];
+const PROFILE_KEY = 'hse_guardian_profile';
+
 export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, appTheme = 'dark', filterAssignee }) => {
   const [allReports, setAllReports] = useState<FetchedIncident[]>([]);
   const [teamMembers, setTeamMembers] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState<Tab>('open');
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   
   // Restricted Access State
   const [isArchiveUnlocked, setIsArchiveUnlocked] = useState(false);
@@ -30,6 +35,12 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
 
   const isLight = appTheme === 'light';
   const isMyTasksMode = !!filterAssignee;
+
+  // Case-Insensitive RBAC Check
+  const isAuthorized = useMemo(() => {
+    if (!userProfile?.role) return false;
+    return AUTHORIZED_ADMIN_ROLES.includes(userProfile.role.toLowerCase());
+  }, [userProfile]);
 
   const [actionInputs, setActionInputs] = useState<Record<string, string>>({});
   const [closingImages, setClosingImages] = useState<Record<string, UploadedImage[]>>({});
@@ -43,6 +54,15 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
   useEffect(() => {
     fetchReports();
     fetchTeam();
+    
+    const saved = localStorage.getItem(PROFILE_KEY);
+    if (saved) {
+      try {
+        setUserProfile(JSON.parse(saved));
+      } catch (e) {
+        console.error("Failed to parse profile", e);
+      }
+    }
   }, [baseId]);
 
   const fetchReports = async () => {
@@ -71,7 +91,12 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
     e.preventDefault();
     if (lockoutMessage) return;
 
-    // Security Protocol Update: New Access Key Implementation
+    // RBAC Final Verification: Double check role integrity
+    if (!isAuthorized) {
+        setLockoutMessage("Role Identity Failure. This terminal is restricted to Authorized Personnel.");
+        return;
+    }
+
     if (accessKey === 'AmxC@123@') {
       setIsArchiveUnlocked(true);
       setUnlockError(false);
@@ -82,14 +107,14 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
       setUnlockError(true);
       
       if (nextAttempts >= 3) {
-        setLockoutMessage("Access Denied. Multiple failed attempts detected. Please contact the developer via the Feedback channel in your dashboard.");
+        setLockoutMessage("Access Denied. Terminal Locked. Please contact the developer via the 'Feed' button at the bottom right.");
         setTimeout(() => {
           setActiveTab('open');
           setLockoutMessage('');
           setFailedAttempts(0);
           setAccessKey('');
           setUnlockError(false);
-        }, 4500);
+        }, 5000);
       } else {
         setTimeout(() => setUnlockError(false), 2000);
       }
@@ -356,50 +381,76 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
       {!loading && !error && activeTab === 'closed' && !isArchiveUnlocked && !isMyTasksMode && (
         <div className="flex flex-col items-center justify-center pt-10 pb-20 animate-in fade-in zoom-in-95 duration-500">
            <div className={`w-full max-w-sm rounded-[3rem] p-10 text-center shadow-2xl border transition-all ${isLight ? 'bg-white border-slate-100' : 'bg-slate-900 border-white/5'}`}>
-              <div className="relative mb-8">
-                 <div className={`w-24 h-24 rounded-full flex items-center justify-center mx-auto border shadow-inner ${isLight ? 'bg-blue-50 border-blue-100' : 'bg-blue-500/5 border-blue-500/20'}`}>
-                    <svg className="w-10 h-10 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                    </svg>
-                 </div>
-              </div>
-
-              <h2 className={`text-4xl font-black mb-3 tracking-tighter ${isLight ? 'text-slate-900' : 'text-white'}`}>Admin.</h2>
               
-              <div className={`inline-block px-4 py-1.5 rounded-full border mb-10 ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'}`}>
-                 <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">Restricted Access Protocol</span>
-              </div>
-
-              {lockoutMessage ? (
-                <div className="p-6 rounded-2xl bg-rose-500/10 border border-rose-500/20 animate-in shake duration-500">
-                   <p className="text-[10px] font-black text-rose-500 uppercase leading-relaxed tracking-widest">{lockoutMessage}</p>
+              {!isAuthorized ? (
+                <div className="animate-in fade-in duration-500">
+                    <div className="w-24 h-24 bg-rose-500/10 rounded-full flex items-center justify-center mx-auto mb-8 border border-rose-500/20 shadow-inner">
+                        <svg className="w-10 h-10 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                    </div>
+                    <h2 className={`text-2xl font-black mb-3 tracking-tighter ${isLight ? 'text-slate-900' : 'text-white'}`}>Access Denied.</h2>
+                    <div className={`inline-block px-4 py-1.5 rounded-full border mb-6 bg-rose-500/5 border-rose-500/20`}>
+                        <span className="text-[9px] font-black uppercase tracking-[0.2em] text-rose-500">Clearance Level 2 Required</span>
+                    </div>
+                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest leading-relaxed mb-6">
+                        Evidence archives are restricted to Authorized Personnel (Technicians & Engineers).
+                    </p>
+                    <button 
+                        onClick={() => setActiveTab('open')}
+                        className="w-full bg-slate-800 hover:bg-slate-700 text-white font-black py-4 rounded-2xl uppercase tracking-[0.3em] text-[10px] transition-all"
+                    >
+                        Return to Log
+                    </button>
                 </div>
               ) : (
-                <form onSubmit={handleUnlockArchive} className="space-y-4">
-                  <input 
-                    type="password" 
-                    placeholder="Access Key" 
-                    value={accessKey}
-                    onChange={(e) => setAccessKey(e.target.value)}
-                    className={`w-full p-4 rounded-2xl border text-center font-bold tracking-[0.3em] outline-none transition-all ${
-                      unlockError 
-                        ? 'border-rose-500 ring-2 ring-rose-500/20' 
-                        : `${isLight ? 'bg-white border-slate-200 focus:border-blue-500' : 'bg-black/40 border-white/10 text-white focus:border-blue-500'}`
-                    }`}
-                  />
+                <>
+                  <div className="relative mb-8">
+                     <div className={`w-24 h-24 rounded-full flex items-center justify-center mx-auto border shadow-inner ${isLight ? 'bg-blue-50 border-blue-100' : 'bg-blue-500/5 border-blue-500/20'}`}>
+                        <svg className="w-10 h-10 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                     </div>
+                  </div>
+
+                  <h2 className={`text-4xl font-black mb-3 tracking-tighter ${isLight ? 'text-slate-900' : 'text-white'}`}>Admin.</h2>
                   
-                  <button 
-                    type="submit"
-                    className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-5 rounded-2xl uppercase tracking-[0.3em] text-[11px] transition-all active:scale-95 shadow-xl shadow-blue-500/20"
-                  >
-                    Unlock
-                  </button>
-                  {unlockError && (
-                    <p className="mt-4 text-[9px] font-black text-rose-500 uppercase tracking-widest animate-in shake duration-300">
-                      Invalid Key ({3 - failedAttempts} attempts remaining)
-                    </p>
+                  <div className={`inline-block px-4 py-1.5 rounded-full border mb-10 ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'}`}>
+                     <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">Restricted Access Protocol</span>
+                  </div>
+
+                  {lockoutMessage ? (
+                    <div className="p-6 rounded-2xl bg-rose-500/10 border border-rose-500/20 animate-in shake duration-500">
+                       <p className="text-[10px] font-black text-rose-500 uppercase leading-relaxed tracking-widest">{lockoutMessage}</p>
+                    </div>
+                  ) : (
+                    <form onSubmit={handleUnlockArchive} className="space-y-4">
+                      <input 
+                        type="password" 
+                        placeholder="Access Key" 
+                        value={accessKey}
+                        onChange={(e) => setAccessKey(e.target.value)}
+                        className={`w-full p-4 rounded-2xl border text-center font-bold tracking-[0.3em] outline-none transition-all ${
+                          unlockError 
+                            ? 'border-rose-500 ring-2 ring-rose-500/20' 
+                            : `${isLight ? 'bg-white border-slate-200 focus:border-blue-500' : 'bg-black/40 border-white/10 text-white focus:border-blue-500'}`
+                        }`}
+                      />
+                      
+                      <button 
+                        type="submit"
+                        className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-5 rounded-2xl uppercase tracking-[0.3em] text-[11px] transition-all active:scale-95 shadow-xl shadow-blue-500/20"
+                      >
+                        Unlock
+                      </button>
+                      {unlockError && (
+                        <p className="mt-4 text-[9px] font-black text-rose-500 uppercase tracking-widest animate-in shake duration-300">
+                          Invalid Key ({3 - failedAttempts} attempts remaining)
+                        </p>
+                      )}
+                    </form>
                   )}
-                </form>
+                </>
               )}
            </div>
            
