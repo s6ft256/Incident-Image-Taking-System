@@ -107,9 +107,13 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
       setError('Keys do not match.');
       return false;
     }
-    if (!privacyConsent || !imageConsent) {
-      setError('Accept User Agreement & Image Consent.');
+    if (!privacyConsent) {
+      setError('Accept User Agreement & Privacy Policy.');
       setShowComplianceModal(true);
+      return false;
+    }
+    if (!imageConsent) {
+      setError('Confirm Image Upload Authorization.');
       return false;
     }
     return true;
@@ -130,7 +134,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
       const newProfile = await registerProfile({ 
         ...profile, 
         profileImageUrl: imageUrl,
-        privacy_policy_consent: true, // If we passed validation, these are true
+        privacy_policy_consent: true,
         user_agreement_consent: true,
         image_consent: imageConsent
       });
@@ -216,26 +220,21 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
                    <div className="flex items-start gap-3 px-1">
                       <input type="checkbox" id="privacyConsent" checked={privacyConsent} onChange={(e) => setPrivacyConsent(e.target.checked)} className="mt-0.5 w-4 h-4 rounded border-slate-700 bg-slate-900 text-blue-600 focus:ring-blue-500" />
                       <label htmlFor="privacyConsent" className={`text-[7px] font-black uppercase tracking-widest leading-relaxed ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
-                        By clicking ‘I Agree’, you confirm you have read and accepted the <button type="button" onClick={() => setShowComplianceModal(true)} className="text-blue-500 underline decoration-blue-500/30">User Agreement</button> and <button type="button" onClick={() => setShowComplianceModal(true)} className="text-blue-500 underline decoration-blue-500/30">Privacy Policy</button> of HSE Guardian.
+                        I confirm that I have read and agree to the <button type="button" onClick={() => setShowComplianceModal(true)} className="text-blue-500 underline decoration-blue-500/30">Privacy Policy</button> and <button type="button" onClick={() => setShowComplianceModal(true)} className="text-blue-500 underline decoration-blue-500/30">User Consent & Agreement</button> of HSE Guardian, and I consent to the collection and processing of my data for HSE purposes.
                       </label>
                    </div>
                    <div className="flex items-start gap-3 px-1">
                       <input type="checkbox" id="imageConsent" checked={imageConsent} onChange={(e) => setImageConsent(e.target.checked)} className="mt-0.5 w-4 h-4 rounded border-slate-700 bg-slate-900 text-blue-600 focus:ring-blue-500" />
                       <label htmlFor="imageConsent" className={`text-[7px] font-black uppercase tracking-widest leading-relaxed ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
-                        I explicitly consent to the capture, processing, and storage of photographic evidence for HSE purposes in accordance with <span className="text-blue-500">ISO 45001</span> and <span className="text-blue-500">GDPR</span> guidelines.
+                        I confirm that I am authorized to upload these images and that they are related to HSE incidents or observations. I consent to their secure storage and use for safety purposes in accordance with ISO 45001 / GDPR.
                       </label>
                    </div>
                 </div>
               )}
 
               <div className="flex flex-col gap-2 pt-2">
-                {mode === 'login' && bioAvailable && (
-                  <button type="button" onClick={() => handleBiometricLogin()} disabled={isProcessing} className={`w-full font-black py-4 rounded-xl border transition-all uppercase tracking-widest text-[10px] flex items-center justify-center gap-3 shadow-lg ${isLight ? 'bg-emerald-600 text-white' : 'bg-emerald-600/20 text-emerald-400 border-emerald-500/30'}`}>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> Biometric Scan
-                  </button>
-                )}
                 <button type="submit" disabled={isProcessing} className={`w-full font-black py-4 rounded-xl shadow-xl transition-all uppercase tracking-widest text-[10px] border ${isLight ? 'bg-blue-600 text-white' : 'bg-white/10 text-white'}`}>
-                  {isProcessing ? 'Verifying...' : mode === 'signup' ? 'Create Identity' : 'Verify Key'}
+                  {isProcessing ? 'Verifying...' : mode === 'signup' ? 'I Agree & Continue' : 'Verify Key'}
                 </button>
               </div>
             </form>
@@ -251,7 +250,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
           showAcceptButton={true}
           onAccept={() => {
             setPrivacyConsent(true);
-            setImageConsent(true);
             setShowComplianceModal(false);
           }}
           onClose={() => setShowComplianceModal(false)} 

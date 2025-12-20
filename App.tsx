@@ -38,7 +38,6 @@ export default function App() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isFabVisible, setIsFabVisible] = useState(true);
   const lastScrollY = useRef(0);
-  const hideTimeout = useRef<number | null>(null);
 
   const loadProfile = () => {
     const saved = localStorage.getItem(PROFILE_KEY);
@@ -245,50 +244,12 @@ export default function App() {
       </div>
 
       {view !== 'auth' && (
-        <div className={`fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3 transition-transform duration-500 ${isFabVisible ? 'translate-y-0 opacity-100' : 'translate-y-24 opacity-0'}`}>
+        <div className={`fixed bottom-6 right-6 z-50 flex flex-row-reverse items-center gap-3 transition-transform duration-500 ${isFabVisible ? 'translate-y-0 opacity-100' : 'translate-y-24 opacity-0'}`}>
           
-          {/* Expanded Menu Actions */}
-          <div className={`flex flex-col gap-3 transition-all duration-300 origin-bottom ${isMenuOpen ? 'scale-100 opacity-100' : 'scale-50 opacity-0 pointer-events-none'}`}>
-            
-            {/* Feed */}
-            <div className="flex flex-row-reverse items-center gap-3">
-              <div className="pointer-events-auto">
-                <FeedbackAssistant appTheme={appTheme} userName={userProfile?.name} />
-              </div>
-              <span className={`px-2 py-1 rounded-md text-[8px] font-black uppercase tracking-widest border shadow-sm ${appTheme === 'dark' ? 'bg-slate-800 border-white/10 text-slate-400' : 'bg-white border-slate-200 text-slate-500'}`}>Feed</span>
-            </div>
-
-            {/* AI */}
-            <div className="flex flex-row-reverse items-center gap-3">
-              <div className="pointer-events-auto">
-                <HSEAssistant appTheme={appTheme} />
-              </div>
-              <span className={`px-2 py-1 rounded-md text-[8px] font-black uppercase tracking-widest border shadow-sm ${appTheme === 'dark' ? 'bg-slate-800 border-white/10 text-slate-400' : 'bg-white border-slate-200 text-slate-500'}`}>Assistant</span>
-            </div>
-
-            {/* Policies */}
-            <div className="flex flex-row-reverse items-center gap-3">
-              <button 
-                onClick={() => { setShowPolicy(true); setIsMenuOpen(false); }}
-                className={`w-14 h-14 rounded-full border shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center justify-center p-0 overflow-hidden ${
-                  appTheme === 'dark' 
-                    ? 'bg-gradient-to-tr from-slate-800 to-slate-700 border-white/10 text-white' 
-                    : 'bg-white border-slate-200 text-slate-700 shadow-slate-200 shadow-lg'
-                }`}
-              >
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                   <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                   <path d="M9 12l2 2 4-4" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </button>
-              <span className={`px-2 py-1 rounded-md text-[8px] font-black uppercase tracking-widest border shadow-sm ${appTheme === 'dark' ? 'bg-slate-800 border-white/10 text-slate-400' : 'bg-white border-slate-200 text-slate-500'}`}>Policies</span>
-            </div>
-          </div>
-
-          {/* Main Toggle Button (...) */}
+          {/* Main Toggle Button (...) - Now on the right */}
           <button
             onClick={() => setIsMenuOpen(!isMenuOpen)}
-            className={`w-14 h-14 rounded-full shadow-2xl transition-all duration-300 flex items-center justify-center group pointer-events-auto border-2 ${
+            className={`w-14 h-14 rounded-full shadow-2xl transition-all duration-300 flex items-center justify-center group pointer-events-auto border-2 shrink-0 ${
               isMenuOpen 
                 ? 'bg-rose-600 border-rose-400 rotate-90 text-white' 
                 : `${appTheme === 'dark' ? 'bg-blue-600/90 border-blue-400 backdrop-blur-md' : 'bg-blue-600 border-blue-400 shadow-blue-500/40'} text-white`
@@ -316,6 +277,44 @@ export default function App() {
               </span>
             )}
           </button>
+
+          {/* Expanded Menu Actions - Now horizontal to the left of main button */}
+          <div className={`flex flex-row-reverse items-center gap-3 transition-all duration-300 origin-right ${isMenuOpen ? 'scale-100 opacity-100 translate-x-0' : 'scale-50 opacity-0 pointer-events-none translate-x-12'}`}>
+            
+            {/* Feed */}
+            <div className="flex flex-col items-center gap-1 group">
+              <span className={`px-2 py-0.5 rounded-md text-[7px] font-black uppercase tracking-widest border shadow-sm transition-all duration-300 ${isMenuOpen ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'} ${appTheme === 'dark' ? 'bg-slate-800 border-white/10 text-slate-400' : 'bg-white border-slate-200 text-slate-500'}`}>Feed</span>
+              <div className="pointer-events-auto">
+                <FeedbackAssistant appTheme={appTheme} userName={userProfile?.name} />
+              </div>
+            </div>
+
+            {/* AI Assistant */}
+            <div className="flex flex-col items-center gap-1 group">
+              <span className={`px-2 py-0.5 rounded-md text-[7px] font-black uppercase tracking-widest border shadow-sm transition-all duration-300 ${isMenuOpen ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'} ${appTheme === 'dark' ? 'bg-slate-800 border-white/10 text-slate-400' : 'bg-white border-slate-200 text-slate-500'}`}>Assistant</span>
+              <div className="pointer-events-auto">
+                <HSEAssistant appTheme={appTheme} />
+              </div>
+            </div>
+
+            {/* Policies */}
+            <div className="flex flex-col items-center gap-1 group">
+              <span className={`px-2 py-0.5 rounded-md text-[7px] font-black uppercase tracking-widest border shadow-sm transition-all duration-300 ${isMenuOpen ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'} ${appTheme === 'dark' ? 'bg-slate-800 border-white/10 text-slate-400' : 'bg-white border-slate-200 text-slate-500'}`}>Policies</span>
+              <button 
+                onClick={() => { setShowPolicy(true); setIsMenuOpen(false); }}
+                className={`w-14 h-14 rounded-full border shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center justify-center p-0 overflow-hidden ${
+                  appTheme === 'dark' 
+                    ? 'bg-gradient-to-tr from-slate-800 to-slate-700 border-white/10 text-white' 
+                    : 'bg-white border-slate-200 text-slate-700 shadow-slate-200 shadow-lg'
+                }`}
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                   <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                   <path d="M9 12l2 2 4-4" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -339,7 +338,7 @@ export default function App() {
       {showPolicy && <PolicyModal onClose={() => setShowPolicy(false)} appTheme={appTheme} />}
 
       {syncCount > 0 && (
-        <div className="fixed bottom-32 left-6 z-50 animate-in slide-in-from-bottom-10">
+        <div className="fixed bottom-32 right-6 z-50 animate-in slide-in-from-bottom-10">
           <div className="bg-blue-600 text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 border border-blue-400/30">
             <div className="w-2 h-2 bg-white rounded-full animate-ping"></div>
             <span className="text-[10px] font-black uppercase tracking-widest">{syncCount} Reports Synced</span>

@@ -35,7 +35,7 @@ export const PRIVACY_POLICY = {
   sections: [
     {
       heading: "1. Introduction",
-      content: "Welcome to [HSE Guardian](https://incident-image-taking-system.vercel.app/) (“we”, “us”, “our”). This Privacy Policy explains how we collect, use, disclose, and protect your information when you visit and interact with our Service. Your privacy matters to us and we are committed to transparency and data protection. You agree to the terms of this policy by using our Service."
+      content: "Welcome to [HSE Guardian](https://incident-image-taking-system.vercel.app/) (“we”, “us”, “our”). This Privacy Policy explains how we collect, use, disclose, and protect your information when you visit and interact with our Service. Your privacy matters to us and we are committed to transparency and data protection."
     },
     {
       heading: "2. Information We Collect",
@@ -46,7 +46,7 @@ export const PRIVACY_POLICY = {
       content: "We use collected information to provide and improve the Service, communicate updates, respond to inquiries, analyze usage trends, and ensure system security. We do not sell personal information to third parties."
     },
     {
-      heading: "11. Contact Us",
+      heading: "4. Contact Us",
       content: "For questions about this Privacy Policy or your data rights, contact us at:\nEmail: [Developer](mailto:niwamanyaelius95@gmail.com)\nWebsite: [HSE Guardian](https://incident-image-taking-system.vercel.app/)"
     }
   ]
@@ -83,6 +83,10 @@ export const USER_AGREEMENT = {
     {
       heading: "11. Contact Information",
       content: "For questions, concerns, or withdrawal of consent, contact: \nEmail: [Developer](mailto:niwamanyaelius95@gmail.com) \nWebsite: [HSE Guardian](https://incident-image-taking-system.vercel.app/)"
+    },
+    {
+      heading: "12. Multilingual Consent Summary",
+      content: "**Arabic (UAE-friendly)**\n☐ أوافق على سياسة الخصوصية واتفاقية المستخدم الخاصة بـ HSE Guardian، وأمنح موافقتي على جمع ومعالجة البيانات والصور لأغراض الصحة والسلامة والبيئة.\n\n**Swahili**\n☐ Ninakubali Sera ya Faragha na Mkataba wa Mtumiaji wa HSE Guardian, na ninatoa idhini ya ukusanyaji na uchakataji wa data kwa madhumuni ya HSE.\n\n**Luganda**\n☐ Nnina okumanya era nzikiriza Enkola y’Obukuumi bw’Ebyama n’Endagaano y’Omukozesa eya HSE Guardian, era nzikiriza okukunganyizibwa n’okukozesebwa kw’amawulire n’ebifaananyi eby’eby’obukuumi."
     }
   ]
 };
