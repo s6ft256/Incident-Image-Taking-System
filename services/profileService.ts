@@ -16,7 +16,12 @@ export const registerProfile = async (profile: UserProfile): Promise<UserProfile
       password: profile.password,
       profile_image_url: profile.profileImageUrl,
       webauthn_credential_id: profile.webauthn_credential_id,
-      webauthn_public_key: profile.webauthn_public_key
+      webauthn_public_key: profile.webauthn_public_key,
+      // Compliance persistence
+      privacy_policy_consent: profile.privacy_policy_consent,
+      user_agreement_consent: profile.user_agreement_consent,
+      image_consent: profile.image_consent,
+      consent_timestamp: new Date().toISOString()
     }])
     .select()
     .single();
@@ -34,7 +39,11 @@ export const registerProfile = async (profile: UserProfile): Promise<UserProfile
     password: data.password,
     profileImageUrl: data.profile_image_url,
     webauthn_credential_id: data.webauthn_credential_id,
-    webauthn_public_key: data.webauthn_public_key
+    webauthn_public_key: data.webauthn_public_key,
+    privacy_policy_consent: data.privacy_policy_consent,
+    user_agreement_consent: data.user_agreement_consent,
+    image_consent: data.image_consent,
+    consent_timestamp: data.consent_timestamp
   };
 };
 
@@ -56,7 +65,11 @@ export const getProfileByName = async (name: string): Promise<UserProfile | null
     password: data.password,
     profileImageUrl: data.profile_image_url,
     webauthn_credential_id: data.webauthn_credential_id,
-    webauthn_public_key: data.webauthn_public_key
+    webauthn_public_key: data.webauthn_public_key,
+    privacy_policy_consent: data.privacy_policy_consent,
+    user_agreement_consent: data.user_agreement_consent,
+    image_consent: data.image_consent,
+    consent_timestamp: data.consent_timestamp
   };
 };
 
@@ -91,19 +104,17 @@ export const getProfileByCredentialId = async (credentialId: string): Promise<Us
     password: data.password,
     profileImageUrl: data.profile_image_url,
     webauthn_credential_id: data.webauthn_credential_id,
-    webauthn_public_key: data.webauthn_public_key
+    webauthn_public_key: data.webauthn_public_key,
+    privacy_policy_consent: data.privacy_policy_consent,
+    user_agreement_consent: data.user_agreement_consent,
+    image_consent: data.image_consent,
+    consent_timestamp: data.consent_timestamp
   } : null;
 };
 
-/**
- * Updates profile information.
- * CRITICAL: The 'role' field is intentionally excluded from the update set 
- * to ensure that role-based clearance can only be modified by a database administrator.
- */
 export const updateProfile = async (id: string, updates: Partial<UserProfile>): Promise<void> => {
   const dbUpdates: any = {};
   if (updates.name !== undefined) dbUpdates.name = updates.name;
-  // Role update is disabled here for security integrity.
   if (updates.site !== undefined) dbUpdates.site = updates.site;
   if (updates.password !== undefined) dbUpdates.password = updates.password;
   if (updates.profileImageUrl !== undefined) dbUpdates.profile_image_url = updates.profileImageUrl;
@@ -113,6 +124,15 @@ export const updateProfile = async (id: string, updates: Partial<UserProfile>): 
   const { error } = await supabase
     .from(TABLE_NAME)
     .update(dbUpdates)
+    .eq('id', id);
+
+  if (error) throw new Error(error.message);
+};
+
+export const deleteProfile = async (id: string): Promise<void> => {
+  const { error } = await supabase
+    .from(TABLE_NAME)
+    .delete()
     .eq('id', id);
 
   if (error) throw new Error(error.message);

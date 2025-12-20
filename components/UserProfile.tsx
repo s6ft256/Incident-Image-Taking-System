@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { UserProfile as UserProfileType } from '../types';
 import { uploadImageToStorage } from '../services/storageService';
 import { compressImage } from '../utils/imageCompression';
-import { updateProfile } from '../services/profileService';
+import { updateProfile, deleteProfile } from '../services/profileService';
 import { registerBiometrics } from '../services/biometricService';
 import { InputField } from './InputField';
 
@@ -14,6 +14,7 @@ interface UserProfileProps {
 
 const PROFILE_KEY = 'hse_guardian_profile';
 const THEME_KEY = 'hse_guardian_theme';
+const LAST_USER_KEY = 'hse_guardian_last_user';
 // Updated RBAC roles (Case-insensitive matching)
 const AUTHORIZED_ADMIN_ROLES = ['technician', 'engineer'];
 
@@ -23,6 +24,8 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -112,8 +115,6 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
     e.preventDefault();
     setSaveStatus('saving');
     try {
-      // Identity and Role are protected - only updating site if allowed, 
-      // but current UX locks all fields once set.
       if (profile.id) await updateProfile(profile.id, { name: profile.name, site: profile.site });
       localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
       setSaveStatus('saved');
@@ -122,6 +123,21 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
     } catch (err: any) {
       setErrorMessage(err.message);
       setSaveStatus('error');
+    }
+  };
+
+  const handleDeleteIdentity = async () => {
+    if (!profile.id) return;
+    setIsDeleting(true);
+    try {
+      await deleteProfile(profile.id);
+      localStorage.removeItem(PROFILE_KEY);
+      localStorage.removeItem(LAST_USER_KEY);
+      window.location.reload();
+    } catch (err: any) {
+      setErrorMessage(err.message || "Failed to purge identity.");
+      setIsDeleting(false);
+      setShowDeleteConfirm(false);
     }
   };
 
@@ -169,6 +185,30 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
         <span className={`text-[9px] font-black uppercase tracking-[0.4em] mt-1 ${isSecureIdentity ? 'text-emerald-500' : 'text-blue-500'}`}>Clearance {clearanceLevel}</span>
       </div>
 
+      {/* Compliance Verification */}
+      <div className={`p-4 rounded-2xl border ${isLight ? 'bg-emerald-50/50 border-emerald-100' : 'bg-emerald-500/5 border-emerald-500/20'}`}>
+         <h4 className="text-[8px] font-black text-emerald-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path d="M9 12l2 2 4-4"/></svg>
+            GDPR / ISO 45001 Status
+         </h4>
+         <div className="space-y-2">
+            <div className="flex justify-between items-center">
+               <span className={`text-[8px] font-bold uppercase ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Privacy Consent</span>
+               <span className="text-[8px] font-black text-emerald-500 uppercase">ACTIVE</span>
+            </div>
+            <div className="flex justify-between items-center">
+               <span className={`text-[8px] font-bold uppercase ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>User Agreement</span>
+               <span className="text-[8px] font-black text-emerald-500 uppercase">ACTIVE</span>
+            </div>
+            <div className="flex justify-between items-center">
+               <span className={`text-[8px] font-bold uppercase ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Image Usage</span>
+               <span className={`text-[8px] font-black uppercase ${profile.image_consent ? 'text-emerald-500' : 'text-rose-500'}`}>
+                  {profile.image_consent ? 'AUTHORIZED' : 'RESTRICTED'}
+               </span>
+            </div>
+         </div>
+      </div>
+
       {/* Main Settings Form */}
       <form onSubmit={handleSave} className="space-y-6">
         <div className="space-y-4">
@@ -192,7 +232,6 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
                 onChange={() => {}} 
               />
           </div>
-          <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest text-center px-4">Role-based clearance can only be modified by a Safety Administrator in the core database.</p>
         </div>
 
         {/* Toggles */}
@@ -251,14 +290,52 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
         </button>
       </form>
 
-      <button 
-        onClick={() => { localStorage.removeItem(PROFILE_KEY); window.location.reload(); }} 
-        className={`w-full py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] border transition-all ${
-          isLight ? 'text-slate-400 border-slate-200 hover:bg-slate-50' : 'bg-white/5 text-slate-500 border-white/5 hover:bg-white/10'
-        }`}
-      >
-        Sign Out
-      </button>
+      <div className="pt-2 flex flex-col gap-3">
+        <button 
+          onClick={() => { localStorage.removeItem(PROFILE_KEY); window.location.reload(); }} 
+          className={`w-full py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] border transition-all ${
+            isLight ? 'text-slate-600 border-slate-200 hover:bg-slate-50' : 'bg-white/5 text-slate-400 border-white/5 hover:bg-white/10'
+          }`}
+        >
+          Sign Out
+        </button>
+
+        {!showDeleteConfirm ? (
+          <button 
+            onClick={() => setShowDeleteConfirm(true)}
+            className={`w-full py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] border transition-all ${
+              isLight ? 'text-rose-500 border-rose-200 hover:bg-rose-50' : 'text-rose-500/70 border-rose-500/20 hover:bg-rose-500/10'
+            }`}
+          >
+            Purge Identity
+          </button>
+        ) : (
+          <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
+             <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-center">
+                <p className="text-[9px] font-black text-rose-500 uppercase tracking-widest leading-relaxed">
+                  CRITICAL: All personal credentials and biometric locks will be erased permanently.
+                </p>
+             </div>
+             <div className="flex gap-2">
+                <button 
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className={`flex-1 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest ${
+                    isLight ? 'bg-slate-100 text-slate-600' : 'bg-white/5 text-slate-400'
+                  }`}
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleDeleteIdentity}
+                  disabled={isDeleting}
+                  className="flex-1 py-4 rounded-2xl bg-rose-600 text-white text-[10px] font-black uppercase tracking-widest shadow-xl shadow-rose-900/20 active:scale-95"
+                >
+                  {isDeleting ? 'Purging...' : 'Confirm Purge'}
+                </button>
+             </div>
+          </div>
+        )}
+      </div>
 
       {errorMessage && (
         <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl">

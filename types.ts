@@ -8,6 +8,11 @@ export interface UserProfile {
   password?: string;
   webauthn_credential_id?: string;
   webauthn_public_key?: string;
+  // Compliance Fields
+  privacy_policy_consent?: boolean;
+  user_agreement_consent?: boolean;
+  image_consent?: boolean;
+  consent_timestamp?: string;
 }
 
 export interface IncidentForm {
