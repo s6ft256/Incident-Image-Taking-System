@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { AIRTABLE_CONFIG, SAFETY_QUOTES } from './constants';
 import { CreateReportForm } from './components/CreateReportForm';
@@ -167,7 +166,7 @@ function App() {
              </div>
 
              <div className="flex flex-[2] flex-col items-center text-center">
-               <h1 className="text-sm sm:text-3xl font-black tracking-tighter cursor-pointer" onClick={() => setView('dashboard')}>
+               <h1 className="text-3xl sm:text-6xl font-black tracking-tighter cursor-pointer" onClick={() => setView('dashboard')}>
                  <span className={appTheme === 'dark' ? 'text-white' : 'text-slate-900'}>HSE</span> <span className="text-blue-500">Guardian</span>
                </h1>
              </div>

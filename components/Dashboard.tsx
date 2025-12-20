@@ -182,13 +182,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
 
   return (
     <div className="space-y-4 sm:space-y-6 pb-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <div className={`px-6 sm:px-12 py-8 rounded-[2.5rem] text-center backdrop-blur-md shadow-xl border relative overflow-hidden ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/[0.03] border-white/10'}`}>
+      <div className={`px-6 sm:px-12 py-5 rounded-[2.5rem] text-center backdrop-blur-md shadow-xl border relative overflow-hidden ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/[0.03] border-white/10'}`}>
         <div className="absolute top-0 left-0 w-2 h-full bg-blue-500/50"></div>
         <p className={`text-sm sm:text-base font-medium leading-relaxed max-w-4xl mx-auto italic ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
           HSE Guardian isn't just software.
           It's your proactive safety nerve center. A unified system capturing and managing all safety observations and incident data in real-time.
         </p>
-        <div className={`mt-4 pt-4 border-t ${isLight ? 'border-slate-200' : 'border-white/5'} flex justify-center gap-4 text-[10px] font-black uppercase tracking-widest text-blue-500`}>
+        <div className={`mt-3 pt-3 border-t ${isLight ? 'border-slate-400' : 'border-white/20'} flex justify-center gap-4 text-[10px] font-black uppercase tracking-widest text-blue-500`}>
           <span>Weekly Performance Monitor</span>
           <span className="opacity-30">•</span>
           <span>Analytics Reset Sun 00:00</span>
