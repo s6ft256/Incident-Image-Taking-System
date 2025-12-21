@@ -169,7 +169,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
           <div className="flex flex-col items-center text-center relative z-10">
             <div className="relative mb-6">
               <div className="absolute inset-0 bg-blue-500/20 blur-2xl rounded-full"></div>
-              <img src="https://www.multiply-marketing.com/trojan-wp/wp-content/uploads/2020/08/tgc-logo-300x300.png" className="h-20 w-auto relative z-10 drop-shadow-2xl animate-pulse" alt="TGC" />
+              <img src="image.png" className="h-24 w-24 relative z-10 drop-shadow-2xl animate-pulse object-contain" alt="System Logo" />
             </div>
             <div className="space-y-2 mb-8">
               <h2 className={`text-4xl font-black tracking-tighter ${isLight ? 'text-slate-900' : 'text-white'}`}>HSE <span className="text-blue-500">Guardian</span></h2>
@@ -219,23 +219,25 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
                    <div className="flex items-start gap-3 px-1">
                       <input type="checkbox" id="privacyConsent" checked={privacyConsent} onChange={(e) => setPrivacyConsent(e.target.checked)} className="mt-0.5 w-4 h-4 rounded border-slate-700 bg-slate-900 text-blue-600 focus:ring-blue-500" />
                       <label htmlFor="privacyConsent" className={`text-[7px] font-black uppercase tracking-widest leading-relaxed ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
-                        I confirm that I have read and agree to the <button type="button" onClick={() => setShowComplianceModal(true)} className="text-blue-500 underline decoration-blue-500/30">Privacy Policy</button> and <button type="button" onClick={() => setShowComplianceModal(true)} className="text-blue-500 underline decoration-blue-500/30">User Consent & Agreement</button> of HSE Guardian, and I consent to the collection and processing of my data for HSE purposes.
+                        I confirm that I have read and agree to the <button type="button" onClick={() => setShowComplianceModal(true)} className="text-blue-500 hover:underline">Privacy Policy</button> & <button type="button" onClick={() => setShowComplianceModal(true)} className="text-blue-500 hover:underline">User Agreement</button>.
                       </label>
                    </div>
                    <div className="flex items-start gap-3 px-1">
                       <input type="checkbox" id="imageConsent" checked={imageConsent} onChange={(e) => setImageConsent(e.target.checked)} className="mt-0.5 w-4 h-4 rounded border-slate-700 bg-slate-900 text-blue-600 focus:ring-blue-500" />
                       <label htmlFor="imageConsent" className={`text-[7px] font-black uppercase tracking-widest leading-relaxed ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
-                        I confirm that I am authorized to upload these images and that they are related to HSE incidents or observations. I consent to their secure storage and use for safety purposes in accordance with ISO 45001 / GDPR.
+                        I authorize the upload and storage of photographic evidence for HSE reporting purposes.
                       </label>
                    </div>
                 </div>
               )}
 
-              <div className="flex flex-col gap-2 pt-2">
-                <button type="submit" disabled={isProcessing} className={`w-full font-black py-4 rounded-xl shadow-xl transition-all uppercase tracking-widest text-[10px] border ${isLight ? 'bg-blue-600 text-white' : 'bg-white/10 text-white'}`}>
-                  {isProcessing ? 'Verifying...' : mode === 'signup' ? 'I Agree & Continue' : 'Verify Key'}
-                </button>
-              </div>
+              <button
+                type="submit"
+                disabled={isProcessing}
+                className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 text-white font-black py-4 rounded-2xl shadow-xl transition-all active:scale-[0.98] uppercase tracking-widest text-[10px] border border-blue-400/20"
+              >
+                {isProcessing ? 'Authenticating...' : mode === 'signup' ? 'Deploy Identity' : 'Initiate Access'}
+              </button>
             </form>
           </div>
           <CardBackgroundGlow />
@@ -244,14 +246,14 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
 
       {showComplianceModal && (
         <PolicyModal 
+          onClose={() => setShowComplianceModal(false)} 
           appTheme={appTheme} 
-          initialTab="agreement" 
+          initialTab="privacy" 
           showAcceptButton={true}
           onAccept={() => {
             setPrivacyConsent(true);
             setShowComplianceModal(false);
           }}
-          onClose={() => setShowComplianceModal(false)} 
         />
       )}
     </div>

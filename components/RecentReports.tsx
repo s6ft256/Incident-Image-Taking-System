@@ -28,7 +28,8 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   
   // Selection State for Multi Actions
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  // Fix: Added explicit generic type for Set to avoid 'unknown' inference in older environments
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set<string>());
   const [isMultiAssigning, setIsMultiAssigning] = useState(false);
 
   // Restricted Access State
@@ -49,7 +50,8 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
 
   const [actionInputs, setActionInputs] = useState<Record<string, string>>({});
   const [closingImages, setClosingImages] = useState<Record<string, UploadedImage[]>>({});
-  const [submittingIds, setSubmittingIds] = useState<Set<string>>(new Set());
+  // Fix: Added explicit generic type for Set
+  const [submittingIds, setSubmittingIds] = useState<Set<string>>(new Set<string>());
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [resolveErrors, setResolveErrors] = useState<Record<string, string>>({});
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
@@ -104,9 +106,9 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
 
   const selectAllFiltered = () => {
     if (selectedIds.size === tabFilteredReports.length) {
-      setSelectedIds(new Set());
+      setSelectedIds(new Set<string>());
     } else {
-      setSelectedIds(new Set(tabFilteredReports.map(r => r.id)));
+      setSelectedIds(new Set<string>(tabFilteredReports.map(r => r.id)));
     }
   };
 
@@ -116,7 +118,8 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
     setResolveErrors({});
 
     try {
-      const promises = Array.from(selectedIds).map(id => assignIncident(id, assignee, { baseId }));
+      // Fix: Use spread operator to ensure Array inference is correctly typed as string[]
+      const promises = [...selectedIds].map(id => assignIncident(id, assignee, { baseId }));
       await Promise.all(promises);
       
       setAllReports(prev => prev.map(r => 
@@ -124,7 +127,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
       ));
       
       setAssignmentSuccess(`Multi assigned ${selectedIds.size} incidents to ${assignee}`);
-      setSelectedIds(new Set());
+      setSelectedIds(new Set<string>());
       setTimeout(() => setAssignmentSuccess(null), 3500);
     } catch (err: any) {
       setError("Partial failure in Multi assignment: " + err.message);
@@ -276,9 +279,10 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
     setResolveErrors(prev => { const n = {...prev}; delete n[id]; return n; });
 
     const actionTaken = actionInputs[id];
-    const closedBy = report.fields["Assigned To"];
+    // Fix: Provide a string fallback and use it consistently to ensure TypeScript narrowing works for functions expecting 'string'
+    const closedBy = report.fields["Assigned To"] || "";
     
-    if (!closedBy?.trim()) {
+    if (!closedBy.trim()) {
         setResolveErrors(prev => ({...prev, [id]: "Error: Personnel must be assigned before closing."}));
         return;
     }
@@ -386,7 +390,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
       {!isMyTasksMode && (
         <div className={`flex p-1 mb-6 rounded-lg border transition-colors ${isLight ? 'bg-slate-100 border-slate-200' : 'bg-slate-800 border-slate-700'}`}>
             <button
-            onClick={() => { setActiveTab('open'); setExpandedId(null); setSelectedIds(new Set()); }}
+            onClick={() => { setActiveTab('open'); setExpandedId(null); setSelectedIds(new Set<string>()); }}
             className={`flex-1 py-2 text-sm font-semibold rounded-md transition-all duration-200 ${
                 activeTab === 'open'
                 ? 'bg-blue-600 text-white shadow-md'
@@ -399,7 +403,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
             </span>
             </button>
             <button
-            onClick={() => { setActiveTab('closed'); setExpandedId(null); setSelectedIds(new Set()); }}
+            onClick={() => { setActiveTab('closed'); setExpandedId(null); setSelectedIds(new Set<string>()); }}
             className={`flex-1 py-2 text-sm font-semibold rounded-md transition-all duration-200 ${
                 activeTab === 'closed'
                 ? 'bg-emerald-600 text-white shadow-md'
@@ -646,7 +650,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
                      <p className="text-[8px] font-black text-blue-500 uppercase tracking-tighter mt-0.5">Selection Gateway Active</p>
                    </div>
                 </div>
-                <button onClick={() => setSelectedIds(new Set())} className={`text-[9px] font-black uppercase tracking-widest ${isLight ? 'text-slate-400 hover:text-slate-600' : 'text-slate-500 hover:text-slate-300'}`}>Cancel</button>
+                <button onClick={() => setSelectedIds(new Set<string>())} className={`text-[9px] font-black uppercase tracking-widest ${isLight ? 'text-slate-400 hover:text-slate-600' : 'text-slate-500 hover:text-slate-300'}`}>Cancel</button>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">

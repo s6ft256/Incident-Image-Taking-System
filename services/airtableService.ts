@@ -1,3 +1,4 @@
+
 import { IncidentForm, IncidentRecord, FetchedIncident } from '../types';
 import { AIRTABLE_CONFIG } from '../constants';
 
@@ -19,15 +20,19 @@ const handleAirtableError = (response: Response, errorData: any): string => {
   if (response.status === 403) return "Access denied. You do not have permission to write to this safety report log.";
   if (response.status === 404) return "The requested safety database or table could not be found. Please check the Base ID.";
   if (response.status === 413) return "The report is too large. Try reducing the number of high-resolution images.";
+  
   if (response.status === 422) {
     const detail = errorData?.error?.message || "";
-    if (detail.includes("Unknown field name")) {
-      const fieldMatch = detail.match(/field\s+(['"])(.*?)\1/i) || detail.match(/name\s+(['"])(.*?)\1/i);
-      const fieldName = fieldMatch ? fieldMatch[2] : "Unknown";
-      return `Database structure mismatch: Field "${fieldName}" is missing in Airtable. Ensure columns match exactly (case-sensitive).`;
+    // Improved regex to handle various quote types and formats from Airtable errors
+    const fieldMatch = detail.match(/(?:field|name)\s+["'\\"]+(.*?)["'\\"]+/i);
+    const fieldName = fieldMatch ? fieldMatch[1] : "Unknown";
+    
+    if (detail.toLowerCase().includes("unknown field") || detail.toLowerCase().includes("could not find field")) {
+      return `Database structure mismatch: Field "${fieldName}" is missing in Airtable. Ensure columns match exactly (case-sensitive) or contact the administrator to add the column.`;
     }
-    return errorData?.error?.message || "The safety data format is incompatible with the database. Please contact support.";
+    return detail || "The safety data format is incompatible with the database. Please contact support.";
   }
+  
   if (response.status >= 500) return "The safety database is currently experiencing high traffic. Retrying connection...";
   
   return errorData?.error?.message || response.statusText || "A secure connection to the database could not be established.";
@@ -99,17 +104,19 @@ export const submitIncidentReport = async (
     filename: img.filename 
   }));
 
-  const record = {
-    fields: {
-      "Name": form.name,
-      "Role / Position": form.role,
-      "Site / Location": form.site,
-      "Incident Type": form.category,
-      "Observation": form.observation,
-      "Assigned To": form.assignedTo || "",
-      "Open observations": evidenceAttachments
-    }
+  // Build fields dynamically to omit empty optional fields that might cause schema errors
+  const fields: any = {
+    "Name": form.name,
+    "Role / Position": form.role,
+    "Site / Location": form.site,
+    "Incident Type": form.category,
+    "Observation": form.observation,
+    "Open observations": evidenceAttachments
   };
+
+  if (form.assignedTo && form.assignedTo !== "None") {
+    fields["Assigned To"] = form.assignedTo;
+  }
 
   await fetchWithRetry(url, {
     method: 'POST',
@@ -117,7 +124,7 @@ export const submitIncidentReport = async (
       'Authorization': `Bearer ${API_KEY}`,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ records: [record], typecast: true })
+    body: JSON.stringify({ records: [{ fields }], typecast: true })
   });
 
   return true;
