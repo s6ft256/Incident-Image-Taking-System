@@ -219,43 +219,4 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
                    <div className="flex items-start gap-3 px-1">
                       <input type="checkbox" id="privacyConsent" checked={privacyConsent} onChange={(e) => setPrivacyConsent(e.target.checked)} className="mt-0.5 w-4 h-4 rounded border-slate-700 bg-slate-900 text-blue-600 focus:ring-blue-500" />
                       <label htmlFor="privacyConsent" className={`text-[7px] font-black uppercase tracking-widest leading-relaxed ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
-                        I confirm that I have read and agree to the <button type="button" onClick={() => setShowComplianceModal(true)} className="text-blue-500 hover:underline">Privacy Policy</button> & <button type="button" onClick={() => setShowComplianceModal(true)} className="text-blue-500 hover:underline">User Agreement</button>.
-                      </label>
-                   </div>
-                   <div className="flex items-start gap-3 px-1">
-                      <input type="checkbox" id="imageConsent" checked={imageConsent} onChange={(e) => setImageConsent(e.target.checked)} className="mt-0.5 w-4 h-4 rounded border-slate-700 bg-slate-900 text-blue-600 focus:ring-blue-500" />
-                      <label htmlFor="imageConsent" className={`text-[7px] font-black uppercase tracking-widest leading-relaxed ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
-                        I authorize the upload and storage of photographic evidence for HSE reporting purposes.
-                      </label>
-                   </div>
-                </div>
-              )}
-
-              <button
-                type="submit"
-                disabled={isProcessing}
-                className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 text-white font-black py-4 rounded-2xl shadow-xl transition-all active:scale-[0.98] uppercase tracking-widest text-[10px] border border-blue-400/20"
-              >
-                {isProcessing ? 'Authenticating...' : mode === 'signup' ? 'Deploy Identity' : 'Initiate Access'}
-              </button>
-            </form>
-          </div>
-          <CardBackgroundGlow />
-        </AuthCard>
-      )}
-
-      {showComplianceModal && (
-        <PolicyModal 
-          onClose={() => setShowComplianceModal(false)} 
-          appTheme={appTheme} 
-          initialTab="privacy" 
-          showAcceptButton={true}
-          onAccept={() => {
-            setPrivacyConsent(true);
-            setShowComplianceModal(false);
-          }}
-        />
-      )}
-    </div>
-  );
-};
+                        I confirm that I have read and agree to the <button type="button" onClick={() => setShowComplianceModal(
