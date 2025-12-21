@@ -19,6 +19,7 @@ type ViewState = 'dashboard' | 'create' | 'recent' | 'auth' | 'my-tasks';
 const PROFILE_KEY = 'hse_guardian_profile';
 const THEME_KEY = 'hse_guardian_theme';
 const TUTORIAL_KEY = 'hse_guardian_tutorial_seen';
+const SYSTEM_LOGO_URL = 'https://www.multiply-marketing.com/trojan-wp/wp-content/uploads/2020/08/tgc-logo-300x300.png';
 
 export default function App() {
   // Always start on auth to ensure user is prompted to login every session
@@ -193,7 +194,7 @@ export default function App() {
                  className="group flex flex-col items-center transition-all cursor-pointer"
                >
                  <img 
-                   src="image.png" 
+                   src={SYSTEM_LOGO_URL} 
                    alt="Incident Guardian Logo" 
                    className="h-16 w-16 sm:h-24 sm:w-24 object-contain transition-transform group-hover:scale-105"
                  />

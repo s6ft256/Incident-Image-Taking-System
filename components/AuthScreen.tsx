@@ -15,6 +15,7 @@ interface AuthScreenProps {
 }
 
 const LAST_USER_KEY = 'hse_guardian_last_user';
+const SYSTEM_LOGO_URL = 'https://www.multiply-marketing.com/trojan-wp/wp-content/uploads/2020/08/tgc-logo-300x300.png';
 
 const AuthCard: React.FC<{ children: React.ReactNode, isLight: boolean }> = ({ children, isLight }) => (
   <div className={`relative w-full max-w-xs p-6 sm:p-8 rounded-[3rem] border backdrop-blur-sm transition-all duration-300 animate-in fade-in zoom-in-95 slide-in-from-bottom-4 z-20 overflow-hidden ${
@@ -169,7 +170,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
           <div className="flex flex-col items-center text-center relative z-10">
             <div className="relative mb-6">
               <div className="absolute inset-0 bg-blue-500/20 blur-2xl rounded-full"></div>
-              <img src="image.png" className="h-24 w-24 relative z-10 drop-shadow-2xl animate-pulse object-contain" alt="System Logo" />
+              <img src={SYSTEM_LOGO_URL} className="h-24 w-24 relative z-10 drop-shadow-2xl animate-pulse object-contain" alt="System Logo" />
             </div>
             <div className="space-y-2 mb-8">
               <h2 className={`text-4xl font-black tracking-tighter ${isLight ? 'text-slate-900' : 'text-white'}`}>HSE <span className="text-blue-500">Guardian</span></h2>
@@ -219,4 +220,28 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
                    <div className="flex items-start gap-3 px-1">
                       <input type="checkbox" id="privacyConsent" checked={privacyConsent} onChange={(e) => setPrivacyConsent(e.target.checked)} className="mt-0.5 w-4 h-4 rounded border-slate-700 bg-slate-900 text-blue-600 focus:ring-blue-500" />
                       <label htmlFor="privacyConsent" className={`text-[7px] font-black uppercase tracking-widest leading-relaxed ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
-                        I confirm that I have read and agree to the <button type="button" onClick={() => setShowComplianceModal(
+                        I confirm that I have read and agree to the <button type="button" onClick={() => setShowComplianceModal(true)} className="text-blue-500 underline decoration-blue-500/30">User Agreement & Privacy Policy</button>.
+                      </label>
+                   </div>
+                   <div className="flex items-start gap-3 px-1">
+                      <input type="checkbox" id="imageConsent" checked={imageConsent} onChange={(e) => setImageConsent(e.target.checked)} className="mt-0.5 w-4 h-4 rounded border-slate-700 bg-slate-900 text-blue-600 focus:ring-blue-500" />
+                      <label htmlFor="imageConsent" className={`text-[7px] font-black uppercase tracking-widest leading-relaxed ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+                        I authorize the secure upload and processing of incident-related photographic evidence.
+                      </label>
+                   </div>
+                </div>
+              )}
+
+              <button type="submit" disabled={isProcessing} className={`w-full font-black py-4 rounded-2xl shadow-xl transition-all active:scale-[0.98] uppercase tracking-widest text-[10px] border flex items-center justify-center gap-3 ${isLight ? 'bg-blue-600 text-white border-blue-400' : 'bg-white/10 border-white/10 text-white hover:bg-white/20'}`}>
+                {isProcessing ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : (mode === 'signup' ? 'Confirm Identity' : 'Establish Access')}
+              </button>
+            </form>
+          </div>
+          <CardBackgroundGlow />
+        </AuthCard>
+      )}
+
+      {showComplianceModal && <PolicyModal onClose={() => setShowComplianceModal(false)} initialTab="privacy" showAcceptButton onAccept={() => { setPrivacyConsent(true); setShowComplianceModal(false); }} appTheme={appTheme} />}
+    </div>
+  );
+};
