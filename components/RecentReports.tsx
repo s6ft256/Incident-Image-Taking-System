@@ -61,6 +61,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [reassigningId, setReassigningId] = useState<string | null>(null);
   const [assignmentSuccess, setAssignmentSuccess] = useState<string | null>(null);
+  const [localAssignee, setLocalAssignee] = useState<Record<string, string>>({});
 
   useEffect(() => {
     fetchReports();
@@ -98,14 +99,24 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
     }
   };
 
-  const toggleSelect = (id: string, e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
-    setSelectedIds(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+  const handleAssignToMember = async (reportId: string) => {
+    const assignee = localAssignee[reportId];
+    if (!assignee) return;
+
+    setReassigningId(reportId);
+    try {
+      await assignIncident(reportId, assignee, { baseId });
+      setAllReports(prev => prev.map(r => r.id === reportId ? {
+        ...r,
+        fields: { ...r.fields, "Assigned To": assignee }
+      } : r));
+      setAssignmentSuccess("Personnel successfully assigned to incident.");
+      setTimeout(() => setAssignmentSuccess(null), 3000);
+    } catch (err: any) {
+      setError(err.message || "Failed to update assignment.");
+    } finally {
+      setReassigningId(null);
+    }
   };
 
   const handleUnlockArchive = (e: React.FormEvent) => {
@@ -151,10 +162,13 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
   };
 
   const handleRowClick = (id: string) => {
+    const report = allReports.find(r => r.id === id);
+    if (report && !localAssignee[id]) {
+      setLocalAssignee(prev => ({ ...prev, [id]: report.fields["Assigned To"] || "" }));
+    }
     setExpandedId(expandedId === id ? null : id);
   };
 
-  // Image handling for closure
   const handleAddClosingImage = useCallback((reportId: string, e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
@@ -171,7 +185,6 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
         [reportId]: [...(prev[reportId] || []), newImage]
       }));
 
-      // Start upload immediately
       processClosingImageUpload(reportId, newImage);
       e.target.value = '';
     }
@@ -289,7 +302,6 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
     });
   }, [sortedReports, activeTab, isMyTasksMode, filterAssignee, searchTerm, filterType]);
 
-  // Tab Count Calculation Logic
   const tabCounts = useMemo(() => {
     const baseReports = filterType === 'All Types' 
       ? allReports 
@@ -312,6 +324,12 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
 
   return (
     <div className="animate-in slide-in-from-right duration-300 pb-24">
+      {assignmentSuccess && (
+        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[100] bg-emerald-600 text-white px-6 py-3 rounded-2xl shadow-2xl text-xs font-black uppercase tracking-widest animate-in slide-in-from-top-4">
+           {assignmentSuccess}
+        </div>
+      )}
+
       <div className="flex items-center mb-6">
         <button onClick={onBack} className={`mr-4 transition-colors ${isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-400 hover:text-white'}`}>
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
@@ -416,7 +434,6 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
 
                   {expandedId === report.id && (
                     <div className={`border-t p-6 space-y-8 animate-in slide-in-from-top-4 duration-300 ${isLight ? 'bg-slate-50/50' : 'bg-black/20'}`}>
-                      {/* Detailed View Content */}
                       <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
                         {[
                           { label: 'Reporter', val: report.fields["Name"] },
@@ -453,7 +470,6 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
                         <p className={`text-sm p-4 rounded-xl border ${isLight ? 'bg-white border-slate-200' : 'bg-slate-900 border-white/5 text-slate-300'}`}>{report.fields["Observation"]}</p>
                       </div>
 
-                      {/* Initial Observations Images */}
                       {report.fields["Open observations"] && report.fields["Open observations"].length > 0 && (
                         <div className="space-y-4">
                            <h4 className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Initial Evidence</h4>
@@ -467,7 +483,32 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
                         </div>
                       )}
 
-                      {/* Corrective Action Logic */}
+                      {/* Personnel Assignment Section */}
+                      {!report.fields["Action taken"]?.trim() && (
+                        <div className={`p-4 rounded-2xl border ${isLight ? 'bg-blue-50 border-blue-100' : 'bg-blue-500/5 border-blue-500/20'}`}>
+                           <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-4">Personnel Assignment</h4>
+                           <div className="flex flex-col sm:flex-row gap-3">
+                              <select 
+                                value={localAssignee[report.id] || ""}
+                                onChange={(e) => setLocalAssignee(prev => ({ ...prev, [report.id]: e.target.value }))}
+                                className={`flex-1 p-3 rounded-xl border outline-none text-xs font-bold ${isLight ? 'bg-white border-slate-200' : 'bg-slate-900 border-white/5 text-white'}`}
+                              >
+                                <option value="">Unassigned</option>
+                                {teamMembers.map(member => (
+                                  <option key={member} value={member}>{member}</option>
+                                ))}
+                              </select>
+                              <button 
+                                onClick={() => handleAssignToMember(report.id)}
+                                disabled={reassigningId === report.id || localAssignee[report.id] === report.fields["Assigned To"]}
+                                className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg disabled:opacity-50 transition-all"
+                              >
+                                {reassigningId === report.id ? 'Updating...' : 'Assign Personnel'}
+                              </button>
+                           </div>
+                        </div>
+                      )}
+
                       {!report.fields["Action taken"]?.trim() && (
                         <div className={`rounded-2xl p-6 border-2 ${isLight ? 'bg-white border-blue-500/20' : 'bg-slate-900 border-blue-500/20'}`}>
                           <h4 className="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-6">Remediation Control</h4>
