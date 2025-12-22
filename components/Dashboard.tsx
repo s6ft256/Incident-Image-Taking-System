@@ -3,6 +3,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { getAllReports } from '../services/airtableService';
 import { FetchedIncident, UserProfile } from '../types';
 import { WeatherWidget } from './WeatherWidget';
+import { LocationPrompt } from './LocationPrompt';
 import {
   AreaChart,
   Area,
@@ -73,6 +74,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
   const [reports, setReports] = useState<FetchedIncident[]>([]);
   const [loading, setLoading] = useState(true);
   const [userName, setUserName] = useState<string>('');
+  const [locationRefreshKey, setLocationRefreshKey] = useState(0);
 
   const isLight = appTheme === 'light';
 
@@ -196,7 +198,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
         </div>
       </div>
 
-      <WeatherWidget appTheme={appTheme} />
+      <LocationPrompt 
+        appTheme={appTheme} 
+        onPermissionGranted={() => setLocationRefreshKey(prev => prev + 1)} 
+      />
+
+      <WeatherWidget key={locationRefreshKey} appTheme={appTheme} />
 
       {loading ? (
         <div className="flex flex-col items-center justify-center py-16 gap-4">

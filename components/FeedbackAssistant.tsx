@@ -6,7 +6,7 @@ interface FeedbackAssistantProps {
   userName?: string;
 }
 
-const DEV_PHOTO_URL = 'https://raw.githubusercontent.com/s6ft256/Incident-Image-Taking-System/main/Dev1.jpeg';
+const DEV_PHOTO_URL = 'https://www.cyberark.com/wp-content/uploads/2019/11/Developer.jpg';
 
 export const FeedbackAssistant: React.FC<FeedbackAssistantProps> = ({ appTheme = 'dark', userName = '' }) => {
   const [isOpen, setIsOpen] = useState(false);
