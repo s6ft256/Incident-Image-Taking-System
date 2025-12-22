@@ -1,13 +1,12 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { IncidentForm, UploadedImage, UserProfile } from '../types';
-import { MIN_IMAGES } from '../constants';
+import { MIN_IMAGES, STORAGE_KEYS } from '../constants';
 import { submitIncidentReport } from '../services/airtableService';
 import { uploadImageToStorage } from '../services/storageService';
 import { compressImage } from '../utils/imageCompression';
 import { saveOfflineReport } from '../services/offlineStorage';
-
-const PROFILE_KEY = 'hse_guardian_profile';
+import { getAddress } from '../services/weatherService';
 
 export type SubmitStatus = 'idle' | 'success' | 'error' | 'offline-saved';
 
@@ -32,7 +31,7 @@ export const useIncidentReport = (baseId: string) => {
   const [isLocating, setIsLocating] = useState(false);
 
   useEffect(() => {
-    const savedProfile = localStorage.getItem(PROFILE_KEY);
+    const savedProfile = localStorage.getItem(STORAGE_KEYS.PROFILE);
     if (savedProfile) {
       try {
         const profile: UserProfile = JSON.parse(savedProfile);
@@ -88,25 +87,27 @@ export const useIncidentReport = (baseId: string) => {
     setErrorMessage('');
 
     navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const { latitude, longitude, accuracy } = position.coords;
-        const locationStr = `${latitude.toFixed(7)}, ${longitude.toFixed(7)}`;
-        console.debug(`GPS Signal Acquired: Accuracy within ${accuracy} meters.`);
-        setFormData(prev => ({ ...prev, location: locationStr }));
-        setIsLocating(false);
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        try {
+          const address = await getAddress(latitude, longitude);
+          const locationStr = `${address} (${latitude.toFixed(6)}, ${longitude.toFixed(6)})`;
+          setFormData(prev => ({ ...prev, location: locationStr }));
+        } catch (e) {
+          const fallbackStr = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+          setFormData(prev => ({ ...prev, location: fallbackStr }));
+        } finally {
+          setIsLocating(false);
+        }
       },
       (error) => {
         let msg = "GPS Signal Denied. Check browser permissions.";
-        if (error.code === error.TIMEOUT) msg = "GPS Signal Search Timed Out. Try moving to an open area.";
+        if (error.code === error.TIMEOUT) msg = "GPS Signal Search Timed Out.";
         else if (error.code === error.POSITION_UNAVAILABLE) msg = "GPS Satellite Link Unavailable.";
         setErrorMessage(msg);
         setIsLocating(false);
       },
-      { 
-        enableHighAccuracy: true, // Use GPS hardware
-        timeout: 20000,           // More time for precise fix
-        maximumAge: 0            // No cached locations
-      }
+      { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
     );
   }, []);
 
@@ -127,13 +128,10 @@ export const useIncidentReport = (baseId: string) => {
 
   const handleRemoveImage = useCallback((id: string) => {
     setImages(prev => {
-      const imageToRemove = prev.find(img => img.id === id);
-      if (imageToRemove) {
-        URL.revokeObjectURL(imageToRemove.previewUrl);
-      }
+      const imageToRemove = prev.find(img => id === img.id);
+      if (imageToRemove) URL.revokeObjectURL(imageToRemove.previewUrl);
       return prev.filter(img => img.id !== id);
     });
-    setErrorMessage(prev => prev.includes("Evidence Required") ? '' : prev);
   }, []);
 
   const processImageUpload = useCallback(async (img: UploadedImage): Promise<string> => {
@@ -157,7 +155,7 @@ export const useIncidentReport = (baseId: string) => {
       setImages(prev => prev.map(i => 
         i.id === imageId ? { ...i, status: 'error', progress: 0, errorMessage: friendlyError } : i
       ));
-      throw new Error(`Evidence upload failed for "${file.name}": ${friendlyError}`);
+      throw new Error(`Evidence upload failed: ${friendlyError}`);
     }
   }, []);
 
@@ -176,16 +174,13 @@ export const useIncidentReport = (baseId: string) => {
     }
     
     if (Object.keys(validationErrors).length > 0) {
-      setErrorMessage("Report Validation Failed: Please complete all mandatory fields correctly."); 
+      setErrorMessage("Report Validation Failed."); 
       setSubmitStatus('error'); 
       return;
     }
     
-    const successfulImages = images.filter(img => img.status === 'success');
-    const pendingOrErrorImages = images.filter(img => img.status !== 'success');
-
     if (images.length < MIN_IMAGES) {
-      setErrorMessage(`Evidence Required: Please capture/upload at least ${MIN_IMAGES} evidence photo(s).`); 
+      setErrorMessage(`Evidence Required: At least ${MIN_IMAGES} photo(s).`); 
       setSubmitStatus('error'); 
       return;
     }
@@ -204,40 +199,33 @@ export const useIncidentReport = (baseId: string) => {
 
     setIsSubmitting(true);
     try {
+      const successfulImages = images.filter(img => img.status === 'success');
+      const pendingOrErrorImages = images.filter(img => img.status !== 'success');
+
       const existingAttachments = successfulImages.map(img => ({ url: img.serverUrl!, filename: img.file.name }));
       const uploadResults = await Promise.allSettled(pendingOrErrorImages.map(img => processImageUpload(img)));
       
       const newAttachments: { url: string; filename: string }[] = [];
-      const failedImageNames: string[] = [];
-
       uploadResults.forEach((res, idx) => {
         if (res.status === 'fulfilled') {
           newAttachments.push({ 
             url: (res as PromiseFulfilledResult<string>).value, 
             filename: pendingOrErrorImages[idx].file.name 
           });
-        } else {
-          failedImageNames.push(pendingOrErrorImages[idx].file.name);
         }
       });
 
       const totalAttachments = [...existingAttachments, ...newAttachments];
 
       if (totalAttachments.length === 0) {
-        throw new Error("Critical Failure: No evidence could be uploaded. Check network connection.");
-      }
-
-      if (failedImageNames.length > 0) {
-        const warning = `Partial Success: Report submitted with ${totalAttachments.length} images. ${failedImageNames.length} image(s) failed.`;
-        setErrorMessage(warning);
+        throw new Error("Critical Failure: Evidence upload failed.");
       }
 
       await submitIncidentReport(formData, totalAttachments, { baseId });
       setSubmitStatus('success');
     } catch (error: any) {
-      console.error("Submission failure:", error);
       setSubmitStatus('error');
-      setErrorMessage(error.message || "Transmission interrupted. Please retry.");
+      setErrorMessage(error.message || "Transmission interrupted.");
     } finally { 
       setIsSubmitting(false); 
     }
@@ -263,6 +251,7 @@ export const useIncidentReport = (baseId: string) => {
       if (img) processImageUpload(img);
     },
     handleSubmit,
+    setFormData,
     resetStatus: () => {
       setSubmitStatus('idle');
       setErrorMessage('');

@@ -7,7 +7,24 @@ export interface WeatherData {
   isDay: boolean;
   windSpeed: number;
   humidity: number;
+  preciseLocation?: string;
 }
+
+/**
+ * Reverse geocodes coordinates to a human-readable address.
+ */
+export const getAddress = async (lat: number, lon: number): Promise<string> => {
+  try {
+    const geoUrl = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`;
+    const geoRes = await fetch(geoUrl, {
+      headers: { 'Accept-Language': 'en', 'User-Agent': 'HSE-Guardian-App' }
+    });
+    const geoJson = await geoRes.json();
+    return geoJson.display_name || "Unknown Site";
+  } catch (e) {
+    return `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
+  }
+};
 
 /**
  * Fetches current weather using Open-Meteo (No API key required)
@@ -21,8 +38,7 @@ export const getLocalWeather = async (): Promise<WeatherData> => {
     }
 
     navigator.geolocation.getCurrentPosition(async (position) => {
-      const { latitude, longitude, accuracy } = position.coords;
-      console.debug(`Weather Sync: Lat ${latitude}, Lon ${longitude} (Accuracy: ${accuracy}m)`);
+      const { latitude, longitude } = position.coords;
 
       try {
         // 1. Fetch Weather Data
@@ -30,13 +46,17 @@ export const getLocalWeather = async (): Promise<WeatherData> => {
         const weatherRes = await fetch(weatherUrl);
         const weatherJson = await weatherRes.json();
 
-        // 2. Fetch City Name (Reverse Geocoding)
+        // 2. Fetch Detailed Address Info
         const geoUrl = `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`;
         const geoRes = await fetch(geoUrl, {
-          headers: { 'Accept-Language': 'en' }
+          headers: { 'Accept-Language': 'en', 'User-Agent': 'HSE-Guardian-App' }
         });
         const geoJson = await geoRes.json();
-        const city = geoJson.address.city || geoJson.address.town || geoJson.address.village || geoJson.address.suburb || "Current Site";
+        
+        // Extract specific road/suburb for precision
+        const addr = geoJson.address;
+        const locationName = addr.road || addr.suburb || addr.neighbourhood || addr.industrial || addr.city || "Current Site";
+        const fullAddr = geoJson.display_name;
 
         const current = weatherJson.current;
         
@@ -44,7 +64,8 @@ export const getLocalWeather = async (): Promise<WeatherData> => {
           temp: Math.round(current.temperature_2m),
           condition: getWeatherDescription(current.weather_code),
           conditionCode: current.weather_code,
-          city: city,
+          city: locationName,
+          preciseLocation: fullAddr,
           isDay: current.is_day === 1,
           windSpeed: current.wind_speed_10m,
           humidity: current.relative_humidity_2m

@@ -36,7 +36,7 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({ appTheme = 'dark' 
       }`}>
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-full border-2 border-blue-500/20 border-t-blue-500 animate-spin"></div>
-          <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Acquiring High-Precision GPS...</span>
+          <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Establishing High-Precision Link...</span>
         </div>
       </div>
     );
@@ -54,15 +54,15 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({ appTheme = 'dark' 
             </svg>
           </div>
           <div>
-            <h4 className="text-[10px] font-black uppercase tracking-widest text-rose-500">Location Protocol Blocked</h4>
-            <p className="text-[8px] font-bold text-rose-400 uppercase tracking-tighter mt-0.5">{error || "Exact Site Sync Required"}</p>
+            <h4 className="text-[10px] font-black uppercase tracking-widest text-rose-500">Precise Site Sync Failed</h4>
+            <p className="text-[8px] font-bold text-rose-400 uppercase tracking-tighter mt-0.5">{error || "Exact GPS Link Required"}</p>
           </div>
         </div>
         <button 
           onClick={fetchWeather}
           className="px-4 py-3 bg-rose-600 hover:bg-rose-500 text-white text-[9px] font-black uppercase tracking-widest rounded-xl transition-all active:scale-95 shadow-lg border border-rose-400/30"
         >
-          Synchronize GPS
+          Retry Precision Sync
         </button>
       </div>
     );
@@ -90,21 +90,21 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({ appTheme = 'dark' 
         )}
       </div>
 
-      <div className="flex-1 ml-5 sm:ml-6 flex items-center justify-between">
-        <div className="text-left">
+      <div className="flex-1 ml-5 sm:ml-6 flex items-center justify-between overflow-hidden">
+        <div className="text-left overflow-hidden">
           <div className="flex items-baseline gap-2">
             <h3 className={`text-2xl sm:text-3xl font-black tracking-tighter leading-none ${isLight ? 'text-slate-900' : 'text-white'}`}>
               {weather.temp}°C
             </h3>
-            <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest">{weather.condition}</span>
+            <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest truncate">{weather.condition}</span>
           </div>
-          <p className={`text-[9px] font-black uppercase tracking-[0.2em] mt-1 flex items-center gap-1.5 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-            <svg className="w-2.5 h-2.5 text-blue-500" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
-            {weather.city}
+          <p className={`text-[9px] font-black uppercase tracking-[0.2em] mt-1 flex items-center gap-1.5 truncate ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+            <svg className="w-2.5 h-2.5 text-blue-500 shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+            <span className="truncate">{weather.city}</span>
           </p>
         </div>
 
-        <div className={`hidden sm:flex flex-col items-end border-l pl-6 ${isLight ? 'border-slate-100' : 'border-white/5'}`}>
+        <div className={`hidden sm:flex flex-col items-end border-l pl-6 shrink-0 ${isLight ? 'border-slate-100' : 'border-white/5'}`}>
           <div className="flex gap-4">
             <div className="text-right">
               <span className="block text-[8px] font-black text-slate-500 uppercase tracking-tighter">Humidity</span>

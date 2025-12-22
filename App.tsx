@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { AIRTABLE_CONFIG, SAFETY_QUOTES } from './constants';
+import { AIRTABLE_CONFIG, SAFETY_QUOTES, STORAGE_KEYS, SYSTEM_LOGO_URL } from './constants';
 import { CreateReportForm } from './components/CreateReportForm';
 import { RecentReports } from './components/RecentReports';
 import { Dashboard } from './components/Dashboard';
@@ -13,14 +13,10 @@ import { PolicyModal, PolicyTab } from './components/PolicyModal';
 import { CookieBanner } from './components/CookieBanner';
 import { syncOfflineReports } from './services/syncService';
 import { UserProfile as UserProfileType } from './types';
-import { requestNotificationPermission } from './services/notificationService';
+import { requestNotificationPermission, sendNotification } from './services/notificationService';
+import { getAssignedCriticalIncidents } from './services/airtableService';
 
 type ViewState = 'dashboard' | 'create' | 'recent' | 'auth' | 'my-tasks';
-
-const PROFILE_KEY = 'hse_guardian_profile';
-const THEME_KEY = 'hse_guardian_theme';
-const TUTORIAL_KEY = 'hse_guardian_tutorial_seen';
-const SYSTEM_LOGO_URL = 'https://procurement.trojanholding.ae/Styles/Images/TCG.PNG';
 
 export default function App() {
   const [view, setView] = useState<ViewState>('auth');
@@ -29,7 +25,7 @@ export default function App() {
   const [policyInitialTab, setPolicyInitialTab] = useState<PolicyTab>('environmental');
   const [showTutorial, setShowTutorial] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
-  const [baseId, setBaseId] = useState(AIRTABLE_CONFIG.BASE_ID);
+  const [baseId] = useState(AIRTABLE_CONFIG.BASE_ID);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [syncCount, setSyncCount] = useState(0);
   const [quote, setQuote] = useState('');
@@ -42,9 +38,10 @@ export default function App() {
   const lastScrollY = useRef(0);
   const menuRef = useRef<HTMLDivElement>(null);
   const profileCardRef = useRef<HTMLDivElement>(null);
+  const lastKnownIncidentIds = useRef<Set<string>>(new Set());
 
   const loadProfile = () => {
-    const saved = localStorage.getItem(PROFILE_KEY);
+    const saved = localStorage.getItem(STORAGE_KEYS.PROFILE);
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
@@ -67,6 +64,46 @@ export default function App() {
     }
   };
 
+  // Background Alert Monitor (Simulated Push)
+  useEffect(() => {
+    if (!userProfile?.name || !isOnline) return;
+
+    const monitorCriticalTasks = async () => {
+      try {
+        const criticalTasks = await getAssignedCriticalIncidents(userProfile.name, { baseId });
+        let newFound = false;
+        
+        criticalTasks.forEach(task => {
+          if (!lastKnownIncidentIds.current.has(task.id)) {
+            newFound = true;
+            lastKnownIncidentIds.current.add(task.id);
+            sendNotification(
+              "CRITICAL HAZARD ASSIGNED", 
+              `Alert: ${task.fields["Incident Type"]} at ${task.fields["Site / Location"]} requires immediate action.`,
+              true
+            );
+          }
+        });
+
+        // Cleanup set: remove IDs that are no longer in the critical list (e.g. they were closed)
+        const currentIds = new Set(criticalTasks.map(t => t.id));
+        lastKnownIncidentIds.current.forEach(id => {
+           if (!currentIds.has(id)) lastKnownIncidentIds.current.delete(id);
+        });
+
+      } catch (e) {
+        console.error("Critical Monitor Link Error:", e);
+      }
+    };
+
+    // Immediate check on login
+    monitorCriticalTasks();
+
+    // Poll every 2 minutes for updates
+    const interval = setInterval(monitorCriticalTasks, 120000);
+    return () => clearInterval(interval);
+  }, [userProfile?.name, isOnline, baseId]);
+
   useEffect(() => {
     setQuote(SAFETY_QUOTES[Math.floor(Math.random() * SAFETY_QUOTES.length)]);
     const profile = loadProfile();
@@ -81,7 +118,7 @@ export default function App() {
         setView('auth');
       }
 
-      const tutorialSeen = localStorage.getItem(TUTORIAL_KEY);
+      const tutorialSeen = localStorage.getItem(STORAGE_KEYS.TUTORIAL_SEEN);
       if (!tutorialSeen) {
         setShowTutorial(true);
       }
@@ -90,7 +127,7 @@ export default function App() {
     requestNotificationPermission();
     setIsInitialized(true);
 
-    const savedTheme = localStorage.getItem(THEME_KEY) as 'dark' | 'light';
+    const savedTheme = localStorage.getItem(STORAGE_KEYS.THEME) as 'dark' | 'light';
     if (savedTheme) {
       setAppTheme(savedTheme);
       applyTheme(savedTheme);
@@ -121,12 +158,8 @@ export default function App() {
     };
 
     const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setIsMenuOpen(false);
-      }
-      if (profileCardRef.current && !profileCardRef.current.contains(event.target as Node)) {
-        setShowProfileCard(false);
-      }
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) setIsMenuOpen(false);
+      if (profileCardRef.current && !profileCardRef.current.contains(event.target as Node)) setShowProfileCard(false);
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
@@ -155,18 +188,15 @@ export default function App() {
             setSyncCount(count);
             setTimeout(() => setSyncCount(0), 5000);
         }
-    } catch (e) {
-        console.error("Auto-sync failed", e);
-    }
+    } catch (e) { console.error("Auto-sync failed", e); }
   };
 
   const handleAuthComplete = (profile: UserProfileType) => {
-    localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+    localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(profile));
     setUserProfile(profile);
     setView('dashboard');
     setIsLocked(false);
-    const tutorialSeen = localStorage.getItem(TUTORIAL_KEY);
-    if (!tutorialSeen) setShowTutorial(true);
+    if (!localStorage.getItem(STORAGE_KEYS.TUTORIAL_SEEN)) setShowTutorial(true);
     requestNotificationPermission();
   };
 
@@ -188,168 +218,60 @@ export default function App() {
   if (!isInitialized) return null;
 
   return (
-    <div className={`min-h-screen transition-colors duration-300 main-app-container relative selection:bg-blue-500/30 overflow-x-hidden flex flex-col ${appTheme === 'dark' ? 'bg-[#020617]' : 'bg-white'}`}>
-      {appTheme === 'dark' && <div className="absolute inset-0 bg-gradient-to-b from-slate-950/70 via-slate-950/50 to-slate-950/70 z-0 pointer-events-none"></div>}
-
+    <div className={`min-h-screen transition-colors duration-300 relative selection:bg-blue-500/30 overflow-x-hidden flex flex-col ${appTheme === 'dark' ? 'bg-[#020617]' : 'bg-white'}`}>
       <div className="relative z-10 flex flex-col flex-grow">
-        <header className={`sticky top-0 z-40 backdrop-blur-2xl border-b transition-all duration-300 ${appTheme === 'dark' ? 'bg-[#020617]/90 border-white/5 shadow-[0_4px_30px_rgba(0,0,0,0.5)]' : 'bg-white border-slate-200 shadow-sm'} ${view === 'auth' ? 'hidden' : ''}`}>
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6 flex items-center justify-between gap-2 sm:gap-4">
+        <header className={`sticky top-0 z-40 backdrop-blur-2xl border-b transition-all duration-300 ${appTheme === 'dark' ? 'bg-[#020617]/90 border-white/5 shadow-xl' : 'bg-white border-slate-200 shadow-sm'} ${view === 'auth' ? 'hidden' : ''}`}>
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2 flex items-center justify-between gap-4">
              <div className="flex-1 flex justify-start">
-               <div 
-                 onClick={() => setView('dashboard')}
-                 className="group flex flex-col items-center transition-all cursor-pointer"
-               >
+               <div onClick={() => setView('dashboard')} className="group cursor-pointer">
                  <img 
                    src={SYSTEM_LOGO_URL} 
-                   alt="Incident Guardian Logo" 
-                   className="h-16 w-16 sm:h-24 sm:w-24 object-contain transition-transform group-hover:scale-105"
+                   alt="Logo" 
+                   className="h-16 sm:h-24 w-auto object-contain drop-shadow-2xl transition-all duration-500 group-hover:scale-110 origin-left" 
                  />
                </div>
              </div>
-
-             <div className="flex flex-[2] flex-col items-center text-center">
-               <div className="flex flex-col items-center">
-                 <h1 className="text-3xl sm:text-7xl font-black tracking-tighter cursor-pointer" onClick={() => setView('dashboard')}>
-                   <span className={appTheme === 'dark' ? 'text-white' : 'text-slate-900'}>HSE</span> <span className="text-blue-500">Guardian</span>
-                 </h1>
-                 <div className="h-1.5 w-full bg-red-600 rounded-full shadow-[0_0_15px_rgba(220,38,38,1)] mt-2 sm:mt-3"></div>
-               </div>
+             <div className="flex flex-[2] flex-col items-center">
+               <h1 className="text-2xl sm:text-4xl font-black tracking-tighter" onClick={() => setView('dashboard')}>
+                 <span className={appTheme === 'dark' ? 'text-white' : 'text-slate-900'}>HSE</span> <span className="text-blue-500">Guardian</span>
+               </h1>
              </div>
-             
              <div className="flex-1 flex justify-end items-center relative" ref={profileCardRef}>
-               <div 
-                onClick={() => setShowProfileCard(!showProfileCard)}
-                className={`group flex flex-col items-center transition-all cursor-pointer ${showProfileCard ? 'scale-105' : ''}`}
-               >
-                  <div className={`w-16 h-16 sm:w-28 sm:h-28 rounded-full transition-all overflow-hidden flex items-center justify-center ${showProfileCard ? 'ring-4 ring-blue-500/50' : ''}`}>
-                    {userProfile?.profileImageUrl ? (
-                      <img src={userProfile.profileImageUrl} alt="User" className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-blue-600 text-white font-black text-xl uppercase">
-                        {userProfile?.name?.charAt(0) || 'H'}
-                      </div>
-                    )}
+               <div onClick={() => setShowProfileCard(!showProfileCard)} className="cursor-pointer group">
+                  <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full overflow-hidden border-2 ${showProfileCard ? 'border-blue-500' : 'border-slate-700'}`}>
+                    {userProfile?.profileImageUrl ? <img src={userProfile.profileImageUrl} alt="User" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center bg-blue-600 text-white font-black">{userProfile?.name?.charAt(0)}</div>}
                   </div>
-                  <span className={`text-[9px] sm:text-[11px] font-black uppercase tracking-[0.2em] mt-2 ${appTheme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
-                    {userProfile?.name?.split(' ')[0] || 'Profile'}
-                  </span>
                </div>
-               
-               {showProfileCard && (
-                 <div className="absolute top-full right-0 mt-4 w-80 z-50 animate-in fade-in slide-in-from-top-2">
-                   <UserProfile onBack={() => setShowProfileCard(false)} baseId={baseId} />
-                 </div>
-               )}
+               {showProfileCard && <div className="absolute top-full right-0 mt-4 w-72 z-50"><UserProfile onBack={() => setShowProfileCard(false)} baseId={baseId} /></div>}
              </div>
           </div>
         </header>
-
-        <main className="flex-grow max-w-7xl mx-auto px-4 sm:px-6 py-8 w-full">
-          {renderContent()}
-        </main>
-
-        <footer className={`py-8 px-4 border-t text-center ${appTheme === 'dark' ? 'bg-slate-950/30 border-white/5' : 'bg-slate-50 border-slate-100'}`}>
-          <div className="max-w-7xl mx-auto flex flex-col items-center gap-4">
-            <div className={`px-6 py-3 rounded-full border-2 border-red-600/60 bg-red-600/5 text-[10px] font-black uppercase tracking-[0.3em] text-red-500 shadow-[0_0_15px_rgba(220,38,38,0.3)]`}>
-              "{quote}"
-            </div>
-            <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest">© ELIUS 2025 • SAFETY FIRST</p>
+        <main className="flex-grow max-w-7xl mx-auto px-4 sm:px-6 py-6 w-full">{renderContent()}</main>
+        <footer className={`py-6 px-4 border-t text-center ${appTheme === 'dark' ? 'bg-slate-950/30 border-white/5' : 'bg-slate-50 border-slate-100'}`}>
+          <div className="max-w-7xl mx-auto flex flex-col items-center gap-2">
+            <div className="px-4 py-2 rounded-full border border-red-600/40 text-[9px] font-black uppercase text-red-500 italic">"{quote}"</div>
+            <p className="text-[8px] font-black text-slate-600 uppercase">© ELIUS 2025 • SAFETY FIRST</p>
           </div>
         </footer>
       </div>
-
       {view !== 'auth' && (
-        <div 
-          ref={menuRef}
-          className={`fixed bottom-6 right-6 z-50 flex flex-row-reverse items-center gap-3 transition-transform duration-500 ${isFabVisible ? 'translate-y-0 opacity-100' : 'translate-y-24 opacity-0'}`}
-        >
-          <button
-            onClick={() => setIsMenuOpen(!isMenuOpen)}
-            className={`w-11 h-11 sm:w-12 sm:h-12 rounded-full shadow-2xl transition-all duration-150 flex items-center justify-center group pointer-events-auto border-2 shrink-0 active:scale-90 ${
-              isMenuOpen 
-                ? 'bg-rose-600 border-rose-400 rotate-90 text-white' 
-                : `${appTheme === 'dark' ? 'bg-blue-600/90 border-blue-400 backdrop-blur-md' : 'bg-blue-600 border-blue-400 shadow-blue-500/40'} text-white`
-            }`}
-          >
-            {isMenuOpen ? (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5">
-                <path d="M18 6L6 18M6 6l12 12" />
-              </svg>
-            ) : (
-              <div className="flex flex-col gap-0.5 items-center">
-                <div className="w-1 h-1 bg-current rounded-full"></div>
-                <div className="w-1 h-1 bg-current rounded-full"></div>
-                <div className="w-1 h-1 bg-current rounded-full"></div>
-              </div>
-            )}
-            
-            {!isMenuOpen && syncCount > 0 && (
-              <span className="absolute -top-1 -right-1 flex h-4 w-4">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-4 w-4 bg-red-500 text-[8px] font-bold text-white items-center justify-center border border-white">
-                  !
-                </span>
-              </span>
-            )}
+        <div ref={menuRef} className={`fixed bottom-6 right-6 z-50 flex flex-row-reverse items-center gap-3 transition-opacity ${isFabVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+          <button onClick={() => setIsMenuOpen(!isMenuOpen)} className={`w-12 h-12 rounded-full shadow-2xl flex items-center justify-center border-2 transition-transform ${isMenuOpen ? 'bg-rose-600 border-rose-400 rotate-90' : 'bg-blue-600 border-blue-400'} text-white`}>
+            {isMenuOpen ? <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M18 6L6 18M6 6l12 12" /></svg> : <div className="flex flex-col gap-0.5"><div className="w-1 h-1 bg-current rounded-full" /><div className="w-1 h-1 bg-current rounded-full" /><div className="w-1 h-1 bg-current rounded-full" /></div>}
           </button>
-
-          <div className={`flex flex-row-reverse items-center gap-3 transition-all duration-200 origin-right ${isMenuOpen ? 'scale-100 opacity-100 translate-x-0' : 'scale-75 opacity-0 pointer-events-none translate-x-8'}`}>
-            <div className="flex flex-col items-center gap-1 group">
-              <span className={`px-2 py-0.5 rounded-md text-[7px] font-black uppercase tracking-widest border shadow-sm transition-all duration-300 ${isMenuOpen ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'} ${appTheme === 'dark' ? 'bg-slate-800 border-white/10 text-slate-400' : 'bg-white border-slate-200 text-slate-500'}`}>Feed</span>
-              <div className="pointer-events-auto">
-                <FeedbackAssistant appTheme={appTheme} userName={userProfile?.name} />
-              </div>
-            </div>
-
-            <div className="flex flex-col items-center gap-1 group">
-              <span className={`px-2 py-0.5 rounded-md text-[7px] font-black uppercase tracking-widest border shadow-sm transition-all duration-300 ${isMenuOpen ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'} ${appTheme === 'dark' ? 'bg-slate-800 border-white/10 text-slate-400' : 'bg-white border-slate-200 text-slate-500'}`}>Policies</span>
-              <button 
-                onClick={() => { setPolicyInitialTab('environmental'); setShowPolicy(true); setIsMenuOpen(false); }}
-                className={`w-11 h-11 sm:w-12 sm:h-12 rounded-full border shadow-2xl hover:scale-105 active:scale-90 transition-all flex items-center justify-center p-0 overflow-hidden ${
-                  appTheme === 'dark' 
-                    ? 'bg-gradient-to-tr from-slate-800 to-slate-700 border-white/10 text-white' 
-                    : 'bg-white border-slate-200 text-slate-700 shadow-slate-200 shadow-lg'
-                }`}
-              >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                   <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                   <path d="M9 12l2 2 4-4" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </button>
-            </div>
+          <div className={`flex flex-row-reverse gap-3 transition-all ${isMenuOpen ? 'scale-100 opacity-100' : 'scale-75 opacity-0 pointer-events-none'}`}>
+            <FeedbackAssistant appTheme={appTheme} userName={userProfile?.name} />
+            <button onClick={() => { setPolicyInitialTab('environmental'); setShowPolicy(true); setIsMenuOpen(false); }} className={`w-12 h-12 rounded-full border shadow-xl flex items-center justify-center ${appTheme === 'dark' ? 'bg-slate-800 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-700'}`}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><path d="M9 12l2 2 4-4" /></svg>
+            </button>
           </div>
         </div>
       )}
-
-      {showTutorial && <TutorialModal onClose={() => {
-        localStorage.setItem(TUTORIAL_KEY, 'true');
-        setShowTutorial(false);
-      }} appTheme={appTheme} />}
-      
-      {isLocked && userProfile && (
-        <BiometricLockModal 
-          profile={userProfile} 
-          onUnlock={() => setIsLocked(false)} 
-          onSwitchAccount={() => {
-            localStorage.removeItem(PROFILE_KEY);
-            window.location.reload();
-          }} 
-          appTheme={appTheme}
-        />
-      )}
-
+      {showTutorial && <TutorialModal onClose={() => { localStorage.setItem(STORAGE_KEYS.TUTORIAL_SEEN, 'true'); setShowTutorial(false); }} appTheme={appTheme} />}
+      {isLocked && userProfile && <BiometricLockModal profile={userProfile} onUnlock={() => setIsLocked(false)} onSwitchAccount={() => { localStorage.removeItem(STORAGE_KEYS.PROFILE); window.location.reload(); }} appTheme={appTheme} />}
       {showPolicy && <PolicyModal onClose={() => setShowPolicy(false)} appTheme={appTheme} initialTab={policyInitialTab} />}
-
       <CookieBanner appTheme={appTheme} onViewDetails={handleOpenCookiePolicy} />
-
-      {syncCount > 0 && (
-        <div className="fixed bottom-32 right-6 z-50 animate-in slide-in-from-bottom-10">
-          <div className="bg-blue-600 text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 border border-blue-400/30">
-            <div className="w-2 h-2 bg-white rounded-full animate-ping"></div>
-            <span className="text-[10px] font-black uppercase tracking-widest">{syncCount} Reports Synced</span>
-          </div>
-        </div>
-      )}
+      {syncCount > 0 && <div className="fixed bottom-24 right-6 z-50 bg-blue-600 text-white px-4 py-2 rounded-xl shadow-2xl text-[10px] font-black uppercase tracking-widest">{syncCount} Synced</div>}
     </div>
   );
 }

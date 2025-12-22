@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { InputField } from './InputField';
 import { ImageGrid } from './ImageGrid';
 import { INCIDENT_TYPES, ROLES, SITES, MIN_IMAGES } from '../constants';
@@ -7,6 +7,7 @@ import { useIncidentReport } from '../hooks/useIncidentReport';
 import { getAllProfiles } from '../services/profileService';
 import { UserProfile } from '../types';
 import { sendNotification } from '../services/notificationService';
+import { GoogleGenAI } from "@google/genai";
 
 interface CreateReportFormProps {
   baseId: string;
@@ -32,10 +33,13 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
     handleRemoveImage,
     handleRetry,
     handleSubmit,
-    resetStatus
+    resetStatus,
+    setFormData
   } = useIncidentReport(baseId);
 
   const [teamMembers, setTeamMembers] = useState<string[]>([]);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [aiSuggestion, setAiSuggestion] = useState<string | null>(null);
   const isLight = appTheme === 'light';
 
   useEffect(() => {
@@ -49,6 +53,41 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
     };
     fetchTeam();
   }, []);
+
+  // AI Analysis Logic
+  const analyzeHazard = useCallback(async () => {
+    if (!formData.observation || formData.observation.length < 15 || !isOnline) return;
+    
+    setIsAnalyzing(true);
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const response = await ai.models.generateContent({
+        model: 'gemini-3-flash-preview',
+        contents: `Analyze this safety observation: "${formData.observation}". 
+        Return ONLY a JSON object with: 
+        1. "category": One of [${INCIDENT_TYPES.join(', ')}]
+        2. "recommendation": A short (10 words) corrective action.
+        3. "severity": "Low", "Medium", or "High"`,
+        config: { responseMimeType: "application/json" }
+      });
+
+      const result = JSON.parse(response.text || '{}');
+      if (result.category && INCIDENT_TYPES.includes(result.category)) {
+        setFormData(prev => ({ ...prev, category: result.category }));
+        setAiSuggestion(result.recommendation);
+      }
+    } catch (e) {
+      console.error("AI Analysis failed", e);
+    } finally {
+      setIsAnalyzing(false);
+    }
+  }, [formData.observation, isOnline, setFormData]);
+
+  // Debounced AI call
+  useEffect(() => {
+    const timer = setTimeout(analyzeHazard, 1500);
+    return () => clearTimeout(timer);
+  }, [formData.observation, analyzeHazard]);
 
   // Trigger Notification on Success
   useEffect(() => {
@@ -107,82 +146,40 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className={`${isLight ? 'bg-white border-slate-200' : 'bg-white/5 border-white/10'} backdrop-blur-xl rounded-[2rem] border p-8 space-y-6 shadow-2xl`}>
           <h2 className={`text-[10px] font-black ${isLight ? 'text-slate-400 border-slate-100' : 'text-slate-500 border-white/5'} uppercase tracking-widest border-b pb-4`}>Observer Identification</h2>
+          
           <InputField 
-            id="name" 
-            label="Full Name" 
-            value={formData.name} 
+            id="observation" 
+            label="Detailed Description" 
+            value={formData.observation} 
             onChange={handleInputChange} 
             onBlur={handleBlur}
-            error={validationErrors.name}
-            touched={touched.name}
+            error={validationErrors.observation}
+            touched={touched.observation}
+            type="textarea" 
+            rows={4} 
+            placeholder="Describe the findings and immediate hazards..." 
             required 
-            placeholder="Your Name" 
           />
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <InputField 
-              id="role" 
-              label="Current Role" 
-              value={formData.role} 
-              onChange={handleInputChange} 
-              onBlur={handleBlur}
-              error={validationErrors.role}
-              touched={touched.role}
-              required 
-              list={ROLES} 
-            />
-            <div className="space-y-2">
-              <InputField 
-                id="site" 
-                label="Work Location" 
-                value={formData.site} 
-                onChange={handleInputChange} 
-                onBlur={handleBlur}
-                error={validationErrors.site}
-                touched={touched.site}
-                required 
-                list={SITES} 
-              />
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center gap-3">
-                  <div className="flex-1">
-                    <InputField 
-                      id="location" 
-                      label="Precise Coordinates (GPS)" 
-                      value={formData.location || ''} 
-                      onChange={handleInputChange} 
-                      placeholder="Lat, Long"
-                      autoComplete="off"
-                    />
-                  </div>
-                  <button 
-                    type="button"
-                    onClick={fetchCurrentLocation}
-                    disabled={isLocating}
-                    className={`mt-6 p-4 rounded-xl border transition-all flex items-center justify-center gap-2 group ${
-                      isLight 
-                        ? 'bg-blue-50 border-blue-200 text-blue-600 hover:bg-blue-100' 
-                        : 'bg-blue-600/10 border-blue-500/30 text-blue-400 hover:bg-blue-600/20'
-                    }`}
-                    title="Get Current Coordinates"
-                  >
-                    {isLocating ? (
-                      <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
-                    ) : (
-                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="group-hover:scale-110 transition-transform">
-                        <path d="M12 2c3.31 0 6 2.69 6 6 0 5.25-6 13-6 13S6 13.25 6 8c0-3.31 2.69-6 6-6z"/>
-                        <circle cx="12" cy="8" r="2"/>
-                      </svg>
-                    )}
-                    <span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">GPS</span>
-                  </button>
-                </div>
-                <p className={`text-[8px] font-black uppercase tracking-tighter px-1 ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>
-                  Required for evidence integrity. Allows mapping of critical hazard zones.
-                </p>
-              </div>
+
+          {isAnalyzing && (
+            <div className="flex items-center gap-2 px-2 animate-pulse">
+              <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce"></div>
+              <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce delay-75"></div>
+              <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce delay-150"></div>
+              <span className="text-[8px] font-black uppercase text-blue-500 tracking-widest">Gemini Analyzing Hazard Profile...</span>
             </div>
-          </div>
-          
+          )}
+
+          {aiSuggestion && !isAnalyzing && (
+            <div className="bg-blue-600/10 border border-blue-500/20 p-4 rounded-2xl animate-in fade-in slide-in-from-top-2">
+              <div className="flex items-center gap-2 mb-1">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="text-blue-500"><path d="M12 2v8m0 4v8m-10-10h8m4 0h8"/></svg>
+                <span className="text-[8px] font-black uppercase text-blue-500 tracking-widest">AI Recommended Action</span>
+              </div>
+              <p className={`text-[10px] font-bold ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>{aiSuggestion}</p>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <InputField 
                 id="category" 
@@ -209,19 +206,79 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
             />
           </div>
 
-          <InputField 
-            id="observation" 
-            label="Detailed Description" 
-            value={formData.observation} 
-            onChange={handleInputChange} 
-            onBlur={handleBlur}
-            error={validationErrors.observation}
-            touched={touched.observation}
-            type="textarea" 
-            rows={4} 
-            placeholder="Describe the findings and immediate hazards..." 
-            required 
-          />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-white/5">
+            <InputField 
+              id="name" 
+              label="Full Name" 
+              value={formData.name} 
+              onChange={handleInputChange} 
+              onBlur={handleBlur}
+              error={validationErrors.name}
+              touched={touched.name}
+              required 
+              placeholder="Your Name" 
+            />
+            <InputField 
+              id="role" 
+              label="Current Role" 
+              value={formData.role} 
+              onChange={handleInputChange} 
+              onBlur={handleBlur}
+              error={validationErrors.role}
+              touched={touched.role}
+              required 
+              list={ROLES} 
+            />
+          </div>
+
+          <div className="space-y-2">
+            <InputField 
+              id="site" 
+              label="Work Location" 
+              value={formData.site} 
+              onChange={handleInputChange} 
+              onBlur={handleBlur}
+              error={validationErrors.site}
+              touched={touched.site}
+              required 
+              list={SITES} 
+            />
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-3">
+                <div className="flex-1">
+                  <InputField 
+                    id="location" 
+                    label="Precise Coordinates (GPS)" 
+                    value={formData.location || ''} 
+                    onChange={handleInputChange} 
+                    placeholder="Lat, Long"
+                    autoComplete="off"
+                  />
+                </div>
+                <button 
+                  type="button"
+                  onClick={fetchCurrentLocation}
+                  disabled={isLocating}
+                  className={`mt-6 p-4 rounded-xl border transition-all flex items-center justify-center gap-2 group ${
+                    isLight 
+                      ? 'bg-blue-50 border-blue-200 text-blue-600 hover:bg-blue-100' 
+                      : 'bg-blue-600/10 border-blue-500/30 text-blue-400 hover:bg-blue-600/20'
+                  }`}
+                  title="Get Current Coordinates"
+                >
+                  {isLocating ? (
+                    <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="group-hover:scale-110 transition-transform">
+                      <path d="M12 2c3.31 0 6 2.69 6 6 0 5.25-6 13-6 13S6 13.25 6 8c0-3.31 2.69-6 6-6z"/>
+                      <circle cx="12" cy="8" r="2"/>
+                    </svg>
+                  )}
+                  <span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">GPS</span>
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className={`${isLight ? 'bg-white border-slate-200' : 'bg-white/5 border-white/10'} backdrop-blur-xl rounded-[2rem] border p-8 shadow-2xl`}>

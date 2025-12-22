@@ -23,7 +23,6 @@ const handleAirtableError = (response: Response, errorData: any): string => {
   
   if (response.status === 422) {
     const detail = errorData?.error?.message || "";
-    // Improved regex to handle various quote types and formats from Airtable errors
     const fieldMatch = detail.match(/(?:field|name)\s+["'\\"]+(.*?)["'\\"]+/i);
     const fieldName = fieldMatch ? fieldMatch[1] : "Unknown";
     
@@ -104,7 +103,6 @@ export const submitIncidentReport = async (
     filename: img.filename 
   }));
 
-  // Build fields dynamically to omit empty optional fields that might cause schema errors
   const fields: any = {
     "Name": form.name,
     "Role / Position": form.role,
@@ -226,6 +224,33 @@ export const getRecentReports = async (
 
   const records = data.records as FetchedIncident[];
   return records.sort((a, b) => new Date(b.createdTime).getTime() - new Date(a.createdTime).getTime());
+};
+
+/**
+ * Fetches critical unclosed incidents assigned to a specific user.
+ */
+export const getAssignedCriticalIncidents = async (
+  userName: string,
+  configOverride?: AirtableConfigOverride
+): Promise<FetchedIncident[]> => {
+  const BASE_ID = configOverride?.baseId || AIRTABLE_CONFIG.BASE_ID;
+  const API_KEY = configOverride?.apiKey || AIRTABLE_CONFIG.API_KEY;
+  const TABLE_NAME = AIRTABLE_CONFIG.TABLE_NAME;
+
+  if (!BASE_ID || !API_KEY) throw new Error("Safety Database Configuration Missing.");
+
+  const criticalTypes = ['Fire Risk', 'Chemical Spill', 'Respiratory Hazard', 'Equipment Failure'];
+  const typeFormula = `OR(${criticalTypes.map(t => `{Incident Type}='${t}'`).join(',')})`;
+  const formula = `AND({Assigned To}='${userName}', {Action taken}='', ${typeFormula})`;
+  
+  const url = `https://api.airtable.com/v0/${BASE_ID}/${encodeURIComponent(TABLE_NAME)}?filterByFormula=${encodeURIComponent(formula)}`;
+
+  const data = await fetchWithRetry(url, {
+    method: 'GET',
+    headers: { 'Authorization': `Bearer ${API_KEY}` }
+  });
+
+  return data.records as FetchedIncident[];
 };
 
 /**

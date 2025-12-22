@@ -24,7 +24,7 @@ export const ImageGrid: React.FC<ImageGridProps> = memo(({ images, onRemove, onA
         <label className={`text-lg font-bold tracking-wide text-center flex flex-col items-center ${isLight ? 'text-slate-900' : 'text-white'}`}>
           <span className="flex items-center gap-2">
             Incident Evidence
-            <span className={`inline-flex items-center justify-center h-6 px-2 text-xs font-bold rounded-full transition-colors duration-300 ${
+            <span className={`inline-flex items-center justify-center h-6 px-2 text-xs font-bold rounded-full transition-all duration-300 ${
               images.length >= MIN_IMAGES 
                 ? (isLight ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' : 'bg-emerald-900/50 text-emerald-400 border border-emerald-800 shadow-[0_0_10px_rgba(16,185,129,0.2)]') 
                 : (isLight ? 'bg-amber-100 text-amber-700 border border-amber-200' : 'bg-amber-900/50 text-amber-400 border border-amber-800')
@@ -38,12 +38,12 @@ export const ImageGrid: React.FC<ImageGridProps> = memo(({ images, onRemove, onA
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         {images.map((img) => (
-          <div key={img.id} className="relative group">
+          <div key={img.id} className="relative group flex flex-col gap-2">
             <div 
               className={`
                 relative aspect-square overflow-hidden rounded-xl border-2 transition-all duration-300
                 ${img.status === 'error' ? (isLight ? 'border-rose-500 bg-rose-50 shadow-lg shadow-rose-500/10' : 'border-rose-500 bg-rose-950/20 shadow-lg shadow-rose-500/20') : 
-                  img.status === 'success' ? (isLight ? 'border-red-500 bg-red-50 shadow-[0_0_15px_rgba(239,68,68,0.4)] ring-1 ring-red-500/20' : 'border-red-600 shadow-[0_0_20px_rgba(220,38,38,0.7)] ring-2 ring-red-500/40 animate-pulse') : 
+                  img.status === 'success' ? (isLight ? 'border-emerald-500 bg-emerald-50 shadow-[0_0_15px_rgba(16,185,129,0.2)]' : 'border-emerald-600 shadow-[0_0_20px_rgba(16,185,129,0.4)]') : 
                   img.status === 'uploading' ? (isLight ? 'border-blue-500 bg-blue-50' : 'border-blue-500 ring-2 ring-blue-500/20') :
                   (isLight ? 'border-slate-200 hover:border-blue-400' : 'border-slate-700 hover:border-blue-500/50')}
                 ${img.status !== 'uploading' && img.status !== 'error' ? 'cursor-zoom-in' : ''}
@@ -64,11 +64,11 @@ export const ImageGrid: React.FC<ImageGridProps> = memo(({ images, onRemove, onA
               {img.status === 'uploading' && (
                 <div className={`absolute inset-0 flex flex-col items-center justify-center p-4 z-20 ${isLight ? 'bg-white/70' : 'bg-slate-900/60'}`}>
                    <div className="w-full space-y-2">
-                      <div className="flex justify-between items-center px-1 text-[10px] font-black text-blue-500">
-                        <span>SAVING...</span>
+                      <div className="flex justify-between items-center px-1 text-[8px] font-black text-blue-500">
+                        <span>UPLOADING...</span>
                         <span>{img.progress}%</span>
                       </div>
-                      <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                      <div className="w-full bg-slate-800 rounded-full h-1 overflow-hidden">
                         <div 
                           className="bg-blue-500 h-full rounded-full transition-all duration-300" 
                           style={{ width: `${img.progress}%` }}
@@ -79,48 +79,59 @@ export const ImageGrid: React.FC<ImageGridProps> = memo(({ images, onRemove, onA
               )}
 
               {img.status === 'error' && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center p-3 text-center bg-black/40 backdrop-blur-[2px] z-20">
-                   <svg className="w-8 h-8 text-rose-500 mb-2 drop-shadow-lg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                <div className="absolute inset-0 flex flex-col items-center justify-center p-3 text-center bg-black/60 backdrop-blur-[2px] z-20">
+                   <svg className="w-6 h-6 text-rose-500 mb-1 drop-shadow-lg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                    </svg>
-                   <p className="text-[9px] font-black uppercase text-white leading-tight mb-3 drop-shadow-md px-1">
-                     {img.errorMessage || "System Connection Failure"}
-                   </p>
                    <button 
                      onClick={(e) => { e.stopPropagation(); onRetry(img.id); }}
-                     className="w-full py-2 bg-rose-500 text-white text-[9px] font-black uppercase rounded-lg shadow-xl hover:bg-rose-600 active:scale-95 transition-all border border-rose-400/30"
+                     className="px-2 py-1 bg-rose-500 text-white text-[8px] font-black uppercase rounded shadow-lg hover:bg-rose-600 transition-all border border-rose-400/30"
                    >
-                     Retry Capture
+                     Retry
                    </button>
                 </div>
               )}
 
               {img.status === 'success' && (
-                <div className="absolute top-2 right-2 bg-red-600 text-white rounded-full p-1.5 shadow-lg border border-red-400/50 animate-bounce z-20">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                <div className="absolute top-1.5 right-1.5 bg-emerald-600 text-white rounded-full p-1 shadow-lg border border-emerald-400/50 z-20 animate-in zoom-in">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-2.5 w-2.5" viewBox="0 0 20 20" fill="currentColor">
                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                   </svg>
                 </div>
               )}
             </div>
 
-            {img.status !== 'uploading' && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onRemove(img.id);
-                }}
-                className={`absolute -top-2 -right-2 flex h-7 w-7 items-center justify-center rounded-full text-slate-400 hover:bg-rose-500 hover:text-white border shadow-xl z-30 transition-all ${
-                  isLight ? 'bg-white border-slate-200' : 'bg-slate-800 border-slate-700'
-                }`}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="18" y1="6" x2="6" y2="18"></line>
-                  <line x1="6" y1="6" x2="18" y2="18"></line>
-                </svg>
-              </button>
-            )}
+            {/* Granular Feedback Label */}
+            <div className="flex items-center justify-between px-1">
+              <span className={`text-[7px] font-black uppercase tracking-widest ${
+                img.status === 'success' ? 'text-emerald-500' :
+                img.status === 'error' ? 'text-rose-500' :
+                img.status === 'uploading' ? 'text-blue-500' :
+                'text-slate-500'
+              }`}>
+                {img.status === 'success' ? 'Verified' :
+                 img.status === 'error' ? 'Failed' :
+                 img.status === 'uploading' ? 'Syncing' : 'Waiting'}
+              </span>
+              
+              {img.status !== 'uploading' && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onRemove(img.id);
+                  }}
+                  className={`flex h-4 w-4 items-center justify-center rounded-md text-slate-400 hover:bg-rose-500 hover:text-white transition-all ${
+                    isLight ? 'bg-slate-100' : 'bg-slate-800'
+                  }`}
+                >
+                  <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                  </svg>
+                </button>
+              )}
+            </div>
           </div>
         ))}
 

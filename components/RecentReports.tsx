@@ -818,10 +818,10 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
         <div className="flex flex-col items-center justify-center pt-10 pb-20 animate-in fade-in zoom-in-95 duration-500">
            <div className={`w-full max-w-sm rounded-[3rem] p-10 text-center shadow-2xl border transition-all relative overflow-hidden ${isLight ? 'bg-white border-slate-100' : 'bg-slate-900 border-white/5'}`}>
               <div 
-                className="absolute inset-0 z-0 pointer-events-none opacity-100"
+                className="absolute inset-0 z-0 pointer-events-none opacity-10"
                 style={{
                   backgroundImage: `url('https://procurement.trojanholding.ae/Styles/Images/TCG.PNG')`,
-                  backgroundSize: 'cover',
+                  backgroundSize: '40%',
                   backgroundPosition: 'center',
                   backgroundRepeat: 'no-repeat'
                 }}
