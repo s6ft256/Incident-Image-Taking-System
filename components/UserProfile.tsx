@@ -6,7 +6,7 @@ import { compressImage } from '../utils/imageCompression';
 import { updateProfile, deleteProfile } from '../services/profileService';
 import { InputField } from './InputField';
 import { ROLES, SITES, STORAGE_KEYS, AUTHORIZED_ADMIN_ROLES } from '../constants';
-import { sendNotification, requestNotificationPermission } from '../services/notificationService';
+import { requestNotificationPermission } from '../services/notificationService';
 
 interface UserProfileProps {
   onBack: () => void;
@@ -135,12 +135,10 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
     window.location.reload();
   };
 
-  const handleTestNotification = async () => {
+  const handleEnableNotifications = async () => {
     const granted = await requestNotificationPermission();
     setNotificationPermission(Notification.permission);
-    if (granted) {
-      sendNotification("HSE Guardian Check", "System alerts are functional and authorized.");
-    } else {
+    if (!granted) {
       setErrorMessage("Please enable notifications in your browser settings.");
     }
   };
@@ -244,13 +242,21 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
                 {notificationPermission === 'granted' ? 'Alerts Optimized' : 'Alerts Restricted'}
               </p>
             </div>
-            <button 
-              type="button"
-              onClick={handleTestNotification}
-              className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-[8px] font-black uppercase tracking-widest hover:bg-blue-500 active:scale-95 transition-all"
-            >
-              {notificationPermission === 'granted' ? 'Test Alert' : 'Enable'}
-            </button>
+            {notificationPermission !== 'granted' && (
+              <button 
+                type="button"
+                onClick={handleEnableNotifications}
+                className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-[8px] font-black uppercase tracking-widest hover:bg-blue-500 active:scale-95 transition-all"
+              >
+                Enable
+              </button>
+            )}
+            {notificationPermission === 'granted' && (
+              <div className="flex items-center gap-1.5 text-emerald-500">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M20 6L9 17l-5-5"/></svg>
+                <span className="text-[8px] font-black uppercase tracking-widest">Active</span>
+              </div>
+            )}
           </div>
         </div>
 
