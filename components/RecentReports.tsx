@@ -289,6 +289,27 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
     });
   }, [sortedReports, activeTab, isMyTasksMode, filterAssignee, searchTerm, filterType]);
 
+  // Tab Count Calculation Logic
+  const tabCounts = useMemo(() => {
+    const baseReports = filterType === 'All Types' 
+      ? allReports 
+      : allReports.filter(r => r.fields["Incident Type"] === filterType);
+
+    return {
+      open: baseReports.filter(r => {
+        const isClosed = r.fields["Action taken"]?.trim().length > 0;
+        const assignedTo = r.fields["Assigned To"]?.trim() || "";
+        return !isClosed && (!assignedTo || assignedTo === "None");
+      }).length,
+      assigned: baseReports.filter(r => {
+        const isClosed = r.fields["Action taken"]?.trim().length > 0;
+        const assignedTo = r.fields["Assigned To"]?.trim() || "";
+        return !isClosed && assignedTo && assignedTo !== "None";
+      }).length,
+      closed: baseReports.filter(r => r.fields["Action taken"]?.trim().length > 0).length
+    };
+  }, [allReports, filterType]);
+
   return (
     <div className="animate-in slide-in-from-right duration-300 pb-24">
       <div className="flex items-center mb-6">
@@ -307,10 +328,23 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
 
       {!isMyTasksMode && (
         <div className={`flex p-1 mb-6 rounded-xl border transition-colors ${isLight ? 'bg-slate-100 border-slate-200 shadow-inner' : 'bg-slate-800 border-slate-700'}`}>
-            <button onClick={() => { setActiveTab('open'); setExpandedId(null); setSelectedIds(new Set<string>()); }} className={`flex-1 py-2 text-[11px] uppercase tracking-widest font-black rounded-lg transition-all duration-200 ${activeTab === 'open' ? 'bg-blue-600 text-white shadow-lg' : `${isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-400 hover:text-white hover:bg-slate-700/50'}`}`}>Open</button>
-            <button onClick={() => { setActiveTab('assigned'); setExpandedId(null); setSelectedIds(new Set<string>()); }} className={`flex-1 py-2 text-[11px] uppercase tracking-widest font-black rounded-lg transition-all duration-200 ${activeTab === 'assigned' ? 'bg-amber-600 text-white shadow-lg' : `${isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-400 hover:text-white hover:bg-slate-700/50'}`}`}>Assigned</button>
+            <button onClick={() => { setActiveTab('open'); setExpandedId(null); setSelectedIds(new Set<string>()); }} className={`flex-1 py-2 text-[11px] uppercase tracking-widest font-black rounded-lg transition-all duration-200 flex items-center justify-center gap-2 ${activeTab === 'open' ? 'bg-blue-600 text-white shadow-lg' : `${isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-400 hover:text-white hover:bg-slate-700/50'}`}`}>
+                Open
+                <span className={`px-1.5 py-0.5 rounded-full text-[9px] ${activeTab === 'open' ? 'bg-white/20 text-white' : (isLight ? 'bg-slate-200 text-slate-600' : 'bg-white/5 text-slate-400')}`}>
+                  {tabCounts.open}
+                </span>
+            </button>
+            <button onClick={() => { setActiveTab('assigned'); setExpandedId(null); setSelectedIds(new Set<string>()); }} className={`flex-1 py-2 text-[11px] uppercase tracking-widest font-black rounded-lg transition-all duration-200 flex items-center justify-center gap-2 ${activeTab === 'assigned' ? 'bg-amber-600 text-white shadow-lg' : `${isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-400 hover:text-white hover:bg-slate-700/50'}`}`}>
+                Assigned
+                <span className={`px-1.5 py-0.5 rounded-full text-[9px] ${activeTab === 'assigned' ? 'bg-white/20 text-white' : (isLight ? 'bg-slate-200 text-slate-600' : 'bg-white/5 text-slate-400')}`}>
+                  {tabCounts.assigned}
+                </span>
+            </button>
             <button onClick={() => { setActiveTab('closed'); setExpandedId(null); setSelectedIds(new Set<string>()); }} className={`flex-1 py-2 text-[11px] uppercase tracking-widest font-black rounded-lg transition-all duration-200 flex items-center justify-center gap-2 ${activeTab === 'closed' ? 'bg-emerald-600 text-white shadow-lg' : `${isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-400 hover:text-white hover:bg-slate-700/50'}`}`}>
                 Archive
+                <span className={`px-1.5 py-0.5 rounded-full text-[9px] ${activeTab === 'closed' ? 'bg-white/20 text-white' : (isLight ? 'bg-slate-200 text-slate-600' : 'bg-white/5 text-slate-400')}`}>
+                  {tabCounts.closed}
+                </span>
                 {!isArchiveUnlocked && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>}
             </button>
         </div>
