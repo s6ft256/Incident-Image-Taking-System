@@ -284,9 +284,10 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
     const actionTaken = actionInputs[id];
     let currentAssignee = report.fields["Assigned To"]?.trim();
     
+    // Logic: If assigned to is empty or "None", attribute closure to the current user
     let closedByValue = currentAssignee;
     if (!closedByValue || closedByValue === "None") {
-        closedByValue = "None";
+        closedByValue = userProfile?.name || "None";
     }
 
     if (!actionTaken?.trim()) {
@@ -651,7 +652,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
                                 <input 
                                     type="text" 
                                     readOnly 
-                                    value={(!report.fields["Assigned To"] || report.fields["Assigned To"] === "None") ? "None" : report.fields["Assigned To"]} 
+                                    value={(!report.fields["Assigned To"] || report.fields["Assigned To"] === "None") ? (userProfile?.name || "None") : report.fields["Assigned To"]} 
                                     className={`${baseClasses} ${themeClasses} cursor-not-allowed border-blue-500/30 font-black uppercase tracking-widest text-[10px] bg-blue-500/5`} 
                                 />
                                 <div className="absolute right-4 top-1/2 -translate-y-1/2">
