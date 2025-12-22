@@ -69,7 +69,6 @@ export const useIncidentReport = (baseId: string) => {
 
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { id, value } = e.target;
-    // Normalize "None" to an empty string for consistent unassigned logic
     const normalizedValue = (id === 'assignedTo' && value === 'None') ? '' : value;
     setFormData(prev => ({ ...prev, [id]: normalizedValue }));
   }, []);
@@ -81,26 +80,33 @@ export const useIncidentReport = (baseId: string) => {
 
   const fetchCurrentLocation = useCallback(() => {
     if (!navigator.geolocation) {
-      setErrorMessage("Geolocation is not supported by your browser");
+      setErrorMessage("System Error: Geolocation hardware not detected.");
       return;
     }
 
     setIsLocating(true);
+    setErrorMessage('');
+
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        const { latitude, longitude } = position.coords;
-        const locationStr = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+        const { latitude, longitude, accuracy } = position.coords;
+        const locationStr = `${latitude.toFixed(7)}, ${longitude.toFixed(7)}`;
+        console.debug(`GPS Signal Acquired: Accuracy within ${accuracy} meters.`);
         setFormData(prev => ({ ...prev, location: locationStr }));
         setIsLocating(false);
       },
       (error) => {
-        let msg = "Location access denied.";
-        if (error.code === error.TIMEOUT) msg = "Location request timed out.";
-        else if (error.code === error.POSITION_UNAVAILABLE) msg = "Location information unavailable.";
+        let msg = "GPS Signal Denied. Check browser permissions.";
+        if (error.code === error.TIMEOUT) msg = "GPS Signal Search Timed Out. Try moving to an open area.";
+        else if (error.code === error.POSITION_UNAVAILABLE) msg = "GPS Satellite Link Unavailable.";
         setErrorMessage(msg);
         setIsLocating(false);
       },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+      { 
+        enableHighAccuracy: true, // Use GPS hardware
+        timeout: 20000,           // More time for precise fix
+        maximumAge: 0            // No cached locations
+      }
     );
   }, []);
 
@@ -127,7 +133,6 @@ export const useIncidentReport = (baseId: string) => {
       }
       return prev.filter(img => img.id !== id);
     });
-    // Clear global error if it was about images
     setErrorMessage(prev => prev.includes("Evidence Required") ? '' : prev);
   }, []);
 
@@ -160,7 +165,6 @@ export const useIncidentReport = (baseId: string) => {
     e.preventDefault();
     setErrorMessage('');
 
-    // Mark all fields as touched to show validation errors
     const allTouched: Record<string, boolean> = {};
     Object.keys(formData).forEach(key => { allTouched[key] = true; });
     setTouched(allTouched);
@@ -201,8 +205,6 @@ export const useIncidentReport = (baseId: string) => {
     setIsSubmitting(true);
     try {
       const existingAttachments = successfulImages.map(img => ({ url: img.serverUrl!, filename: img.file.name }));
-      
-      // Attempt to upload any pending or failed images
       const uploadResults = await Promise.allSettled(pendingOrErrorImages.map(img => processImageUpload(img)));
       
       const newAttachments: { url: string; filename: string }[] = [];
@@ -222,22 +224,20 @@ export const useIncidentReport = (baseId: string) => {
       const totalAttachments = [...existingAttachments, ...newAttachments];
 
       if (totalAttachments.length === 0) {
-        throw new Error("Critical Failure: No evidence could be uploaded to the safety server. Please retry the image uploads.");
+        throw new Error("Critical Failure: No evidence could be uploaded. Check network connection.");
       }
 
-      // If we have some attachments but some failed, we notify the user but proceed with what we have
       if (failedImageNames.length > 0) {
-        const warning = `Partial Success: Report submitted with ${totalAttachments.length} images. However, ${failedImageNames.length} image(s) failed: ${failedImageNames.join(', ')}. Please verify the report in the logs.`;
+        const warning = `Partial Success: Report submitted with ${totalAttachments.length} images. ${failedImageNames.length} image(s) failed.`;
         setErrorMessage(warning);
-        // We still proceed to submit the report to Airtable
       }
 
       await submitIncidentReport(formData, totalAttachments, { baseId });
       setSubmitStatus('success');
     } catch (error: any) {
-      console.error("Submission pipeline failure:", error);
+      console.error("Submission failure:", error);
       setSubmitStatus('error');
-      setErrorMessage(error.message || "The safety report transmission was interrupted. Please retry.");
+      setErrorMessage(error.message || "Transmission interrupted. Please retry.");
     } finally { 
       setIsSubmitting(false); 
     }

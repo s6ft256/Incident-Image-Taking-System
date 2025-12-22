@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { getLocalWeather, WeatherData, getWeatherSafetyTip } from '../services/weatherService';
 
 interface WeatherWidgetProps {
@@ -12,20 +12,22 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({ appTheme = 'dark' 
   const [loading, setLoading] = useState(true);
   const isLight = appTheme === 'light';
 
-  useEffect(() => {
-    const fetchWeather = async () => {
-      try {
-        setLoading(true);
-        const data = await getLocalWeather();
-        setWeather(data);
-      } catch (err: any) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchWeather();
+  const fetchWeather = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await getLocalWeather();
+      setWeather(data);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchWeather();
+  }, [fetchWeather]);
 
   if (loading) {
     return (
@@ -34,7 +36,7 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({ appTheme = 'dark' 
       }`}>
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-full border-2 border-blue-500/20 border-t-blue-500 animate-spin"></div>
-          <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Syncing Environment...</span>
+          <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Acquiring High-Precision GPS...</span>
         </div>
       </div>
     );
@@ -42,18 +44,26 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({ appTheme = 'dark' 
 
   if (error || !weather) {
     return (
-      <div className={`h-24 sm:h-28 flex items-center justify-between px-8 rounded-[2rem] border ${
-        isLight ? 'bg-rose-50 border-rose-200' : 'bg-rose-950/20 border-rose-500/20'
+      <div className={`h-24 sm:h-28 flex items-center justify-between px-6 sm:px-8 rounded-[2rem] border transition-all ${
+        isLight ? 'bg-rose-50 border-rose-200 shadow-sm' : 'bg-rose-950/20 border-rose-500/20 shadow-lg shadow-rose-900/10'
       }`}>
         <div className="flex items-center gap-4">
-          <svg className="w-6 h-6 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-          </svg>
+          <div className="w-10 h-10 rounded-xl bg-rose-500/10 flex items-center justify-center text-rose-500 border border-rose-500/20">
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
           <div>
-            <h4 className="text-[10px] font-black uppercase tracking-widest text-rose-500">Weather Unavailable</h4>
-            <p className="text-[8px] font-bold text-rose-400 uppercase tracking-tighter mt-0.5">{error || "GPS Sync Required"}</p>
+            <h4 className="text-[10px] font-black uppercase tracking-widest text-rose-500">Location Protocol Blocked</h4>
+            <p className="text-[8px] font-bold text-rose-400 uppercase tracking-tighter mt-0.5">{error || "Exact Site Sync Required"}</p>
           </div>
         </div>
+        <button 
+          onClick={fetchWeather}
+          className="px-4 py-3 bg-rose-600 hover:bg-rose-500 text-white text-[9px] font-black uppercase tracking-widest rounded-xl transition-all active:scale-95 shadow-lg border border-rose-400/30"
+        >
+          Synchronize GPS
+        </button>
       </div>
     );
   }
@@ -62,12 +72,12 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({ appTheme = 'dark' 
 
   return (
     <div className={`group relative h-24 sm:h-28 flex items-center backdrop-blur-xl border rounded-[2rem] overflow-hidden transition-all duration-300 px-6 sm:px-8 ${
-      isLight ? 'bg-white border-slate-200' : 'bg-white/[0.04] border-white/10'
+      isLight ? 'bg-white border-slate-200 shadow-sm hover:shadow-md' : 'bg-white/[0.04] border-white/10 hover:bg-white/[0.08]'
     }`}>
       <div className={`w-12 h-12 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center shadow-lg shrink-0 border transition-transform group-hover:scale-105 ${
         weather.isDay 
-          ? 'bg-amber-500 border-amber-400 text-white' 
-          : 'bg-slate-800 border-slate-700 text-blue-400'
+          ? 'bg-amber-500 border-amber-400 text-white shadow-amber-500/20' 
+          : 'bg-slate-800 border-slate-700 text-blue-400 shadow-slate-900/50'
       }`}>
         {weather.isDay ? (
           <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -88,7 +98,8 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({ appTheme = 'dark' 
             </h3>
             <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest">{weather.condition}</span>
           </div>
-          <p className={`text-[9px] font-black uppercase tracking-[0.2em] mt-1 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+          <p className={`text-[9px] font-black uppercase tracking-[0.2em] mt-1 flex items-center gap-1.5 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+            <svg className="w-2.5 h-2.5 text-blue-500" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
             {weather.city}
           </p>
         </div>

@@ -15,7 +15,7 @@ interface AuthScreenProps {
 }
 
 const LAST_USER_KEY = 'hse_guardian_last_user';
-const SYSTEM_LOGO_URL = 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRYqYOT4CeopLGtllzFtkjrt1iueEfdM7ejCA&s';
+const SYSTEM_LOGO_URL = 'https://procurement.trojanholding.ae/Styles/Images/TCG.PNG';
 
 const AuthCard: React.FC<{ children: React.ReactNode, isLight: boolean }> = ({ children, isLight }) => (
   <div className={`relative w-full max-w-xs p-6 sm:p-8 rounded-[3rem] border backdrop-blur-sm transition-all duration-300 animate-in fade-in zoom-in-95 slide-in-from-bottom-4 z-20 overflow-hidden ${
@@ -170,7 +170,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
           <div className="flex flex-col items-center text-center relative z-10">
             <div className="relative mb-6">
               <div className="absolute inset-0 bg-blue-500/20 blur-2xl rounded-full"></div>
-              <img src={SYSTEM_LOGO_URL} className="h-24 w-24 relative z-10 drop-shadow-2xl animate-pulse object-contain bg-white rounded-2xl p-2" alt="System Logo" />
+              <img src={SYSTEM_LOGO_URL} className="h-24 w-24 relative z-10 drop-shadow-2xl animate-pulse object-contain" alt="System Logo" />
             </div>
             <div className="space-y-2 mb-8">
               <h2 className={`text-4xl font-black tracking-tighter ${isLight ? 'text-slate-900' : 'text-white'}`}>HSE <span className="text-blue-500">Guardian</span></h2>

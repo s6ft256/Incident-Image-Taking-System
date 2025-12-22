@@ -12,7 +12,7 @@ interface PolicyModalProps {
 
 export type PolicyTab = 'environmental' | 'ohs' | 'privacy' | 'agreement';
 
-const LOGO_URL = 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRYqYOT4CeopLGtllzFtkjrt1iueEfdM7ejCA&s';
+const LOGO_URL = 'https://procurement.trojanholding.ae/Styles/Images/TCG.PNG';
 
 const PolicyContentRenderer: React.FC<{ content: string; accentColor: string }> = ({ content, accentColor }) => {
   const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
@@ -93,13 +93,14 @@ export const PolicyModal: React.FC<PolicyModalProps> = ({
       }`}>
         
         <div 
-          className="absolute inset-0 pointer-events-none opacity-20 z-0 select-none print:opacity-10"
+          className="absolute inset-0 pointer-events-none opacity-5 z-0 select-none print:opacity-10"
           style={{
             backgroundImage: `url('${LOGO_URL}')`,
-            backgroundSize: '30%',
+            backgroundSize: '40%',
             backgroundPosition: 'center',
             backgroundRepeat: 'no-repeat',
-            backgroundAttachment: 'fixed'
+            backgroundAttachment: 'fixed',
+            filter: isLight ? 'grayscale(1)' : 'brightness(2) grayscale(1)'
           }}
         />
 
@@ -203,7 +204,7 @@ export const PolicyModal: React.FC<PolicyModalProps> = ({
               ))}
               
               <div className="pt-10 flex flex-col items-center opacity-80">
-                <img src={LOGO_URL} className="h-16 w-auto mb-4 rounded-xl" alt="Company Logo" />
+                <img src={LOGO_URL} className="h-16 w-auto mb-4" alt="Company Logo" />
                 <p className="text-[8px] font-black uppercase tracking-[0.8em] text-slate-500">Official Controlled Document</p>
               </div>
             </div>

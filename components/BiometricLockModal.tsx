@@ -72,8 +72,8 @@ export const BiometricLockModal: React.FC<BiometricLockModalProps> = ({
         {/* Company Branding */}
         <div className="absolute top-8 left-1/2 -translate-x-1/2 opacity-20 group">
           <img 
-            src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRYqYOT4CeopLGtllzFtkjrt1iueEfdM7ejCA&s" 
-            className="h-10 w-auto transition-all group-hover:opacity-100 rounded-lg" 
+            src="https://procurement.trojanholding.ae/Styles/Images/TCG.PNG" 
+            className="h-10 w-auto transition-all group-hover:opacity-100" 
             alt="TGC" 
           />
         </div>

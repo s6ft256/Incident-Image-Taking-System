@@ -16,12 +16,13 @@ export interface WeatherData {
 export const getLocalWeather = async (): Promise<WeatherData> => {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
-      reject(new Error("Geolocation is not supported by your browser"));
+      reject(new Error("Browser does not support Geolocation."));
       return;
     }
 
     navigator.geolocation.getCurrentPosition(async (position) => {
-      const { latitude, longitude } = position.coords;
+      const { latitude, longitude, accuracy } = position.coords;
+      console.debug(`Weather Sync: Lat ${latitude}, Lon ${longitude} (Accuracy: ${accuracy}m)`);
 
       try {
         // 1. Fetch Weather Data
@@ -49,11 +50,18 @@ export const getLocalWeather = async (): Promise<WeatherData> => {
           humidity: current.relative_humidity_2m
         });
       } catch (err) {
-        reject(new Error("Failed to sync with weather satellite."));
+        reject(new Error("Satellite Link Error. Check connection."));
       }
     }, (err) => {
-      reject(new Error("Location access denied. Enable GPS for weather tracking."));
-    }, { timeout: 10000 });
+      let msg = "GPS Access Denied.";
+      if (err.code === err.TIMEOUT) msg = "GPS Search Timed Out.";
+      if (err.code === err.POSITION_UNAVAILABLE) msg = "GPS Signal Lost.";
+      reject(new Error(msg));
+    }, { 
+      enableHighAccuracy: true, 
+      timeout: 15000, 
+      maximumAge: 0 
+    });
   });
 };
 

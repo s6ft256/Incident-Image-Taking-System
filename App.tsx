@@ -20,7 +20,7 @@ type ViewState = 'dashboard' | 'create' | 'recent' | 'auth' | 'my-tasks';
 const PROFILE_KEY = 'hse_guardian_profile';
 const THEME_KEY = 'hse_guardian_theme';
 const TUTORIAL_KEY = 'hse_guardian_tutorial_seen';
-const SYSTEM_LOGO_URL = 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRYqYOT4CeopLGtllzFtkjrt1iueEfdM7ejCA&s';
+const SYSTEM_LOGO_URL = 'https://procurement.trojanholding.ae/Styles/Images/TCG.PNG';
 
 export default function App() {
   // Always start on auth to ensure user is prompted to login every session
@@ -204,7 +204,7 @@ export default function App() {
                  <img 
                    src={SYSTEM_LOGO_URL} 
                    alt="Incident Guardian Logo" 
-                   className="h-16 w-16 sm:h-24 sm:w-24 object-contain rounded-2xl border-2 border-white/10 shadow-lg transition-transform group-hover:scale-105 bg-white p-1"
+                   className="h-16 w-16 sm:h-24 sm:w-24 object-contain transition-transform group-hover:scale-105"
                  />
                  <span className={`text-[9px] sm:text-[11px] font-black uppercase tracking-[0.2em] mt-2 ${appTheme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>TGC Group</span>
                </div>
