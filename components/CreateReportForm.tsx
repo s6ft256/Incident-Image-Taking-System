@@ -15,6 +15,12 @@ interface CreateReportFormProps {
   appTheme?: 'dark' | 'light';
 }
 
+interface AISuggestion {
+  category: string;
+  recommendation: string;
+  severity: 'Low' | 'Medium' | 'High';
+}
+
 export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBack, appTheme = 'dark' }) => {
   const {
     formData,
@@ -39,7 +45,7 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
 
   const [teamMembers, setTeamMembers] = useState<string[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [aiSuggestion, setAiSuggestion] = useState<string | null>(null);
+  const [aiResult, setAiResult] = useState<AISuggestion | null>(null);
   const isLight = appTheme === 'light';
 
   useEffect(() => {
@@ -56,7 +62,7 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
 
   // AI Analysis Logic
   const analyzeHazard = useCallback(async () => {
-    if (!formData.observation || formData.observation.length < 15 || !isOnline) return;
+    if (!formData.observation || formData.observation.length < 20 || !isOnline) return;
     
     setIsAnalyzing(true);
     try {
@@ -65,29 +71,35 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
         model: 'gemini-3-flash-preview',
         contents: `Analyze this safety observation: "${formData.observation}". 
         Return ONLY a JSON object with: 
-        1. "category": One of [${INCIDENT_TYPES.join(', ')}]
-        2. "recommendation": A short (10 words) corrective action.
+        1. "category": Select exactly one from [${INCIDENT_TYPES.join(', ')}]
+        2. "recommendation": A very short corrective action.
         3. "severity": "Low", "Medium", or "High"`,
         config: { responseMimeType: "application/json" }
       });
 
       const result = JSON.parse(response.text || '{}');
       if (result.category && INCIDENT_TYPES.includes(result.category)) {
-        setFormData(prev => ({ ...prev, category: result.category }));
-        setAiSuggestion(result.recommendation);
+        setAiResult(result);
       }
     } catch (e) {
       console.error("AI Analysis failed", e);
     } finally {
       setIsAnalyzing(false);
     }
-  }, [formData.observation, isOnline, setFormData]);
+  }, [formData.observation, isOnline]);
 
   // Debounced AI call
   useEffect(() => {
-    const timer = setTimeout(analyzeHazard, 1500);
+    const timer = setTimeout(analyzeHazard, 2000);
     return () => clearTimeout(timer);
   }, [formData.observation, analyzeHazard]);
+
+  const applyAISuggestion = () => {
+    if (aiResult) {
+      setFormData(prev => ({ ...prev, category: aiResult.category }));
+      setAiResult(null);
+    }
+  };
 
   // Trigger Notification on Success
   useEffect(() => {
@@ -170,13 +182,39 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
             </div>
           )}
 
-          {aiSuggestion && !isAnalyzing && (
-            <div className="bg-blue-600/10 border border-blue-500/20 p-4 rounded-2xl animate-in fade-in slide-in-from-top-2">
-              <div className="flex items-center gap-2 mb-1">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="text-blue-500"><path d="M12 2v8m0 4v8m-10-10h8m4 0h8"/></svg>
-                <span className="text-[8px] font-black uppercase text-blue-500 tracking-widest">AI Recommended Action</span>
+          {aiResult && !isAnalyzing && (
+            <div className="bg-blue-600/10 border border-blue-500/20 p-5 rounded-2xl animate-in fade-in slide-in-from-top-2 relative overflow-hidden group">
+              <div className="absolute top-0 right-0 p-2">
+                 <span className={`text-[8px] font-black px-2 py-1 rounded-full uppercase ${
+                   aiResult.severity === 'High' ? 'bg-rose-500 text-white' : 
+                   aiResult.severity === 'Medium' ? 'bg-amber-500 text-white' : 'bg-emerald-500 text-white'
+                 }`}>
+                   {aiResult.severity} Risk
+                 </span>
               </div>
-              <p className={`text-[10px] font-bold ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>{aiSuggestion}</p>
+              <div className="flex items-center gap-2 mb-2">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="text-blue-500"><path d="M12 2v8m0 4v8m-10-10h8m4 0h8"/></svg>
+                <span className="text-[8px] font-black uppercase text-blue-500 tracking-widest">AI Safety Assessment</span>
+              </div>
+              <div className="space-y-3">
+                 <div>
+                    <span className="block text-[7px] font-black text-slate-500 uppercase tracking-widest mb-1">Recommended Category</span>
+                    <div className="flex items-center justify-between gap-4">
+                       <p className={`text-xs font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>{aiResult.category}</p>
+                       <button 
+                         type="button" 
+                         onClick={applyAISuggestion}
+                         className="px-3 py-1 bg-blue-600 text-white text-[9px] font-black uppercase rounded-lg hover:bg-blue-500 transition-all active:scale-95"
+                       >
+                         Apply Suggestion
+                       </button>
+                    </div>
+                 </div>
+                 <div>
+                    <span className="block text-[7px] font-black text-slate-500 uppercase tracking-widest mb-1">Suggested Remediation</span>
+                    <p className={`text-[10px] font-bold ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>{aiResult.recommendation}</p>
+                 </div>
+              </div>
             </div>
           )}
 

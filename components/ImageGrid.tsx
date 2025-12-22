@@ -79,15 +79,18 @@ export const ImageGrid: React.FC<ImageGridProps> = memo(({ images, onRemove, onA
               )}
 
               {img.status === 'error' && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center p-3 text-center bg-black/60 backdrop-blur-[2px] z-20">
-                   <svg className="w-6 h-6 text-rose-500 mb-1 drop-shadow-lg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div className="absolute inset-0 flex flex-col items-center justify-center p-3 text-center bg-black/85 backdrop-blur-[2px] z-20 animate-in fade-in duration-300">
+                   <svg className="w-6 h-6 text-rose-500 mb-2 drop-shadow-lg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                    </svg>
+                   <p className="text-[7px] text-white font-black uppercase mb-3 line-clamp-3 leading-tight px-1 drop-shadow-md">
+                     {img.errorMessage || "System Transmission Error"}
+                   </p>
                    <button 
                      onClick={(e) => { e.stopPropagation(); onRetry(img.id); }}
-                     className="px-2 py-1 bg-rose-500 text-white text-[8px] font-black uppercase rounded shadow-lg hover:bg-rose-600 transition-all border border-rose-400/30"
+                     className="px-3 py-1.5 bg-rose-500 text-white text-[8px] font-black uppercase rounded-lg shadow-lg hover:bg-rose-600 transition-all border border-rose-400/30 active:scale-90"
                    >
-                     Retry
+                     Retry Sync
                    </button>
                 </div>
               )}
