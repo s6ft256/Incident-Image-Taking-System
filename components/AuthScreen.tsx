@@ -56,6 +56,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
   
   const [privacyConsent, setPrivacyConsent] = useState(false);
   const [imageConsent, setImageConsent] = useState(false);
+  const [cookieConsent, setCookieConsent] = useState(false);
   const [showComplianceModal, setShowComplianceModal] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -112,6 +113,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
       setShowComplianceModal(true);
       return false;
     }
+    if (!cookieConsent) {
+      setError('Acknowledge Essential Cookie Handshake.');
+      return false;
+    }
     if (!imageConsent) {
       setError('Confirm Image Upload Authorization.');
       return false;
@@ -139,6 +144,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
         image_consent: imageConsent
       });
       localStorage.setItem(LAST_USER_KEY, newProfile.name);
+      localStorage.setItem('hse_guardian_cookies_accepted', 'true');
       onAuthComplete(newProfile);
     } catch (err: any) { setError(err.message || 'Signup failed.'); }
     finally { setIsProcessing(false); }
@@ -220,13 +226,19 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
                    <div className="flex items-start gap-3 px-1">
                       <input type="checkbox" id="privacyConsent" checked={privacyConsent} onChange={(e) => setPrivacyConsent(e.target.checked)} className="mt-0.5 w-4 h-4 rounded border-slate-700 bg-slate-900 text-blue-600 focus:ring-blue-500" />
                       <label htmlFor="privacyConsent" className={`text-[7px] font-black uppercase tracking-widest leading-relaxed ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
-                        I confirm that I have read and agree to the <button type="button" onClick={() => setShowComplianceModal(true)} className="text-blue-500 underline decoration-blue-500/30">User Agreement & Privacy Policy</button>.
+                        I agree to the <button type="button" onClick={() => setShowComplianceModal(true)} className="text-blue-500 underline decoration-blue-500/30">User Agreement & Privacy Policy</button>.
+                      </label>
+                   </div>
+                   <div className="flex items-start gap-3 px-1">
+                      <input type="checkbox" id="cookieConsent" checked={cookieConsent} onChange={(e) => setCookieConsent(e.target.checked)} className="mt-0.5 w-4 h-4 rounded border-slate-700 bg-slate-900 text-blue-600 focus:ring-blue-500" />
+                      <label htmlFor="cookieConsent" className={`text-[7px] font-black uppercase tracking-widest leading-relaxed ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+                        I acknowledge the use of Essential and Preference cookies as outlined in the system policy.
                       </label>
                    </div>
                    <div className="flex items-start gap-3 px-1">
                       <input type="checkbox" id="imageConsent" checked={imageConsent} onChange={(e) => setImageConsent(e.target.checked)} className="mt-0.5 w-4 h-4 rounded border-slate-700 bg-slate-900 text-blue-600 focus:ring-blue-500" />
                       <label htmlFor="imageConsent" className={`text-[7px] font-black uppercase tracking-widest leading-relaxed ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
-                        I authorize the secure upload and processing of incident-related photographic evidence.
+                        I authorize secure processing of photographic incident evidence.
                       </label>
                    </div>
                 </div>

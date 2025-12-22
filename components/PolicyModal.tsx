@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { ENVIRONMENTAL_POLICY, OHS_POLICY, PRIVACY_POLICY, USER_AGREEMENT } from '../constants/policies';
+import { ENVIRONMENTAL_POLICY, OHS_POLICY, PRIVACY_POLICY, USER_AGREEMENT, COOKIE_POLICY } from '../constants/policies';
 
 interface PolicyModalProps {
   onClose: () => void;
@@ -10,7 +10,7 @@ interface PolicyModalProps {
   onAccept?: () => void;
 }
 
-export type PolicyTab = 'environmental' | 'ohs' | 'privacy' | 'agreement';
+export type PolicyTab = 'environmental' | 'ohs' | 'privacy' | 'agreement' | 'cookies';
 
 const LOGO_URL = 'https://procurement.trojanholding.ae/Styles/Images/TCG.PNG';
 
@@ -61,6 +61,7 @@ export const PolicyModal: React.FC<PolicyModalProps> = ({
       case 'ohs': return OHS_POLICY;
       case 'privacy': return PRIVACY_POLICY;
       case 'agreement': return USER_AGREEMENT;
+      case 'cookies': return COOKIE_POLICY;
     }
   };
 
@@ -72,6 +73,7 @@ export const PolicyModal: React.FC<PolicyModalProps> = ({
       case 'ohs': return 'text-blue-500';
       case 'privacy': return 'text-rose-500';
       case 'agreement': return 'text-amber-500';
+      case 'cookies': return 'text-indigo-500';
     }
   };
 
@@ -108,7 +110,13 @@ export const PolicyModal: React.FC<PolicyModalProps> = ({
           <div className="flex items-center gap-4">
              <div className={`p-3 rounded-2xl border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-800 border-white/5'}`}>
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className={accentColor}>
-                   <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4" strokeLinecap="round" strokeLinejoin="round"/>
+                   {activeTab === 'cookies' ? (
+                     <path d="M12 2a10 10 0 1 0 10 10 4 4 0 0 1-5-5 4 4 0 0 1-5-5" strokeLinecap="round" strokeLinejoin="round" />
+                   ) : (
+                     <>
+                       <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4" strokeLinecap="round" strokeLinejoin="round"/>
+                     </>
+                   )}
                 </svg>
              </div>
              <div>
@@ -166,6 +174,14 @@ export const PolicyModal: React.FC<PolicyModalProps> = ({
             }`}
           >
             Agreement
+          </button>
+          <button 
+            onClick={() => setActiveTab('cookies')}
+            className={`min-w-[120px] py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${
+              activeTab === 'cookies' ? 'bg-indigo-600 text-white shadow-lg' : `${isLight ? 'text-slate-400 hover:bg-slate-100' : 'text-slate-500 hover:bg-white/5'}`
+            }`}
+          >
+            Cookies
           </button>
         </div>
 

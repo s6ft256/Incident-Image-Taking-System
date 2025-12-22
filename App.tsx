@@ -9,7 +9,8 @@ import { AuthScreen } from './components/AuthScreen';
 import { TutorialModal } from './components/TutorialModal';
 import { BiometricLockModal } from './components/BiometricLockModal';
 import { FeedbackAssistant } from './components/FeedbackAssistant';
-import { PolicyModal } from './components/PolicyModal';
+import { PolicyModal, PolicyTab } from './components/PolicyModal';
+import { CookieBanner } from './components/CookieBanner';
 import { syncOfflineReports } from './services/syncService';
 import { UserProfile as UserProfileType } from './types';
 import { requestNotificationPermission } from './services/notificationService';
@@ -22,10 +23,10 @@ const TUTORIAL_KEY = 'hse_guardian_tutorial_seen';
 const SYSTEM_LOGO_URL = 'https://procurement.trojanholding.ae/Styles/Images/TCG.PNG';
 
 export default function App() {
-  // Always start on auth to ensure user is prompted to login every session
   const [view, setView] = useState<ViewState>('auth');
   const [showProfileCard, setShowProfileCard] = useState(false);
   const [showPolicy, setShowPolicy] = useState(false);
+  const [policyInitialTab, setPolicyInitialTab] = useState<PolicyTab>('environmental');
   const [showTutorial, setShowTutorial] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
   const [baseId, setBaseId] = useState(AIRTABLE_CONFIG.BASE_ID);
@@ -70,16 +71,13 @@ export default function App() {
     setQuote(SAFETY_QUOTES[Math.floor(Math.random() * SAFETY_QUOTES.length)]);
     const profile = loadProfile();
     
-    // Always stay on 'auth' if no profile
     if (!profile) {
       setView('auth');
     } else {
-      // If user has biometrics, we show the dashboard view but it's obscured by the BiometricLockModal
       if (profile.webauthn_credential_id) {
         setIsLocked(true);
         setView('dashboard'); 
       } else {
-        // If they exist but have no biometrics, we force them to re-enter their password on AuthScreen
         setView('auth');
       }
 
@@ -89,9 +87,7 @@ export default function App() {
       }
     }
 
-    // Request Notification Permission
     requestNotificationPermission();
-
     setIsInitialized(true);
 
     const savedTheme = localStorage.getItem(THEME_KEY) as 'dark' | 'light';
@@ -171,9 +167,12 @@ export default function App() {
     setIsLocked(false);
     const tutorialSeen = localStorage.getItem(TUTORIAL_KEY);
     if (!tutorialSeen) setShowTutorial(true);
-    
-    // Request permission again if not granted during first run
     requestNotificationPermission();
+  };
+
+  const handleOpenCookiePolicy = () => {
+    setPolicyInitialTab('cookies');
+    setShowPolicy(true);
   };
 
   const renderContent = () => {
@@ -305,7 +304,7 @@ export default function App() {
             <div className="flex flex-col items-center gap-1 group">
               <span className={`px-2 py-0.5 rounded-md text-[7px] font-black uppercase tracking-widest border shadow-sm transition-all duration-300 ${isMenuOpen ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'} ${appTheme === 'dark' ? 'bg-slate-800 border-white/10 text-slate-400' : 'bg-white border-slate-200 text-slate-500'}`}>Policies</span>
               <button 
-                onClick={() => { setShowPolicy(true); setIsMenuOpen(false); }}
+                onClick={() => { setPolicyInitialTab('environmental'); setShowPolicy(true); setIsMenuOpen(false); }}
                 className={`w-11 h-11 sm:w-12 sm:h-12 rounded-full border shadow-2xl hover:scale-105 active:scale-90 transition-all flex items-center justify-center p-0 overflow-hidden ${
                   appTheme === 'dark' 
                     ? 'bg-gradient-to-tr from-slate-800 to-slate-700 border-white/10 text-white' 
@@ -339,7 +338,9 @@ export default function App() {
         />
       )}
 
-      {showPolicy && <PolicyModal onClose={() => setShowPolicy(false)} appTheme={appTheme} />}
+      {showPolicy && <PolicyModal onClose={() => setShowPolicy(false)} appTheme={appTheme} initialTab={policyInitialTab} />}
+
+      <CookieBanner appTheme={appTheme} onViewDetails={handleOpenCookiePolicy} />
 
       {syncCount > 0 && (
         <div className="fixed bottom-32 right-6 z-50 animate-in slide-in-from-bottom-10">

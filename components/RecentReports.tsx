@@ -129,7 +129,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
         selectedIds.has(r.id) ? { ...r, fields: { ...r.fields, "Assigned To": assignee } } : r
       ));
       
-      setAssignmentSuccess(`Multi assigned ${selectedIds.size} incidents to ${assignee}`);
+      setAssignmentSuccess(`Multi assigned ${selectedIds.size} incidents to ${assignee === "None" ? "None" : assignee}`);
       setSelectedIds(new Set<string>());
       setTimeout(() => setAssignmentSuccess(null), 3500);
     } catch (err: any) {
@@ -192,8 +192,8 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
       setAllReports(prev => prev.map(r => r.id === reportId ? { ...r, fields: { ...r.fields, "Assigned To": assignee } } : r));
       
       const successMsg = assignee 
-        ? (assignee === "Release pool" ? "Task released to pool" : `Task assigned to ${assignee}`)
-        : `Task released to pool`;
+        ? (assignee === "None" ? "Task unassigned" : `Task assigned to ${assignee}`)
+        : `Task unassigned`;
       
       setAssignmentSuccess(successMsg);
       setTimeout(() => setAssignmentSuccess(null), 3500);
@@ -284,13 +284,9 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
     const actionTaken = actionInputs[id];
     let currentAssignee = report.fields["Assigned To"]?.trim();
     
-    /**
-     * Requirement Logic: 
-     * If Observation assignee == to Release pool, then Observation assignee == closedBy/Closing Verifier
-     */
     let closedByValue = currentAssignee;
-    if (!closedByValue || closedByValue === "None" || closedByValue === "Release pool") {
-        closedByValue = "Release pool";
+    if (!closedByValue || closedByValue === "None") {
+        closedByValue = "None";
     }
 
     if (!actionTaken?.trim()) {
@@ -354,7 +350,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
     return sortedReports.filter(report => {
       const isClosed = report.fields["Action taken"]?.trim().length > 0;
       const assignedTo = report.fields["Assigned To"]?.trim() || "";
-      const isUnassigned = !assignedTo || assignedTo === "None" || assignedTo === "Release pool";
+      const isUnassigned = !assignedTo || assignedTo === "None";
       
       const matchesType = filterType === 'All Types' || report.fields["Incident Type"] === filterType;
 
@@ -423,7 +419,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
             >
             Open
             <span className="ml-2 bg-blue-500/30 text-blue-100 text-[9px] px-1.5 py-0.5 rounded-full">
-                {allReports.filter(r => !r.fields["Action taken"]?.trim() && (!r.fields["Assigned To"]?.trim() || r.fields["Assigned To"] === "None" || r.fields["Assigned To"] === "Release pool")).length}
+                {allReports.filter(r => !r.fields["Action taken"]?.trim() && (!r.fields["Assigned To"]?.trim() || r.fields["Assigned To"] === "None")).length}
             </span>
             </button>
             <button
@@ -436,7 +432,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
             >
             Assigned
             <span className="ml-2 bg-amber-500/30 text-amber-100 text-[9px] px-1.5 py-0.5 rounded-full">
-                {allReports.filter(r => !r.fields["Action taken"]?.trim() && (r.fields["Assigned To"]?.trim() && r.fields["Assigned To"] !== "None" && r.fields["Assigned To"] !== "Release pool")).length}
+                {allReports.filter(r => !r.fields["Action taken"]?.trim() && (r.fields["Assigned To"]?.trim() && r.fields["Assigned To"] !== "None")).length}
             </span>
             </button>
             <button
@@ -514,7 +510,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
         <div className="flex items-center justify-between px-4 mb-2">
            <button 
             onClick={selectAllFiltered}
-            className={`text-[10px] font-black uppercase tracking-widest flex items-center gap-2 ${isLight ? 'text-slate-400 hover:text-blue-500' : 'text-slate-500 hover:text-blue-400'}`}
+            className={`text-[10px] font-black uppercase tracking-widest flex items-center gap-2 ${isAllSelected ? 'text-blue-500' : (isLight ? 'text-slate-400 hover:text-blue-500' : 'text-slate-500 hover:text-blue-400')}`}
            >
               <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${isAllSelected ? 'bg-blue-600 border-blue-600' : (isLight ? 'bg-white border-slate-300' : 'bg-slate-800 border-slate-700')}`}>
                 {isAllSelected && <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="4"><path d="M5 13l4 4L19 7"/></svg>}
@@ -569,7 +565,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
                         </span>
                     )}
                     <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase border ${report.fields["Action taken"]?.trim() ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'}`}>
-                      {report.fields["Action taken"]?.trim() ? 'Closed' : ((report.fields["Assigned To"]?.trim() && report.fields["Assigned To"] !== "None" && report.fields["Assigned To"] !== "Release pool") ? 'Assigned' : 'Unassigned')}
+                      {report.fields["Action taken"]?.trim() ? 'Closed' : ((report.fields["Assigned To"]?.trim() && report.fields["Assigned To"] !== "None") ? 'Assigned' : 'Unassigned')}
                     </span>
                   </div>
                   <div className={`shrink-0 transition-transform ${expandedId === report.id ? 'rotate-90 text-blue-500' : 'text-slate-600'}`}>
@@ -602,7 +598,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
                                   disabled={reassigningId === report.id}
                                   onChange={(e) => handleReassign(report.id, e.target.value)}
                               >
-                                  <option value="Release pool">Release to Pool</option>
+                                  <option value="None">None (Unassigned)</option>
                                   <optgroup label="Team Directory">
                                     {teamMembers.map(name => (
                                         <option key={name} value={name}>{name}</option>
@@ -655,7 +651,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
                                 <input 
                                     type="text" 
                                     readOnly 
-                                    value={(!report.fields["Assigned To"] || report.fields["Assigned To"] === "None" || report.fields["Assigned To"] === "Release pool") ? "Release pool" : report.fields["Assigned To"]} 
+                                    value={(!report.fields["Assigned To"] || report.fields["Assigned To"] === "None") ? "None" : report.fields["Assigned To"]} 
                                     className={`${baseClasses} ${themeClasses} cursor-not-allowed border-blue-500/30 font-black uppercase tracking-widest text-[10px] bg-blue-500/5`} 
                                 />
                                 <div className="absolute right-4 top-1/2 -translate-y-1/2">
@@ -795,7 +791,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
                       onChange={(e) => handleMultiAssign(e.target.value)}
                       className={`${baseClasses} ${themeClasses} text-[11px] font-black uppercase tracking-widest`}
                     >
-                       <option value="Release pool">Multi assign To Pool</option>
+                       <option value="None">Multi assign to None</option>
                        <optgroup label="HSE Personnel Directory">
                           {teamMembers.map(name => (
                              <option key={name} value={name}>{name}</option>

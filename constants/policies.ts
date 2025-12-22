@@ -190,3 +190,26 @@ export const USER_AGREEMENT = {
     }
   ]
 };
+
+export const COOKIE_POLICY = {
+  title: "Cookie Policy",
+  lastReviewed: "24 May 2025",
+  sections: [
+    {
+      heading: "1. Understanding Cookies",
+      content: "HSE Guardian uses cookies and similar local storage technologies to ensure the platform functions securely and provides a seamless user experience. Cookies are small data files stored on your device that help us recognize your session and preferences."
+    },
+    {
+      heading: "2. Essential Cookies (Required)",
+      content: "These cookies are mandatory for the application to function. Without them, you cannot log in or use secure features.\n\n• Session Management: Keeps you logged in while you navigate between different parts of the system.\n• Security Handshake: Stores cryptographic keys required for Biometric Authentication (WebAuthn) and secure server communication.\n• Data Integrity: Tracks the progress of offline report syncing to prevent data loss."
+    },
+    {
+      heading: "3. Preference Cookies (Customization)",
+      content: "These cookies help the system remember your choices to provide a more personalized interface.\n\n• Visual Theme: Remembers if you prefer the 'Dark' or 'Light' interface protocol.\n• Onboarding Status: Tracks if you have seen the system tutorial to avoid repetitive walkthroughs.\n• Localization: Remembers your site selection and role for faster report pre-filling."
+    },
+    {
+      heading: "4. Managing Your Cookies",
+      content: "Most web browsers allow you to control cookies through their settings. However, disabling 'Essential' cookies will prevent you from accessing the HSE Guardian platform as it relies on these for secure identity verification. You can purge your local data and preferences at any time through the 'Profile' section of the application."
+    }
+  ]
+};
