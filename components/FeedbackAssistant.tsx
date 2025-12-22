@@ -6,10 +6,12 @@ interface FeedbackAssistantProps {
   userName?: string;
 }
 
+const DEV_PHOTO_URL = 'https://raw.githubusercontent.com/s6ft256/Incident-Image-Taking-System/main/Dev1.jpeg';
+
 export const FeedbackAssistant: React.FC<FeedbackAssistantProps> = ({ appTheme = 'dark', userName = '' }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [formData, setFormData] = useState({
-    name: '', 
+    name: userName || '', 
     subject: 'General Query',
     message: ''
   });
@@ -52,7 +54,7 @@ export const FeedbackAssistant: React.FC<FeedbackAssistantProps> = ({ appTheme =
     setTimeout(() => {
       setIsSubmitted(false);
       setIsOpen(false);
-      setFormData(prev => ({ ...prev, message: '', name: '' }));
+      setFormData(prev => ({ ...prev, message: '' }));
     }, 2000);
   };
 
@@ -62,9 +64,14 @@ export const FeedbackAssistant: React.FC<FeedbackAssistantProps> = ({ appTheme =
         <div className={`absolute bottom-20 right-0 w-80 sm:w-96 h-auto max-h-[85vh] ${isLight ? 'bg-white border-slate-200' : 'bg-slate-900 border-white/10'} border rounded-[2rem] shadow-2xl flex flex-col overflow-hidden mb-4 animate-in slide-in-from-bottom-5 fade-in duration-300 z-[100]`}>
           {/* Header */}
           <div className={`${isLight ? 'bg-slate-50 border-b border-slate-100' : 'bg-white/[0.03] border-b border-white/5'} p-6 flex justify-between items-center shrink-0`}>
-            <div>
-              <h3 className={`text-lg font-black tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>Support Terminal</h3>
-              <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest">HSE Guardian Communications</p>
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-full border-2 border-blue-500/30 overflow-hidden shadow-md">
+                 <img src={DEV_PHOTO_URL} alt="Developer" className="w-full h-full object-cover" />
+              </div>
+              <div>
+                <h3 className={`text-sm font-black tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>Developer Direct</h3>
+                <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Connect with Support</p>
+              </div>
             </div>
             <button onClick={() => setIsOpen(false)} className={`p-2 rounded-xl transition-all ${isLight ? 'hover:bg-slate-200 text-slate-400' : 'hover:bg-white/10 text-slate-500'}`}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M18 6 6 18M6 6l12 12"/></svg>
@@ -193,7 +200,7 @@ export const FeedbackAssistant: React.FC<FeedbackAssistantProps> = ({ appTheme =
           </div>
           
           <div className={`p-4 border-t ${isLight ? 'bg-slate-50 border-slate-100' : 'bg-white/[0.02] border-white/5'} text-center shrink-0`}>
-            <p className="text-[7px] font-black text-slate-500 uppercase tracking-[0.4em]">HSE Guardian Ecosystem • Security-First Reporting</p>
+            <p className="text-[7px] font-black text-slate-500 uppercase tracking-widest">HSE Guardian Ecosystem • Security-First Reporting</p>
           </div>
         </div>
       )}
@@ -208,7 +215,6 @@ export const FeedbackAssistant: React.FC<FeedbackAssistantProps> = ({ appTheme =
           </svg>
         ) : (
           <div className="flex flex-col items-center">
-            {/* Fix: Replaced invalid responsive attributes with Tailwind classes for SVG scaling */}
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="w-5 h-5 sm:w-6 sm:h-6">
               <path strokeLinecap="round" strokeLinejoin="round" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
             </svg>

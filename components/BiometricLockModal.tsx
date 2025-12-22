@@ -65,15 +65,15 @@ export const BiometricLockModal: React.FC<BiometricLockModalProps> = ({
         backgroundSize: '32px 32px'
       }}></div>
 
-      <div className={`relative w-full max-w-sm rounded-[3.5rem] border shadow-[0_0_100px_rgba(0,0,0,0.5)] animate-in zoom-in fade-in duration-700 overflow-hidden flex flex-col items-center p-8 sm:p-12 ${
+      <div className={`relative w-full max-sm rounded-[3.5rem] border shadow-[0_0_100px_rgba(0,0,0,0.5)] animate-in zoom-in fade-in duration-700 overflow-hidden flex flex-col items-center p-8 sm:p-12 ${
         isLight ? 'bg-white border-slate-200' : 'bg-[#020617]/80 border-white/10'
       }`}>
         
-        {/* TGC Logo Branding */}
+        {/* Company Branding */}
         <div className="absolute top-8 left-1/2 -translate-x-1/2 opacity-20 group">
           <img 
-            src="https://www.multiply-marketing.com/trojan-wp/wp-content/uploads/2020/08/tgc-logo-300x300.png" 
-            className="h-10 w-auto grayscale transition-all group-hover:grayscale-0" 
+            src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRYqYOT4CeopLGtllzFtkjrt1iueEfdM7ejCA&s" 
+            className="h-10 w-auto transition-all group-hover:opacity-100 rounded-lg" 
             alt="TGC" 
           />
         </div>
@@ -189,8 +189,8 @@ export const BiometricLockModal: React.FC<BiometricLockModalProps> = ({
         )}
 
         <div className="mt-12 flex flex-col items-center">
-           <p className={`text-[7px] font-black uppercase tracking-[0.5em] ${isLight ? 'text-slate-300' : 'text-slate-700'}`}>
-             @ ELIUS 2025 . SAFETY FIRST
+           <p className={`text-[7px] font-black uppercase tracking-widest ${isLight ? 'text-slate-300' : 'text-slate-700'}`}>
+             © ELIUS 2025 • SAFETY FIRST
            </p>
         </div>
       </div>

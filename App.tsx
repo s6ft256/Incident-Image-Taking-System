@@ -13,13 +13,14 @@ import { FeedbackAssistant } from './components/FeedbackAssistant';
 import { PolicyModal } from './components/PolicyModal';
 import { syncOfflineReports } from './services/syncService';
 import { UserProfile as UserProfileType } from './types';
+import { requestNotificationPermission } from './services/notificationService';
 
 type ViewState = 'dashboard' | 'create' | 'recent' | 'auth' | 'my-tasks';
 
 const PROFILE_KEY = 'hse_guardian_profile';
 const THEME_KEY = 'hse_guardian_theme';
 const TUTORIAL_KEY = 'hse_guardian_tutorial_seen';
-const SYSTEM_LOGO_URL = 'https://raw.githubusercontent.com/s6ft256/Incident-Image-Taking-System/main/Tj1.jpeg';
+const SYSTEM_LOGO_URL = 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRYqYOT4CeopLGtllzFtkjrt1iueEfdM7ejCA&s';
 
 export default function App() {
   // Always start on auth to ensure user is prompted to login every session
@@ -88,6 +89,10 @@ export default function App() {
         setShowTutorial(true);
       }
     }
+
+    // Request Notification Permission
+    requestNotificationPermission();
+
     setIsInitialized(true);
 
     const savedTheme = localStorage.getItem(THEME_KEY) as 'dark' | 'light';
@@ -167,6 +172,9 @@ export default function App() {
     setIsLocked(false);
     const tutorialSeen = localStorage.getItem(TUTORIAL_KEY);
     if (!tutorialSeen) setShowTutorial(true);
+    
+    // Request permission again if not granted during first run
+    requestNotificationPermission();
   };
 
   const renderContent = () => {
@@ -196,7 +204,7 @@ export default function App() {
                  <img 
                    src={SYSTEM_LOGO_URL} 
                    alt="Incident Guardian Logo" 
-                   className="h-16 w-16 sm:h-24 sm:w-24 object-cover rounded-2xl border-2 border-white/10 shadow-lg transition-transform group-hover:scale-105"
+                   className="h-16 w-16 sm:h-24 sm:w-24 object-contain rounded-2xl border-2 border-white/10 shadow-lg transition-transform group-hover:scale-105 bg-white p-1"
                  />
                  <span className={`text-[9px] sm:text-[11px] font-black uppercase tracking-[0.2em] mt-2 ${appTheme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>TGC Group</span>
                </div>
@@ -248,7 +256,7 @@ export default function App() {
             <div className={`px-6 py-3 rounded-full border-2 border-red-600/60 bg-red-600/5 text-[10px] font-black uppercase tracking-[0.3em] text-red-500 shadow-[0_0_15px_rgba(220,38,38,0.3)]`}>
               "{quote}"
             </div>
-            <p className="text-[9px] font-black text-slate-600 uppercase tracking-[0.4em]">@ ELIUS 2025 . SAFETY FIRST</p>
+            <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest">© ELIUS 2025 • SAFETY FIRST</p>
           </div>
         </footer>
       </div>

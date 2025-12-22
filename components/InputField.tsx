@@ -45,7 +45,7 @@ export const InputField: React.FC<InputFieldProps> = memo(({
 
   const baseClasses = `w-full rounded-xl border px-4 py-3.5 outline-none transition-all duration-200 text-sm ${
     hasError 
-      ? 'border-rose-500 ring-1 ring-rose-500/20' 
+      ? 'border-rose-500 ring-1 ring-rose-500/20 shadow-[0_0_10px_rgba(244,63,94,0.1)]' 
       : 'focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500'
   }`;
   
@@ -146,13 +146,13 @@ export const InputField: React.FC<InputFieldProps> = memo(({
         <label htmlFor={id} className={`text-[10px] font-black uppercase tracking-[0.2em] ${hasError ? 'text-rose-500' : 'text-slate-500'}`}>
           {label} {required && <span className="text-rose-500 ml-0.5">*</span>}
         </label>
-        {hasError && (
-          <span className="text-[9px] font-bold text-rose-500 animate-in fade-in slide-in-from-right-2 uppercase">
-            {error}
-          </span>
-        )}
       </div>
       {renderInput()}
+      {hasError && (
+        <span className="text-[9px] font-bold text-rose-500 animate-in fade-in slide-in-from-top-1 uppercase px-1 mt-0.5">
+          {error}
+        </span>
+      )}
     </div>
   );
 });

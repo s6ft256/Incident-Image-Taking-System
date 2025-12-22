@@ -19,7 +19,8 @@ export const useIncidentReport = (baseId: string) => {
     category: '',
     observation: '',
     actionTaken: '',
-    assignedTo: ''
+    assignedTo: '',
+    location: ''
   });
   
   const [touched, setTouched] = useState<Record<string, boolean>>({});
@@ -28,6 +29,7 @@ export const useIncidentReport = (baseId: string) => {
   const [submitStatus, setSubmitStatus] = useState<SubmitStatus>('idle');
   const [errorMessage, setErrorMessage] = useState('');
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [isLocating, setIsLocating] = useState(false);
 
   useEffect(() => {
     const savedProfile = localStorage.getItem(PROFILE_KEY);
@@ -75,6 +77,31 @@ export const useIncidentReport = (baseId: string) => {
   const handleBlur = useCallback((e: React.FocusEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { id } = e.target;
     setTouched(prev => ({ ...prev, [id]: true }));
+  }, []);
+
+  const fetchCurrentLocation = useCallback(() => {
+    if (!navigator.geolocation) {
+      setErrorMessage("Geolocation is not supported by your browser");
+      return;
+    }
+
+    setIsLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        const locationStr = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+        setFormData(prev => ({ ...prev, location: locationStr }));
+        setIsLocating(false);
+      },
+      (error) => {
+        let msg = "Location access denied.";
+        if (error.code === error.TIMEOUT) msg = "Location request timed out.";
+        else if (error.code === error.POSITION_UNAVAILABLE) msg = "Location information unavailable.";
+        setErrorMessage(msg);
+        setIsLocating(false);
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+    );
   }, []);
 
   const handleAddImage = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -225,8 +252,10 @@ export const useIncidentReport = (baseId: string) => {
     submitStatus,
     errorMessage,
     isOnline,
+    isLocating,
     handleInputChange,
     handleBlur,
+    fetchCurrentLocation,
     handleAddImage,
     handleRemoveImage,
     handleRetry: (id: string) => {
@@ -245,7 +274,8 @@ export const useIncidentReport = (baseId: string) => {
         category: '',
         observation: '',
         actionTaken: '',
-        assignedTo: ''
+        assignedTo: '',
+        location: ''
       });
       setImages([]);
     }

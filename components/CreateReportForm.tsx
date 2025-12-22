@@ -6,6 +6,7 @@ import { INCIDENT_TYPES, ROLES, SITES, MIN_IMAGES } from '../constants';
 import { useIncidentReport } from '../hooks/useIncidentReport';
 import { getAllProfiles } from '../services/profileService';
 import { UserProfile } from '../types';
+import { sendNotification } from '../services/notificationService';
 
 interface CreateReportFormProps {
   baseId: string;
@@ -23,8 +24,10 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
     submitStatus,
     errorMessage,
     isOnline,
+    isLocating,
     handleInputChange,
     handleBlur,
+    fetchCurrentLocation,
     handleAddImage,
     handleRemoveImage,
     handleRetry,
@@ -46,6 +49,21 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
     };
     fetchTeam();
   }, []);
+
+  // Trigger Notification on Success
+  useEffect(() => {
+    if (submitStatus === 'success') {
+      sendNotification(
+        "Observation Logged Successfully", 
+        `Incident at ${formData.site || 'Site'} has been synced to the safety database.`
+      );
+    } else if (submitStatus === 'offline-saved') {
+      sendNotification(
+        "Report Saved Locally", 
+        "Network unavailable. Report stored in offline queue and will sync automatically."
+      );
+    }
+  }, [submitStatus, formData.site]);
 
   if (submitStatus === 'success' || submitStatus === 'offline-saved') {
     return (
@@ -112,17 +130,57 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
               required 
               list={ROLES} 
             />
-            <InputField 
-              id="site" 
-              label="Work Location" 
-              value={formData.site} 
-              onChange={handleInputChange} 
-              onBlur={handleBlur}
-              error={validationErrors.site}
-              touched={touched.site}
-              required 
-              list={SITES} 
-            />
+            <div className="space-y-2">
+              <InputField 
+                id="site" 
+                label="Work Location" 
+                value={formData.site} 
+                onChange={handleInputChange} 
+                onBlur={handleBlur}
+                error={validationErrors.site}
+                touched={touched.site}
+                required 
+                list={SITES} 
+              />
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-3">
+                  <div className="flex-1">
+                    <InputField 
+                      id="location" 
+                      label="Precise Coordinates (GPS)" 
+                      value={formData.location || ''} 
+                      onChange={handleInputChange} 
+                      placeholder="Lat, Long"
+                      autoComplete="off"
+                    />
+                  </div>
+                  <button 
+                    type="button"
+                    onClick={fetchCurrentLocation}
+                    disabled={isLocating}
+                    className={`mt-6 p-4 rounded-xl border transition-all flex items-center justify-center gap-2 group ${
+                      isLight 
+                        ? 'bg-blue-50 border-blue-200 text-blue-600 hover:bg-blue-100' 
+                        : 'bg-blue-600/10 border-blue-500/30 text-blue-400 hover:bg-blue-600/20'
+                    }`}
+                    title="Get Current Coordinates"
+                  >
+                    {isLocating ? (
+                      <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                    ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="group-hover:scale-110 transition-transform">
+                        <path d="M12 2c3.31 0 6 2.69 6 6 0 5.25-6 13-6 13S6 13.25 6 8c0-3.31 2.69-6 6-6z"/>
+                        <circle cx="12" cy="8" r="2"/>
+                      </svg>
+                    )}
+                    <span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">GPS</span>
+                  </button>
+                </div>
+                <p className={`text-[8px] font-black uppercase tracking-tighter px-1 ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>
+                  Required for evidence integrity. Allows mapping of critical hazard zones.
+                </p>
+              </div>
+            </div>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -143,8 +201,11 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
                 type="select"
                 value={formData.assignedTo || ""} 
                 onChange={handleInputChange} 
+                onBlur={handleBlur}
                 options={["None", ...teamMembers]}
                 placeholder="Select Assignee"
+                error={validationErrors.assignedTo}
+                touched={touched.assignedTo}
             />
           </div>
 

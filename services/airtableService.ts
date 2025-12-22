@@ -118,6 +118,10 @@ export const submitIncidentReport = async (
     fields["Assigned To"] = form.assignedTo;
   }
 
+  if (form.location) {
+    fields["Location"] = form.location;
+  }
+
   await fetchWithRetry(url, {
     method: 'POST',
     headers: {

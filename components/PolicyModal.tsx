@@ -12,6 +12,8 @@ interface PolicyModalProps {
 
 export type PolicyTab = 'environmental' | 'ohs' | 'privacy' | 'agreement';
 
+const LOGO_URL = 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRYqYOT4CeopLGtllzFtkjrt1iueEfdM7ejCA&s';
+
 const PolicyContentRenderer: React.FC<{ content: string; accentColor: string }> = ({ content, accentColor }) => {
   const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
   const parts = [];
@@ -91,10 +93,10 @@ export const PolicyModal: React.FC<PolicyModalProps> = ({
       }`}>
         
         <div 
-          className="absolute inset-0 pointer-events-none opacity-50 z-0 select-none print:opacity-10"
+          className="absolute inset-0 pointer-events-none opacity-20 z-0 select-none print:opacity-10"
           style={{
-            backgroundImage: `url('https://procurement.trojanholding.ae/Styles/Images/TCG.PNG')`,
-            backgroundSize: '70%',
+            backgroundImage: `url('${LOGO_URL}')`,
+            backgroundSize: '30%',
             backgroundPosition: 'center',
             backgroundRepeat: 'no-repeat',
             backgroundAttachment: 'fixed'
@@ -200,8 +202,8 @@ export const PolicyModal: React.FC<PolicyModalProps> = ({
                 </div>
               ))}
               
-              <div className="pt-10 flex flex-col items-center opacity-40">
-                <img src="https://www.multiply-marketing.com/trojan-wp/wp-content/uploads/2020/08/tgc-logo-300x300.png" className="h-16 w-auto mb-4 grayscale" alt="TGC Logo" />
+              <div className="pt-10 flex flex-col items-center opacity-80">
+                <img src={LOGO_URL} className="h-16 w-auto mb-4 rounded-xl" alt="Company Logo" />
                 <p className="text-[8px] font-black uppercase tracking-[0.8em] text-slate-500">Official Controlled Document</p>
               </div>
             </div>
@@ -220,7 +222,7 @@ export const PolicyModal: React.FC<PolicyModalProps> = ({
         )}
 
         <div className={`p-6 border-t text-center shrink-0 z-20 print:hidden ${isLight ? 'bg-white border-slate-100' : 'bg-slate-950 border-white/5'}`}>
-          <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.4em]">Trojan Construction Group • Group Policy Framework v2.5</p>
+          <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">© ELIUS 2025 • Policy Framework v2.5</p>
         </div>
       </div>
     </div>
