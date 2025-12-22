@@ -19,7 +19,7 @@ type ViewState = 'dashboard' | 'create' | 'recent' | 'auth' | 'my-tasks';
 const PROFILE_KEY = 'hse_guardian_profile';
 const THEME_KEY = 'hse_guardian_theme';
 const TUTORIAL_KEY = 'hse_guardian_tutorial_seen';
-const SYSTEM_LOGO_URL = 'https://www.multiply-marketing.com/trojan-wp/wp-content/uploads/2020/08/tgc-logo-300x300.png';
+const SYSTEM_LOGO_URL = 'https://raw.githubusercontent.com/s6ft256/Incident-Image-Taking-System/main/Tj1.jpeg';
 
 export default function App() {
   // Always start on auth to ensure user is prompted to login every session
@@ -196,7 +196,7 @@ export default function App() {
                  <img 
                    src={SYSTEM_LOGO_URL} 
                    alt="Incident Guardian Logo" 
-                   className="h-16 w-16 sm:h-24 sm:w-24 object-contain transition-transform group-hover:scale-105"
+                   className="h-16 w-16 sm:h-24 sm:w-24 object-cover rounded-2xl border-2 border-white/10 shadow-lg transition-transform group-hover:scale-105"
                  />
                  <span className={`text-[9px] sm:text-[11px] font-black uppercase tracking-[0.2em] mt-2 ${appTheme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>TGC Group</span>
                </div>

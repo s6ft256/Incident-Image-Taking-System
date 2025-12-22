@@ -6,6 +6,7 @@ import { compressImage } from '../utils/imageCompression';
 import { updateProfile, deleteProfile } from '../services/profileService';
 import { registerBiometrics } from '../services/biometricService';
 import { InputField } from './InputField';
+import { ROLES, SITES } from '../constants';
 
 interface UserProfileProps {
   onBack: () => void;
@@ -27,6 +28,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   
+  const initialProfile = useRef<UserProfileType | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isLight = theme === 'light';
@@ -47,6 +49,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
       try {
         const parsed = JSON.parse(saved);
         setProfile(parsed);
+        initialProfile.current = parsed;
       } catch (e) { console.error("Profile parse fail", e); }
     }
 
@@ -56,6 +59,15 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
       applyTheme(savedTheme); 
     }
   }, []);
+
+  const hasChanges = useMemo(() => {
+    if (!initialProfile.current) return false;
+    return (
+      profile.name !== initialProfile.current.name ||
+      profile.role !== initialProfile.current.role ||
+      profile.site !== initialProfile.current.site
+    );
+  }, [profile]);
 
   const applyTheme = (t: 'dark' | 'light') => {
     if (t === 'light') { 
@@ -73,6 +85,11 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
     applyTheme(newTheme);
     localStorage.setItem(THEME_KEY, newTheme);
     window.dispatchEvent(new CustomEvent('themeChanged', { detail: newTheme }));
+  };
+
+  const handleFieldChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { id, value } = e.target;
+    setProfile(prev => ({ ...prev, [id]: value }));
   };
 
   const handleToggleBiometrics = async () => {
@@ -104,6 +121,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
       const updatedProfile = { ...profile, profileImageUrl: publicUrl };
       if (profile.id) await updateProfile(profile.id, { profileImageUrl: publicUrl });
       setProfile(updatedProfile);
+      initialProfile.current = updatedProfile;
       localStorage.setItem(PROFILE_KEY, JSON.stringify(updatedProfile));
       window.dispatchEvent(new Event('profileUpdated'));
     } catch (err: any) {
@@ -113,10 +131,19 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!hasChanges) return;
+    
     setSaveStatus('saving');
     try {
-      if (profile.id) await updateProfile(profile.id, { name: profile.name, site: profile.site });
+      if (profile.id) {
+        await updateProfile(profile.id, { 
+          name: profile.name, 
+          role: profile.role, 
+          site: profile.site 
+        });
+      }
       localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+      initialProfile.current = profile;
       setSaveStatus('saved');
       window.dispatchEvent(new Event('profileUpdated'));
       setTimeout(() => setSaveStatus('idle'), 2000);
@@ -214,22 +241,32 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
         <div className="space-y-4">
           <div className="flex justify-between items-center px-1">
              <h4 className={`text-[10px] font-black uppercase tracking-widest ${isLight ? 'text-slate-400' : 'text-slate-600'}`}>Identity Protocol</h4>
-             <span className="text-[7px] font-black text-rose-500 uppercase tracking-widest bg-rose-500/5 px-2 py-0.5 rounded-full border border-rose-500/10">Locked Field</span>
+             {saveStatus === 'saved' && (
+                <span className="text-[7px] font-black text-emerald-500 uppercase tracking-widest bg-emerald-500/5 px-2 py-0.5 rounded-full border border-emerald-500/10 animate-in fade-in">Sync Complete</span>
+             )}
           </div>
           
-          <div className="space-y-4 relative">
-              <div className="absolute inset-0 bg-transparent z-20 cursor-not-allowed"></div>
+          <div className="space-y-4">
               <InputField 
                 id="name" 
                 label="Full Name" 
                 value={profile.name} 
-                onChange={() => {}} 
+                onChange={handleFieldChange}
+                placeholder="Name"
               />
               <InputField 
                 id="role" 
                 label="Designated Role" 
                 value={profile.role} 
-                onChange={() => {}} 
+                onChange={handleFieldChange} 
+                list={ROLES}
+              />
+              <InputField 
+                id="site" 
+                label="Primary Site" 
+                value={profile.site || ''} 
+                onChange={handleFieldChange} 
+                list={SITES}
               />
           </div>
         </div>
@@ -283,10 +320,21 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
 
         <button 
           type="submit" 
-          disabled={true}
-          className="w-full bg-slate-800 text-slate-500 text-[11px] font-black py-4 rounded-2xl uppercase tracking-[0.2em] cursor-not-allowed opacity-50"
+          disabled={!hasChanges || isUploading || saveStatus === 'saving'}
+          className={`w-full py-5 rounded-2xl font-black uppercase tracking-[0.2em] transition-all duration-300 shadow-2xl ${
+            !hasChanges 
+              ? `${isLight ? 'bg-slate-100 text-slate-400' : 'bg-slate-800 text-slate-600'} cursor-not-allowed opacity-50`
+              : 'bg-blue-600 text-white hover:bg-blue-500 active:scale-[0.98] border border-blue-400/20'
+          }`}
         >
-          {saveStatus === 'saving' ? 'Syncing...' : 'Changes Committed'}
+          <div className="flex items-center justify-center gap-3">
+            {saveStatus === 'saving' && (
+              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+            )}
+            <span className="text-[11px]">
+              {saveStatus === 'saving' ? 'Syncing...' : saveStatus === 'saved' ? 'Identity Secured' : 'Save Changes'}
+            </span>
+          </div>
         </button>
       </form>
 

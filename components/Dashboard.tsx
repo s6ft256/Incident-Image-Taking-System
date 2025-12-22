@@ -2,6 +2,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { getAllReports } from '../services/airtableService';
 import { FetchedIncident, UserProfile } from '../types';
+import { WeatherWidget } from './WeatherWidget';
 import {
   AreaChart,
   Area,
@@ -182,7 +183,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
 
   return (
     <div className="space-y-4 sm:space-y-6 pb-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      {/* Updated Introductory Card background to dark blue (bg-[#020617] or bg-blue-950) */}
+      
       <div className={`px-6 sm:px-12 py-10 rounded-[2.5rem] text-center shadow-2xl border-2 border-blue-500/30 relative overflow-hidden bg-[#020617]`}>
         <div className="absolute inset-0 bg-blue-600/5 pointer-events-none"></div>
         <p className="text-sm sm:text-lg font-black leading-relaxed max-w-4xl mx-auto uppercase tracking-wider text-white">
@@ -194,6 +195,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
           <span className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-red-600 animate-pulse"></div> ANALYTICS LIVE</span>
         </div>
       </div>
+
+      <WeatherWidget appTheme={appTheme} />
 
       {loading ? (
         <div className="flex flex-col items-center justify-center py-16 gap-4">

@@ -110,7 +110,7 @@ You must STRICTLY focus on HSE and HSECES topics. If a user asks about unrelated
   return (
     <div className="relative flex flex-col items-center" ref={assistantRef}>
       {isOpen && (
-        <div className={`absolute bottom-20 right-0 w-80 sm:w-96 h-[500px] max-h-[70vh] ${appTheme === 'dark' ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'} border rounded-[2rem] shadow-2xl flex flex-col overflow-hidden mb-4 animate-in slide-in-from-bottom-5 fade-in duration-300 z-[100]`}>
+        <div className={`fixed inset-x-4 bottom-24 sm:absolute sm:inset-auto sm:bottom-20 sm:right-0 w-auto sm:w-96 h-[500px] max-h-[70vh] ${appTheme === 'dark' ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'} border rounded-[2rem] shadow-2xl flex flex-col overflow-hidden mb-4 animate-in slide-in-from-bottom-5 fade-in duration-300 z-[100]`}>
           <div className={`${appTheme === 'dark' ? 'bg-gradient-to-r from-emerald-900 to-slate-900 border-slate-700' : 'bg-emerald-600 border-emerald-500'} p-5 border-b flex justify-between items-center`}>
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-full overflow-hidden border-2 border-white/50 shadow-lg bg-emerald-500 flex items-center justify-center text-white">
@@ -161,7 +161,7 @@ You must STRICTLY focus on HSE and HSECES topics. If a user asks about unrelated
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Query safety barriers..."
-                className={`w-full ${appTheme === 'dark' ? 'bg-slate-900 text-white border-slate-600' : 'bg-slate-100 text-slate-900 border-slate-200'} text-xs rounded-full pl-4 pr-10 py-3 border focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 placeholder-slate-500`}
+                className={`w-full ${appTheme === 'dark' ? 'bg-slate-900 text-white border-slate-600' : 'bg-slate-100 text-slate-900 border-slate-200'} text-xs rounded-full pl-4 pr-10 py-3 border focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 placeholder-slate-500 shadow-sm`}
               />
               <button type="submit" disabled={!input.trim() || isLoading} className="absolute right-1.5 p-1.5 bg-emerald-600 text-white rounded-full hover:bg-emerald-500 disabled:opacity-50 transition-colors">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
@@ -186,7 +186,6 @@ You must STRICTLY focus on HSE and HSECES topics. If a user asks about unrelated
           </svg>
         ) : (
           <div className="flex flex-col items-center">
-            {/* Fix: Replaced invalid responsive attributes with Tailwind classes */}
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="w-5 h-5 sm:w-6 sm:h-6 animate-in zoom-in duration-200">
               <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
             </svg>

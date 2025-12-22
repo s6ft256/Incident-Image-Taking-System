@@ -13,7 +13,7 @@ interface RecentReportsProps {
   filterAssignee?: string; 
 }
 
-type Tab = 'open' | 'closed';
+type Tab = 'open' | 'assigned' | 'closed';
 
 // Updated RBAC roles (Case-insensitive matching)
 const AUTHORIZED_ADMIN_ROLES = ['technician', 'engineer'];
@@ -26,13 +26,11 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState<Tab>('open');
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
   
-  // Selection State for Multi Actions
-  // Fix: Added explicit generic type for Set to avoid 'unknown' inference in older environments
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set<string>());
   const [isMultiAssigning, setIsMultiAssigning] = useState(false);
 
-  // Restricted Access State
   const [isArchiveUnlocked, setIsArchiveUnlocked] = useState(false);
   const [accessKey, setAccessKey] = useState('');
   const [unlockError, setUnlockError] = useState(false);
@@ -42,7 +40,12 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
   const isLight = appTheme === 'light';
   const isMyTasksMode = !!filterAssignee;
 
-  // Case-Insensitive RBAC Check
+  // Input styles for non-InputField components
+  const baseClasses = `w-full rounded-xl border px-4 py-3 outline-none transition-all duration-200 text-sm shadow-sm focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500`;
+  const themeClasses = isLight 
+    ? `bg-white text-slate-900 border-slate-300 placeholder:text-slate-400` 
+    : `bg-slate-900/40 text-slate-100 border-slate-700 placeholder:text-slate-600`;
+
   const isAuthorized = useMemo(() => {
     if (!userProfile?.role) return false;
     return AUTHORIZED_ADMIN_ROLES.includes(userProfile.role.toLowerCase());
@@ -50,7 +53,6 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
 
   const [actionInputs, setActionInputs] = useState<Record<string, string>>({});
   const [closingImages, setClosingImages] = useState<Record<string, UploadedImage[]>>({});
-  // Fix: Added explicit generic type for Set
   const [submittingIds, setSubmittingIds] = useState<Set<string>>(new Set<string>());
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [resolveErrors, setResolveErrors] = useState<Record<string, string>>({});
@@ -118,7 +120,6 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
     setResolveErrors({});
 
     try {
-      // Fix: Use spread operator to ensure Array inference is correctly typed as string[]
       const promises = [...selectedIds].map(id => assignIncident(id, assignee, { baseId }));
       await Promise.all(promises);
       
@@ -189,8 +190,8 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
       setAllReports(prev => prev.map(r => r.id === reportId ? { ...r, fields: { ...r.fields, "Assigned To": assignee } } : r));
       
       const successMsg = assignee 
-        ? `Task assigned to ${assignee}` 
-        : `Task released to unassigned queue`;
+        ? (assignee === "Release pool" ? "Task released to pool" : `Task assigned to ${assignee}`)
+        : `Task released to pool`;
       
       setAssignmentSuccess(successMsg);
       setTimeout(() => setAssignmentSuccess(null), 3500);
@@ -279,22 +280,25 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
     setResolveErrors(prev => { const n = {...prev}; delete n[id]; return n; });
 
     const actionTaken = actionInputs[id];
-    // Fix: Provide a string fallback and use it consistently to ensure TypeScript narrowing works for functions expecting 'string'
-    const closedBy = report.fields["Assigned To"] || "";
+    let currentAssignee = report.fields["Assigned To"]?.trim();
     
-    if (!closedBy.trim()) {
-        setResolveErrors(prev => ({...prev, [id]: "Error: Personnel must be assigned before closing."}));
-        return;
+    /**
+     * Requirement Logic: 
+     * If Observation assignee == to Release pool, then Observation assignee == closedBy/Closing Verifier
+     */
+    let closedByValue = currentAssignee;
+    if (!closedByValue || closedByValue === "None" || closedByValue === "Release pool") {
+        closedByValue = "Release pool";
     }
 
     if (!actionTaken?.trim()) {
-        setResolveErrors(prev => ({...prev, [id]: "Required: Action Taken details."}));
+        setResolveErrors(prev => ({...prev, [id]: "Corrective Action detail is mandatory for closure."}));
         return;
     }
 
     const currentImages = closingImages[id] || [];
     if (currentImages.some(img => img.status === 'uploading')) {
-        setResolveErrors(prev => ({...prev, [id]: "Evidence upload in progress."}));
+        setResolveErrors(prev => ({...prev, [id]: "Evidence upload still in progress. Please wait."}));
         return;
     }
 
@@ -305,8 +309,10 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
         .filter(img => img.status === 'success' && img.serverUrl)
         .map(img => ({ url: img.serverUrl!, filename: img.file.name }));
 
-      await updateIncidentAction(id, actionTaken, closedBy, attachmentData, { baseId });
+      // Commit update to database
+      await updateIncidentAction(id, actionTaken, closedByValue, attachmentData, { baseId });
       
+      // Update local state to reflect closure
       setAllReports(prev => prev.map(r => {
         if (r.id === id) {
           return {
@@ -314,7 +320,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
             fields: {
               ...r.fields,
               "Action taken": actionTaken,
-              "Closed by": closedBy,
+              "Closed by": closedByValue,
               "Closed observations": attachmentData.map(a => ({ url: a.url, filename: a.filename }))
             }
           };
@@ -323,8 +329,10 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
       }));
       
       setExpandedId(null);
+      setAssignmentSuccess("Incident verified and archived successfully.");
+      setTimeout(() => setAssignmentSuccess(null), 3000);
     } catch (err: any) {
-      setResolveErrors(prev => ({...prev, [id]: err.message || "Failed to commit resolution."}));
+      setResolveErrors(prev => ({...prev, [id]: err.message || "System error during finalization."}));
     } finally {
       setSubmittingIds(prev => {
         const next = new Set(prev);
@@ -340,21 +348,33 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
     return activeTab === 'open' ? timeA - timeB : timeB - timeA;
   });
 
-  const tabFilteredReports = sortedReports.filter(report => {
-    const isClosed = report.fields["Action taken"]?.trim().length > 0;
-    const assignedTo = report.fields["Assigned To"]?.trim() || "";
-    const isUnassigned = !assignedTo || assignedTo === "None";
-    
-    if (isMyTasksMode) {
-      return !isClosed && assignedTo === filterAssignee;
-    }
+  const tabFilteredReports = useMemo(() => {
+    return sortedReports.filter(report => {
+      const isClosed = report.fields["Action taken"]?.trim().length > 0;
+      const assignedTo = report.fields["Assigned To"]?.trim() || "";
+      const isUnassigned = !assignedTo || assignedTo === "None" || assignedTo === "Release pool";
+      
+      if (isMyTasksMode) {
+        return !isClosed && assignedTo === filterAssignee;
+      }
 
-    if (activeTab === 'closed') {
-      return isClosed;
-    }
+      const matchesSearch = searchTerm.trim() === '' || 
+        report.fields["Observation"]?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        report.fields["Incident Type"]?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        report.fields["Site / Location"]?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        report.fields["Name"]?.toLowerCase().includes(searchTerm.toLowerCase());
 
-    return !isClosed && isUnassigned;
-  });
+      if (activeTab === 'closed') {
+        return isClosed;
+      }
+      
+      if (activeTab === 'assigned') {
+        return !isClosed && !isUnassigned;
+      }
+
+      return !isClosed && isUnassigned && matchesSearch;
+    });
+  }, [sortedReports, activeTab, isMyTasksMode, filterAssignee, searchTerm]);
 
   const isAllSelected = tabFilteredReports.length > 0 && selectedIds.size === tabFilteredReports.length;
 
@@ -388,33 +408,71 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
       )}
 
       {!isMyTasksMode && (
-        <div className={`flex p-1 mb-6 rounded-lg border transition-colors ${isLight ? 'bg-slate-100 border-slate-200' : 'bg-slate-800 border-slate-700'}`}>
+        <div className={`flex p-1 mb-6 rounded-xl border transition-colors ${isLight ? 'bg-slate-100 border-slate-200 shadow-inner' : 'bg-slate-800 border-slate-700'}`}>
             <button
             onClick={() => { setActiveTab('open'); setExpandedId(null); setSelectedIds(new Set<string>()); }}
-            className={`flex-1 py-2 text-sm font-semibold rounded-md transition-all duration-200 ${
+            className={`flex-1 py-2 text-[11px] uppercase tracking-widest font-black rounded-lg transition-all duration-200 ${
                 activeTab === 'open'
-                ? 'bg-blue-600 text-white shadow-md'
-                : `${isLight ? 'text-slate-500 hover:text-slate-900 hover:bg-slate-200' : 'text-slate-400 hover:text-white hover:bg-slate-700/50'}`
+                ? 'bg-blue-600 text-white shadow-lg'
+                : `${isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-400 hover:text-white hover:bg-slate-700/50'}`
             }`}
             >
             Open
-            <span className="ml-2 bg-blue-500/30 text-blue-100 text-[10px] px-1.5 py-0.5 rounded-full">
-                {allReports.filter(r => !r.fields["Action taken"]?.trim() && (!r.fields["Assigned To"]?.trim() || r.fields["Assigned To"] === "None")).length}
+            <span className="ml-2 bg-blue-500/30 text-blue-100 text-[9px] px-1.5 py-0.5 rounded-full">
+                {allReports.filter(r => !r.fields["Action taken"]?.trim() && (!r.fields["Assigned To"]?.trim() || r.fields["Assigned To"] === "None" || r.fields["Assigned To"] === "Release pool")).length}
+            </span>
+            </button>
+            <button
+            onClick={() => { setActiveTab('assigned'); setExpandedId(null); setSelectedIds(new Set<string>()); }}
+            className={`flex-1 py-2 text-[11px] uppercase tracking-widest font-black rounded-lg transition-all duration-200 ${
+                activeTab === 'assigned'
+                ? 'bg-amber-600 text-white shadow-lg'
+                : `${isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-400 hover:text-white hover:bg-slate-700/50'}`
+            }`}
+            >
+            Assigned
+            <span className="ml-2 bg-amber-500/30 text-amber-100 text-[9px] px-1.5 py-0.5 rounded-full">
+                {allReports.filter(r => !r.fields["Action taken"]?.trim() && (r.fields["Assigned To"]?.trim() && r.fields["Assigned To"] !== "None" && r.fields["Assigned To"] !== "Release pool")).length}
             </span>
             </button>
             <button
             onClick={() => { setActiveTab('closed'); setExpandedId(null); setSelectedIds(new Set<string>()); }}
-            className={`flex-1 py-2 text-sm font-semibold rounded-md transition-all duration-200 ${
+            className={`flex-1 py-2 text-[11px] uppercase tracking-widest font-black rounded-lg transition-all duration-200 ${
                 activeTab === 'closed'
-                ? 'bg-emerald-600 text-white shadow-md'
-                : `${isLight ? 'text-slate-500 hover:text-slate-900 hover:bg-slate-200' : 'text-slate-400 hover:text-white hover:bg-slate-700/50'}`
+                ? 'bg-emerald-600 text-white shadow-lg'
+                : `${isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-400 hover:text-white hover:bg-slate-700/50'}`
             }`}
             >
             Archive
-            <span className="ml-2 bg-emerald-500/30 text-emerald-100 text-[10px] px-1.5 py-0.5 rounded-full">
+            <span className="ml-2 bg-emerald-500/30 text-emerald-100 text-[9px] px-1.5 py-0.5 rounded-full">
                 {allReports.filter(r => r.fields["Action taken"]?.trim()).length}
             </span>
             </button>
+        </div>
+      )}
+
+      {activeTab === 'open' && !isMyTasksMode && (
+        <div className="mb-6 animate-in fade-in slide-in-from-top-2">
+          <div className="relative">
+            <input 
+              type="text"
+              placeholder="Filter by keyword, site, or reporter..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className={`${baseClasses} ${themeClasses} pl-11`}
+            />
+            <div className="absolute left-4 inset-y-0 flex items-center text-slate-500">
+               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            </div>
+            {searchTerm && (
+              <button 
+                onClick={() => setSearchTerm('')}
+                className="absolute right-4 inset-y-0 flex items-center text-slate-500 hover:text-blue-500"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M18 6 6 18M6 6l12 12"/></svg>
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -430,7 +488,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
         </div>
       )}
 
-      {activeTab === 'open' && tabFilteredReports.length > 0 && (
+      {(activeTab === 'open' || activeTab === 'assigned') && tabFilteredReports.length > 0 && (
         <div className="flex items-center justify-between px-4 mb-2">
            <button 
             onClick={selectAllFiltered}
@@ -445,7 +503,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
         </div>
       )}
 
-      {!loading && !error && (activeTab === 'open' || isArchiveUnlocked || isMyTasksMode) && (
+      {!loading && !error && (activeTab !== 'closed' || isArchiveUnlocked || isMyTasksMode) && (
         <div className="flex flex-col gap-3">
           {tabFilteredReports.length === 0 && (
             <div className={`text-center py-20 rounded-[2rem] border-2 border-dashed ${isLight ? 'bg-slate-50 border-slate-200 text-slate-400' : 'bg-slate-800/20 border-slate-800 text-slate-500'}`}>
@@ -458,8 +516,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
           {tabFilteredReports.map((report) => (
             <div key={report.id} className={`rounded-xl overflow-hidden transition-all duration-300 border flex ${expandedId === report.id ? `${isLight ? 'bg-white border-blue-500 ring-2 ring-blue-500/10' : 'bg-slate-800 border-blue-500/50 shadow-2xl shadow-blue-500/10'}` : `${isLight ? 'bg-white border-slate-200' : 'bg-slate-800/80 border-slate-700 hover:border-slate-600'}`}`}>
               
-              {/* Checkbox for Multi Selection */}
-              {activeTab === 'open' && (
+              {activeTab !== 'closed' && (
                 <div 
                   onClick={(e) => toggleSelect(report.id, e)}
                   className={`w-12 flex items-center justify-center border-r cursor-pointer transition-colors ${selectedIds.has(report.id) ? 'bg-blue-600/10 border-blue-500/30' : (isLight ? 'border-slate-100' : 'border-white/5')}`}
@@ -475,9 +532,14 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
                   <div className={`w-20 text-[10px] font-black tracking-tighter shrink-0 ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>{new Date(report.createdTime).toLocaleDateString()}</div>
                   <div className={`flex-1 text-sm font-black truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>{report.fields["Incident Type"] || 'Incident'}</div>
                   <div className={`hidden sm:block flex-1 text-[10px] font-black uppercase truncate tracking-widest ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>{report.fields["Site / Location"]}</div>
-                  <div className="shrink-0">
+                  <div className="shrink-0 flex items-center gap-2">
+                    {activeTab === 'assigned' && report.fields["Assigned To"] && (
+                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase border bg-blue-500/10 text-blue-500 border-blue-500/20`}>
+                            {report.fields["Assigned To"]}
+                        </span>
+                    )}
                     <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase border ${report.fields["Action taken"]?.trim() ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'}`}>
-                      {report.fields["Action taken"]?.trim() ? 'Closed' : ((report.fields["Assigned To"]?.trim() && report.fields["Assigned To"] !== "None") ? 'Assigned' : 'Unassigned')}
+                      {report.fields["Action taken"]?.trim() ? 'Closed' : ((report.fields["Assigned To"]?.trim() && report.fields["Assigned To"] !== "None" && report.fields["Assigned To"] !== "Release pool") ? 'Assigned' : 'Unassigned')}
                     </span>
                   </div>
                   <div className={`shrink-0 transition-transform ${expandedId === report.id ? 'rotate-90 text-blue-500' : 'text-slate-600'}`}>
@@ -505,12 +567,12 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
                           <div className="col-span-2 lg:col-span-1">
                               <span className="block text-[8px] font-black text-blue-500 uppercase tracking-widest mb-1">Observation Assignee</span>
                               <select 
-                                  className={`w-full p-2.5 text-[11px] font-black rounded-xl border outline-none transition-all ${isLight ? 'bg-white border-slate-200 focus:border-blue-500' : 'bg-slate-900 border-white/10 text-white focus:border-blue-500'}`}
+                                  className={`${baseClasses} ${themeClasses} text-[11px] font-black`}
                                   value={report.fields["Assigned To"] || ""}
                                   disabled={reassigningId === report.id}
                                   onChange={(e) => handleReassign(report.id, e.target.value)}
                               >
-                                  <option value="">Release to Pool</option>
+                                  <option value="Release pool">Release to Pool</option>
                                   <optgroup label="Team Directory">
                                     {teamMembers.map(name => (
                                         <option key={name} value={name}>{name}</option>
@@ -547,50 +609,94 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
                     </div>
 
                     {!report.fields["Action taken"]?.trim() && (
-                      <div className={`rounded-2xl p-6 border-2 ${isLight ? 'bg-white border-blue-500/20 shadow-xl' : 'bg-slate-900 border-white/10'}`}>
-                        <h4 className="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-6">Task Finalization Control</h4>
-                        <div className="space-y-4">
+                      <div className={`rounded-2xl p-6 border-2 shadow-2xl transition-all duration-300 ${isLight ? 'bg-white border-blue-500/20' : 'bg-slate-900 border-blue-500/20 ring-1 ring-blue-500/10'}`}>
+                        <div className="flex items-center justify-between mb-6">
+                            <h4 className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Resolution Control Terminal</h4>
+                            <div className="flex gap-1.5">
+                                <div className="w-1.5 h-1.5 rounded-full bg-blue-500/50 animate-pulse"></div>
+                                <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse delay-150"></div>
+                            </div>
+                        </div>
+                        
+                        <div className="space-y-5">
                           <div className="flex flex-col gap-1">
-                              <label className={`text-[8px] font-black uppercase tracking-widest px-1 ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>Authorized Verifier Name</label>
-                              <input 
-                                type="text" 
-                                readOnly 
-                                placeholder="Assign Personnel First" 
-                                value={report.fields["Assigned To"] || ''} 
-                                className={`w-full p-4 rounded-xl border text-sm outline-none cursor-not-allowed opacity-75 ${isLight ? 'bg-slate-100 border-slate-200' : 'bg-black/20 border-white/10 text-slate-400'}`} 
-                              />
-                              {(!report.fields["Assigned To"] || report.fields["Assigned To"] === "None") && (
-                                  <p className="text-[8px] font-black text-amber-500 uppercase tracking-widest px-1 mt-1 animate-pulse">Assignment Required to Resolve</p>
-                              )}
-                          </div>
-                          <div className="flex flex-col gap-1">
-                              <label className={`text-[8px] font-black uppercase tracking-widest px-1 ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>Corrective Action Details</label>
-                              <textarea rows={3} placeholder="Describe the remediation steps taken..." value={actionInputs[report.id] || ''} onChange={(e) => handleActionInputChange(report.id, e.target.value)} className={`w-full p-4 rounded-xl border text-sm resize-none outline-none ${isLight ? 'bg-slate-50 border-slate-200 focus:border-blue-500' : 'bg-black/40 border-white/10 text-white focus:border-blue-500'}`} />
-                          </div>
-                          
-                          <div className="flex gap-3 pb-2 overflow-x-auto scrollbar-hide">
-                            {(closingImages[report.id] || []).map(img => (
-                              <div key={img.id} className="relative shrink-0 h-20 w-20">
-                                <img src={img.previewUrl} className={`h-full w-full object-contain bg-black/5 rounded-xl border-2 ${img.status === 'success' ? 'border-emerald-500' : 'border-blue-500 animate-pulse'}`} />
-                                <button onClick={() => handleRemoveClosingImage(report.id, img.id)} className="absolute -top-2 -right-2 bg-slate-900 text-white p-1 rounded-full shadow-lg border border-white/20"><svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="3"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+                              <label className={`text-[8px] font-black uppercase tracking-widest px-1 ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>Closing Verifier Identity</label>
+                              <div className="relative group">
+                                <input 
+                                    type="text" 
+                                    readOnly 
+                                    value={(!report.fields["Assigned To"] || report.fields["Assigned To"] === "None" || report.fields["Assigned To"] === "Release pool") ? "Release pool" : report.fields["Assigned To"]} 
+                                    className={`${baseClasses} ${themeClasses} cursor-not-allowed border-blue-500/30 font-black uppercase tracking-widest text-[10px] bg-blue-500/5`} 
+                                />
+                                <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                                    <svg className="w-4 h-4 text-blue-500/50" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                                </div>
                               </div>
-                            ))}
-                            {(!closingImages[report.id] || closingImages[report.id].length < 3) && (
-                              <label className="shrink-0 h-20 w-20 border-2 border-dashed border-slate-700 rounded-xl flex items-center justify-center cursor-pointer hover:bg-white/5 transition-colors">
-                                <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="3" className="text-slate-600"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-                                <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => handleAddClosingImage(report.id, e)} />
-                              </label>
-                            )}
+                              <p className="text-[7px] font-bold text-slate-500 uppercase tracking-tighter px-1 mt-1">Verified by personnel or administrative pool</p>
                           </div>
 
-                          <button 
-                            onClick={() => handleResolve(report.id)} 
-                            disabled={submittingIds.has(report.id) || !actionInputs[report.id]?.trim() || !report.fields["Assigned To"] || report.fields["Assigned To"] === "None"} 
-                            className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:bg-slate-700 text-white font-black py-5 rounded-xl transition-all uppercase tracking-widest text-[10px] shadow-xl shadow-blue-900/20 active:scale-95"
-                          >
-                            {submittingIds.has(report.id) ? 'Processing Submission...' : 'Commit Final Resolution'}
-                          </button>
-                          {resolveErrors[report.id] && <p className="text-center text-rose-500 text-[10px] font-black uppercase tracking-widest">{resolveErrors[report.id]}</p>}
+                          <div className="flex flex-col gap-1">
+                              <div className="flex justify-between items-center px-1">
+                                <label className={`text-[8px] font-black uppercase tracking-widest ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>Action Taken Narrative</label>
+                                <span className="text-[7px] font-black text-blue-500 uppercase tracking-widest bg-blue-500/10 px-2 py-0.5 rounded-full">Mandatory</span>
+                              </div>
+                              <textarea 
+                                rows={3} 
+                                placeholder="Detail the technical remediation and hazard elimination steps..." 
+                                value={actionInputs[report.id] || ''} 
+                                onChange={(e) => handleActionInputChange(report.id, e.target.value)} 
+                                className={`${baseClasses} ${themeClasses} resize-none min-h-[100px] border-slate-700/50 focus:border-blue-500`} 
+                              />
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <label className={`text-[8px] font-black uppercase tracking-widest px-1 ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>Resolution Evidence (Max 3)</label>
+                            <div className="flex gap-3 pb-2 overflow-x-auto scrollbar-hide">
+                                {(closingImages[report.id] || []).map(img => (
+                                <div key={img.id} className="relative shrink-0 h-24 w-24">
+                                    <img src={img.previewUrl} className={`h-full w-full object-cover rounded-xl border-2 transition-all ${img.status === 'success' ? 'border-emerald-500' : 'border-blue-500 animate-pulse'}`} />
+                                    <button 
+                                        onClick={() => handleRemoveClosingImage(report.id, img.id)} 
+                                        className="absolute -top-2 -right-2 bg-slate-900 text-white p-1 rounded-full shadow-lg border border-white/20 hover:bg-rose-600 transition-colors"
+                                    >
+                                        <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="3"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                                    </button>
+                                    {img.status === 'uploading' && (
+                                        <div className="absolute inset-0 bg-black/40 rounded-xl flex items-center justify-center">
+                                            <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                        </div>
+                                    )}
+                                </div>
+                                ))}
+                                {(!closingImages[report.id] || closingImages[report.id].length < 3) && (
+                                <label className="shrink-0 h-24 w-24 border-2 border-dashed border-slate-700 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:bg-blue-600/10 hover:border-blue-500 transition-all group">
+                                    <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-slate-600 group-hover:text-blue-500 transition-colors"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                                    <span className="text-[7px] font-black uppercase text-slate-600 mt-2 tracking-widest group-hover:text-blue-500">Add Evidence</span>
+                                    <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => handleAddClosingImage(report.id, e)} />
+                                </label>
+                                )}
+                            </div>
+                          </div>
+
+                          <div className="pt-4">
+                            <button 
+                                onClick={() => handleResolve(report.id)} 
+                                disabled={submittingIds.has(report.id) || !actionInputs[report.id]?.trim()} 
+                                className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:bg-slate-800 disabled:text-slate-600 text-white font-black py-5 rounded-2xl transition-all uppercase tracking-[0.2em] text-[11px] shadow-2xl shadow-blue-600/20 active:scale-[0.98] border border-blue-400/20"
+                            >
+                                {submittingIds.has(report.id) ? (
+                                    <div className="flex items-center justify-center gap-3">
+                                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                        <span>Finalizing Protocol...</span>
+                                    </div>
+                                ) : 'Archive & Establish Resolution'}
+                            </button>
+                            {resolveErrors[report.id] && (
+                                <p className="mt-3 text-center text-rose-500 text-[9px] font-black uppercase tracking-widest animate-in slide-in-from-top-1">
+                                    {resolveErrors[report.id]}
+                                </p>
+                            )}
+                          </div>
                         </div>
                       </div>
                     )}
@@ -599,28 +705,28 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
                        <div className={`rounded-2xl p-6 border-2 ${isLight ? 'bg-emerald-50 border-emerald-100' : 'bg-emerald-500/5 border-emerald-500/20'}`}>
                           <h4 className="text-[10px] font-black text-emerald-500 uppercase tracking-widest flex items-center gap-2 mb-4">
                               <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                              Task Resolution Audit
+                              Post-Remediation Compliance Audit
                           </h4>
                           <p className={`text-sm mb-6 p-4 rounded-xl border ${isLight ? 'bg-white border-emerald-200 text-slate-800' : 'bg-black/20 border-white/5 text-slate-200'}`}>{report.fields["Action taken"]}</p>
                           
                           <div className="flex flex-wrap items-center gap-x-6 gap-y-4">
                              <div className="flex flex-col">
-                               <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Closing Verifier</span>
-                               <span className="text-xs font-black text-emerald-500 uppercase">{report.fields["Closed by"]}</span>
+                               <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Authenticated By</span>
+                               <span className="text-xs font-black text-emerald-500 uppercase tracking-wider">{report.fields["Closed by"]}</span>
                              </div>
                              
                              <div className="flex-1 min-w-[200px]">
-                               <span className="block text-[8px] font-black text-slate-500 uppercase tracking-widest mb-2">Resolution Evidence Gallery</span>
+                               <span className="block text-[8px] font-black text-slate-500 uppercase tracking-widest mb-2">Verification Evidence Gallery</span>
                                <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
                                   {report.fields["Closed observations"] ? (
                                     report.fields["Closed observations"].map((img, i) => (
-                                      <a key={i} href={img.url} target="_blank" className="block shrink-0 h-20 w-20 rounded-lg overflow-hidden border border-emerald-500/30 hover:scale-105 transition-transform">
-                                        <img src={img.url} className="h-full w-full object-contain bg-black/5" alt="Resolution" />
+                                      <a key={i} href={img.url} target="_blank" className="block shrink-0 h-20 w-20 rounded-lg overflow-hidden border border-emerald-500/30 hover:scale-105 hover:border-emerald-500 transition-all shadow-lg">
+                                        <img src={img.url} className="h-full w-full object-cover bg-black/5" alt="Resolution" />
                                       </a>
                                     ))
                                   ) : (
-                                    <div className={`h-20 w-20 flex items-center justify-center rounded-lg border border-dashed ${isLight ? 'bg-slate-100 border-slate-200 text-slate-400' : 'bg-slate-900 border-slate-800 text-slate-600'}`}>
-                                      <span className="text-[6px] font-black text-center px-1 uppercase leading-tight">No Closing Evidence</span>
+                                    <div className={`h-20 w-full flex items-center justify-center rounded-lg border border-dashed ${isLight ? 'bg-slate-100 border-slate-200 text-slate-400' : 'bg-slate-900 border-slate-800 text-slate-600'}`}>
+                                      <span className="text-[6px] font-black text-center px-1 uppercase leading-tight">No Photographic Audit Stored</span>
                                     </div>
                                   )}
                                </div>
@@ -636,7 +742,6 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
         </div>
       )}
 
-      {/* Multi Action Bar - Sticky at bottom */}
       {selectedIds.size > 0 && (
         <div className="fixed bottom-0 left-0 right-0 z-50 p-4 sm:p-6 animate-in slide-in-from-bottom-10">
            <div className={`max-w-xl mx-auto rounded-[2rem] border-2 shadow-[0_-20px_50px_rgba(0,0,0,0.3)] p-6 flex flex-col gap-4 backdrop-blur-xl transition-all ${isLight ? 'bg-white/95 border-blue-500/30' : 'bg-slate-900/95 border-blue-500/50'}`}>
@@ -658,9 +763,9 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
                     <select 
                       disabled={isMultiAssigning}
                       onChange={(e) => handleMultiAssign(e.target.value)}
-                      className={`w-full p-4 rounded-2xl border text-[11px] font-black uppercase tracking-widest outline-none transition-all ${isLight ? 'bg-slate-50 border-slate-200 text-slate-900' : 'bg-black/40 border-white/10 text-white'}`}
+                      className={`${baseClasses} ${themeClasses} text-[11px] font-black uppercase tracking-widest`}
                     >
-                       <option value="">Multi assign To...</option>
+                       <option value="Release pool">Multi assign To Pool</option>
                        <optgroup label="HSE Personnel Directory">
                           {teamMembers.map(name => (
                              <option key={name} value={name}>{name}</option>
@@ -672,7 +777,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
                     <button 
                       onClick={() => handleMultiAssign(userProfile?.name || '')}
                       disabled={isMultiAssigning || !userProfile}
-                      className="w-full h-full bg-blue-600 hover:bg-blue-500 text-white font-black rounded-2xl text-[9px] uppercase tracking-[0.2em] shadow-lg transition-all active:scale-95"
+                      className="w-full h-full bg-blue-600 hover:bg-blue-500 text-white font-black rounded-2xl text-[9px] uppercase tracking-[0.2em] shadow-lg transition-all active:scale-95 border border-blue-400/20"
                     >
                       Assign To Me
                     </button>
@@ -712,7 +817,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
                       </p>
                       <button 
                           onClick={() => setActiveTab('open')}
-                          className="w-full bg-slate-800 hover:bg-slate-700 text-white font-black py-4 rounded-2xl uppercase tracking-[0.3em] text-[10px] transition-all"
+                          className="w-full bg-slate-800 hover:bg-slate-700 text-white font-black py-4 rounded-2xl uppercase tracking-[0.3em] text-[10px] transition-all border border-slate-700"
                       >
                           Return to Log
                       </button>
@@ -744,16 +849,16 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
                           placeholder="Access Key" 
                           value={accessKey}
                           onChange={(e) => setAccessKey(e.target.value)}
-                          className={`w-full p-4 rounded-2xl border text-center font-bold tracking-[0.3em] outline-none transition-all backdrop-blur-sm ${
+                          className={`${baseClasses} ${themeClasses} text-center font-bold tracking-[0.3em] ${
                             unlockError 
                               ? 'border-rose-500 ring-2 ring-rose-500/20' 
-                              : `${isLight ? 'bg-white/80 border-slate-300 focus:border-blue-500 text-slate-900' : 'bg-black/60 border-white/20 text-white focus:border-blue-500'}`
+                              : ''
                           }`}
                         />
                         
                         <button 
                           type="submit"
-                          className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-5 rounded-2xl uppercase tracking-[0.3em] text-[11px] transition-all active:scale-95 shadow-xl shadow-blue-500/20"
+                          className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-5 rounded-2xl uppercase tracking-[0.3em] text-[11px] transition-all active:scale-95 shadow-xl shadow-blue-500/20 border border-blue-400/20"
                         >
                           Unlock
                         </button>
