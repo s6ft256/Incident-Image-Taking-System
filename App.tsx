@@ -205,7 +205,6 @@ export default function App() {
                    alt="Incident Guardian Logo" 
                    className="h-16 w-16 sm:h-24 sm:w-24 object-contain transition-transform group-hover:scale-105"
                  />
-                 <span className={`text-[9px] sm:text-[11px] font-black uppercase tracking-[0.2em] mt-2 ${appTheme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>TGC Group</span>
                </div>
              </div>
 

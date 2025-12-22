@@ -7,6 +7,7 @@ import { updateProfile, deleteProfile } from '../services/profileService';
 import { registerBiometrics } from '../services/biometricService';
 import { InputField } from './InputField';
 import { ROLES, SITES } from '../constants';
+import { sendNotification, requestNotificationPermission } from '../services/notificationService';
 
 interface UserProfileProps {
   onBack: () => void;
@@ -27,6 +28,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
   const [errorMessage, setErrorMessage] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [notificationPermission, setNotificationPermission] = useState<string>(Notification.permission);
   
   const initialProfile = useRef<UserProfileType | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -58,6 +60,8 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
       setTheme(savedTheme); 
       applyTheme(savedTheme); 
     }
+
+    setNotificationPermission(Notification.permission);
   }, []);
 
   const hasChanges = useMemo(() => {
@@ -153,6 +157,16 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
     }
   };
 
+  const handleTestNotification = async () => {
+    const granted = await requestNotificationPermission();
+    setNotificationPermission(Notification.permission);
+    if (granted) {
+      sendNotification("HSE Guardian Check", "System alerts are functional and authorized.");
+    } else {
+      setErrorMessage("Please enable notifications in your browser settings.");
+    }
+  };
+
   const handleDeleteIdentity = async () => {
     if (!profile.id) return;
     setIsDeleting(true);
@@ -212,30 +226,6 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
         <span className={`text-[9px] font-black uppercase tracking-[0.4em] mt-1 ${isSecureIdentity ? 'text-emerald-500' : 'text-blue-500'}`}>Clearance {clearanceLevel}</span>
       </div>
 
-      {/* Compliance Verification */}
-      <div className={`p-4 rounded-2xl border ${isLight ? 'bg-emerald-50/50 border-emerald-100' : 'bg-emerald-500/5 border-emerald-500/20'}`}>
-         <h4 className="text-[8px] font-black text-emerald-500 uppercase tracking-widest mb-3 flex items-center gap-2">
-            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path d="M9 12l2 2 4-4"/></svg>
-            GDPR / ISO 45001 Status
-         </h4>
-         <div className="space-y-2">
-            <div className="flex justify-between items-center">
-               <span className={`text-[8px] font-bold uppercase ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Privacy Consent</span>
-               <span className="text-[8px] font-black text-emerald-500 uppercase">ACTIVE</span>
-            </div>
-            <div className="flex justify-between items-center">
-               <span className={`text-[8px] font-bold uppercase ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>User Agreement</span>
-               <span className="text-[8px] font-black text-emerald-500 uppercase">ACTIVE</span>
-            </div>
-            <div className="flex justify-between items-center">
-               <span className={`text-[8px] font-bold uppercase ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Image Usage</span>
-               <span className={`text-[8px] font-black uppercase ${profile.image_consent ? 'text-emerald-500' : 'text-rose-500'}`}>
-                  {profile.image_consent ? 'AUTHORIZED' : 'RESTRICTED'}
-               </span>
-            </div>
-         </div>
-      </div>
-
       {/* Main Settings Form */}
       <form onSubmit={handleSave} className="space-y-6">
         <div className="space-y-4">
@@ -271,7 +261,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
           </div>
         </div>
 
-        {/* Toggles */}
+        {/* System Controls */}
         <div className="space-y-3">
           <div className={`p-4 rounded-2xl border flex items-center justify-between transition-colors ${
             isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/5'
@@ -314,6 +304,26 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
               <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
                 theme === 'dark' ? 'translate-x-5' : 'translate-x-0'
               }`} />
+            </button>
+          </div>
+
+          <div className={`p-4 rounded-2xl border flex items-center justify-between transition-colors ${
+            isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/5'
+          }`}>
+            <div className="flex-1">
+              <p className={`text-[10px] font-black uppercase tracking-widest ${isLight ? 'text-slate-900' : 'text-white'}`}>System Notifications</p>
+              <p className={`text-[8px] font-black uppercase tracking-tighter mt-1 ${
+                notificationPermission === 'granted' ? 'text-emerald-500' : 'text-rose-400'
+              }`}>
+                {notificationPermission === 'granted' ? 'Alerts Optimized' : 'Alerts Restricted'}
+              </p>
+            </div>
+            <button 
+              type="button"
+              onClick={handleTestNotification}
+              className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-[8px] font-black uppercase tracking-widest hover:bg-blue-500 active:scale-95 transition-all"
+            >
+              Force Test
             </button>
           </div>
         </div>
