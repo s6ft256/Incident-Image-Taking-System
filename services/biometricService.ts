@@ -1,6 +1,6 @@
 
 /**
- * Utility to convert ArrayBuffer to Base64String for storage in Supabase
+ * Utility to convert ArrayBuffer to Base64String for storage in Database
  */
 const bufferToBase64 = (buffer: ArrayBuffer): string => {
   return btoa(String.fromCharCode(...new Uint8Array(buffer)));
@@ -19,20 +19,21 @@ const base64ToBuffer = (base64: string): Uint8Array => {
 };
 
 /**
- * Checks if the current device/browser supports biometrics (FaceID/Fingerprint)
+ * Checks if the current device/browser supports platform biometrics (FaceID/Fingerprint)
  */
 export const isBiometricsAvailable = async (): Promise<boolean> => {
   try {
     if (!window.PublicKeyCredential) return false;
+    // Ensure we are in a secure context (HTTPS or localhost)
+    if (!window.isSecureContext) return false;
     return await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
-  } catch (error: any) {
+  } catch (error) {
     return false;
   }
 };
 
 /**
- * Registers a new biometric signature
- * Metadata optimized for Google Password Manager Compliance
+ * Registers a new biometric signature (Enrollment)
  */
 export const registerBiometrics = async (userName: string): Promise<{ credentialId: string; publicKey: string }> => {
   const challenge = window.crypto.getRandomValues(new Uint8Array(32));
@@ -41,21 +42,20 @@ export const registerBiometrics = async (userName: string): Promise<{ credential
   const options: PublicKeyCredentialCreationOptions = {
     challenge,
     rp: { 
-      // This name appears in the Google Password Manager / OS Dialog
-      name: "HSE Guardian Command", 
+      name: "HSE Guardian Security", 
       id: window.location.hostname 
     },
     user: {
       id: userId,
       name: userName,
-      displayName: `Personnel: ${userName}`,
+      displayName: userName,
     },
     pubKeyCredParams: [
-      { alg: -7, type: "public-key" }, // ES256
+      { alg: -7, type: "public-key" }, // ES256 (Preferred)
       { alg: -257, type: "public-key" } // RS256
     ],
     authenticatorSelection: {
-      authenticatorAttachment: "platform",
+      authenticatorAttachment: "platform", // Force TouchID/FaceID/Windows Hello
       userVerification: "required",
       residentKey: "preferred",
     },
@@ -64,7 +64,7 @@ export const registerBiometrics = async (userName: string): Promise<{ credential
 
   try {
     const credential = (await navigator.credentials.create({ publicKey: options })) as PublicKeyCredential;
-    if (!credential) throw new Error("Biometric registration cancelled.");
+    if (!credential) throw new Error("Biometric enrollment interrupted.");
 
     const response = credential.response as AuthenticatorAttestationResponse;
 
@@ -73,13 +73,15 @@ export const registerBiometrics = async (userName: string): Promise<{ credential
       publicKey: bufferToBase64(response.getPublicKey()),
     };
   } catch (error: any) {
-    if (error.name === 'NotAllowedError') throw new Error("Verification declined.");
-    throw error;
+    console.error("Enrollment Error:", error);
+    if (error.name === 'NotAllowedError') throw new Error("Verification declined by user.");
+    if (error.name === 'SecurityError') throw new Error("Secure context (HTTPS) required for biometrics.");
+    throw new Error("System biometric handshake failed.");
   }
 };
 
 /**
- * Authenticates the user using a previously stored biometric credential
+ * Authenticates the user using a previously stored biometric credential (Login)
  */
 export const authenticateBiometrics = async (storedCredentialId: string): Promise<boolean> => {
   const challenge = window.crypto.getRandomValues(new Uint8Array(32));
@@ -100,6 +102,7 @@ export const authenticateBiometrics = async (storedCredentialId: string): Promis
     const assertion = await navigator.credentials.get({ publicKey: options });
     return !!assertion;
   } catch (error: any) {
+    console.warn("Auth Error:", error.name);
     return false;
   }
 };
