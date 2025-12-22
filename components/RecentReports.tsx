@@ -1,10 +1,11 @@
 
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { FetchedIncident, UploadedImage, UserProfile } from '../types';
 import { getAllReports, updateIncidentAction, assignIncident } from '../services/airtableService';
 import { uploadImageToStorage } from '../services/storageService';
 import { compressImage } from '../utils/imageCompression';
 import { getAllProfiles } from '../services/profileService';
+import { ImageGrid } from './ImageGrid';
 import { INCIDENT_TYPES } from '../constants';
 
 interface RecentReportsProps {
@@ -153,6 +154,59 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
     setExpandedId(expandedId === id ? null : id);
   };
 
+  // Image handling for closure
+  const handleAddClosingImage = useCallback((reportId: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      const newImage: UploadedImage = {
+        id: crypto.randomUUID(),
+        file: file,
+        previewUrl: URL.createObjectURL(file),
+        status: 'pending',
+        progress: 0
+      };
+      
+      setClosingImages(prev => ({
+        ...prev,
+        [reportId]: [...(prev[reportId] || []), newImage]
+      }));
+
+      // Start upload immediately
+      processClosingImageUpload(reportId, newImage);
+      e.target.value = '';
+    }
+  }, []);
+
+  const handleRemoveClosingImage = useCallback((reportId: string, imageId: string) => {
+    setClosingImages(prev => ({
+      ...prev,
+      [reportId]: (prev[reportId] || []).filter(img => img.id !== imageId)
+    }));
+  }, []);
+
+  const processClosingImageUpload = async (reportId: string, img: UploadedImage) => {
+    const imageId = img.id;
+    try {
+      setClosingImages(prev => ({
+        ...prev,
+        [reportId]: (prev[reportId] || []).map(i => i.id === imageId ? { ...i, status: 'uploading', progress: 10 } : i)
+      }));
+
+      const compressed = await compressImage(img.file);
+      const url = await uploadImageToStorage(compressed, 'closure_evidence');
+
+      setClosingImages(prev => ({
+        ...prev,
+        [reportId]: (prev[reportId] || []).map(i => i.id === imageId ? { ...i, status: 'success', progress: 100, serverUrl: url } : i)
+      }));
+    } catch (err: any) {
+      setClosingImages(prev => ({
+        ...prev,
+        [reportId]: (prev[reportId] || []).map(i => i.id === imageId ? { ...i, status: 'error', progress: 0, errorMessage: err.message } : i)
+      }));
+    }
+  };
+
   const handleResolve = async (id: string) => {
     const report = allReports.find(r => r.id === id);
     if (!report) return;
@@ -168,10 +222,16 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
         return;
     }
 
+    const currentImages = closingImages[id] || [];
+    const isAnyUploading = currentImages.some(img => img.status === 'uploading');
+    if (isAnyUploading) {
+      setResolveErrors(prev => ({...prev, [id]: "Please wait for images to finish uploading."}));
+      return;
+    }
+
     setSubmittingIds(prev => new Set(prev).add(id));
     
     try {
-      const currentImages = closingImages[id] || [];
       const attachmentData = currentImages
         .filter(img => img.status === 'success' && img.serverUrl)
         .map(img => ({ url: img.serverUrl!, filename: img.file.name }));
@@ -298,7 +358,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
         </div>
       )}
 
-      {/* Main Reports List (Visible if not locked or in My Tasks) */}
+      {/* Main Reports List */}
       {!loading && !error && (activeTab !== 'closed' || isArchiveUnlocked || isMyTasksMode) && (
         <div className="flex flex-col gap-3">
           {tabFilteredReports.length === 0 ? (
@@ -322,7 +382,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
 
                   {expandedId === report.id && (
                     <div className={`border-t p-6 space-y-8 animate-in slide-in-from-top-4 duration-300 ${isLight ? 'bg-slate-50/50' : 'bg-black/20'}`}>
-                      {/* Detailed View Content (Reporter, Role, Site, Location, etc.) */}
+                      {/* Detailed View Content */}
                       <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
                         {[
                           { label: 'Reporter', val: report.fields["Name"] },
@@ -343,18 +403,6 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
                                 <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
                                 Precise Site Data
                             </h4>
-                            {report.fields["Location"]?.includes('GPS:') && (
-                                <button 
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        const gpsPart = report.fields["Location"]!.split('GPS:')[1].trim();
-                                        window.open(`https://www.google.com/maps?q=${gpsPart}`, '_blank');
-                                    }}
-                                    className="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-all active:scale-95"
-                                >
-                                    Live Map
-                                </button>
-                            )}
                         </div>
                         <div className="space-y-3">
                             <div>
@@ -371,6 +419,20 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
                         <p className={`text-sm p-4 rounded-xl border ${isLight ? 'bg-white border-slate-200' : 'bg-slate-900 border-white/5 text-slate-300'}`}>{report.fields["Observation"]}</p>
                       </div>
 
+                      {/* Initial Observations Images */}
+                      {report.fields["Open observations"] && report.fields["Open observations"].length > 0 && (
+                        <div className="space-y-4">
+                           <h4 className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Initial Evidence</h4>
+                           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                              {report.fields["Open observations"].map((img, i) => (
+                                <a key={i} href={img.url} target="_blank" rel="noopener noreferrer" className="aspect-square rounded-xl overflow-hidden border border-white/5">
+                                   <img src={img.url} className="w-full h-full object-cover" alt="Observation" />
+                                </a>
+                              ))}
+                           </div>
+                        </div>
+                      )}
+
                       {/* Corrective Action Logic */}
                       {!report.fields["Action taken"]?.trim() && (
                         <div className={`rounded-2xl p-6 border-2 ${isLight ? 'bg-white border-blue-500/20' : 'bg-slate-900 border-blue-500/20'}`}>
@@ -378,11 +440,25 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
                           <div className="space-y-5">
                             <textarea 
                               rows={3} 
-                              placeholder="Detail corrective actions..." 
+                              placeholder="Detail corrective actions taken..." 
                               value={actionInputs[report.id] || ''} 
-                              onChange={(e) => setActionInputs(prev => ({ ...prev, [report.id]: e.target.value }))} 
+                              onChange={(e) => handleActionInputChange(report.id, e.target.value)} 
                               className={`${baseClasses} ${themeClasses} resize-none min-h-[100px]`} 
                             />
+                            
+                            <div className="pt-2">
+                               <ImageGrid 
+                                 images={closingImages[report.id] || []} 
+                                 onAdd={(e) => handleAddClosingImage(report.id, e)} 
+                                 onRemove={(imageId) => handleRemoveClosingImage(report.id, imageId)} 
+                                 onRetry={(imageId) => {
+                                   const img = closingImages[report.id]?.find(i => i.id === imageId);
+                                   if (img) processClosingImageUpload(report.id, img);
+                                 }}
+                                 appTheme={appTheme}
+                               />
+                            </div>
+
                             {resolveErrors[report.id] && <p className="text-rose-500 text-[10px] font-bold uppercase">{resolveErrors[report.id]}</p>}
                             <button onClick={() => handleResolve(report.id)} disabled={submittingIds.has(report.id) || !actionInputs[report.id]?.trim()} className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-2xl transition-all uppercase tracking-widest text-[11px] shadow-xl disabled:opacity-50">
                               {submittingIds.has(report.id) ? 'Finalizing...' : 'Close & Archive'}
@@ -395,6 +471,17 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
                          <div className={`rounded-2xl p-6 border-2 ${isLight ? 'bg-emerald-50 border-emerald-100' : 'bg-emerald-500/5 border-emerald-500/20'}`}>
                             <h4 className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-4">Post-Remediation Compliance</h4>
                             <p className={`text-sm p-4 rounded-xl border ${isLight ? 'bg-white border-emerald-200' : 'bg-black/20 border-white/5 text-slate-200'}`}>{report.fields["Action taken"]}</p>
+                            
+                            {report.fields["Closed observations"] && report.fields["Closed observations"].length > 0 && (
+                              <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                {report.fields["Closed observations"].map((img, i) => (
+                                  <a key={i} href={img.url} target="_blank" rel="noopener noreferrer" className="aspect-square rounded-xl overflow-hidden border border-emerald-500/10">
+                                     <img src={img.url} className="w-full h-full object-cover" alt="Resolution" />
+                                  </a>
+                                ))}
+                              </div>
+                            )}
+
                             <div className="mt-4 flex flex-col">
                                <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Authenticated By</span>
                                <span className="text-xs font-black text-emerald-500 uppercase tracking-wider">{report.fields["Closed by"]}</span>

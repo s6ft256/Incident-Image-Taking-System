@@ -75,7 +75,12 @@ export const registerBiometrics = async (userName: string): Promise<{ credential
   } catch (error: any) {
     console.error("Enrollment Error:", error);
     if (error.name === 'NotAllowedError') throw new Error("Verification declined by user.");
-    if (error.name === 'SecurityError') throw new Error("Secure context (HTTPS) required for biometrics.");
+    if (error.name === 'SecurityError') {
+      if (error.message.includes('publickey-credentials-create')) {
+        throw new Error("Biometrics restricted by browser environment policy. Please use Access Key (Password) protocol.");
+      }
+      throw new Error("Secure context (HTTPS) required for biometrics.");
+    }
     throw new Error("System biometric handshake failed.");
   }
 };
