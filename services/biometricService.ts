@@ -24,12 +24,14 @@ const base64ToBuffer = (base64: string): Uint8Array => {
 export const isBiometricsAvailable = async (): Promise<boolean> => {
   try {
     if (!window.PublicKeyCredential) return false;
-    // Ensure we are in a secure context (HTTPS or localhost)
+    // WebAuthn requires a secure context (HTTPS)
     if (!window.isSecureContext) return false;
     
-    // Check if the feature is explicitly disabled by Permissions-Policy
-    return await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+    // Check if the platform authenticator is available
+    const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+    return available;
   } catch (error) {
+    console.warn("Biometric capability check failed:", error);
     return false;
   }
 };
@@ -75,22 +77,22 @@ export const registerBiometrics = async (userName: string): Promise<{ credential
       publicKey: bufferToBase64(response.getPublicKey()),
     };
   } catch (error: any) {
-    console.error("Biometric Handshake Error:", error);
+    console.error("Biometric Handshake Error Detail:", error);
     
-    // Catch common browser errors
-    if (error.name === 'NotAllowedError') {
-      throw new Error("Verification declined or timed out. Please try again.");
+    // Specifically handle Permission Policy errors often found in iframes
+    if (error.name === 'SecurityError') {
+      throw new Error("ENVIRONMENT_RESTRICTION: Biometric enrollment is blocked by this browser environment's security policy (likely an unauthorized iframe). Standard Access Key will be used instead.");
     }
     
-    if (error.name === 'SecurityError' || error.message?.includes('publickey-credentials-create')) {
-      throw new Error("Biometrics restricted by browser environment policy. Please use Access Key (Password) protocol instead.");
+    if (error.name === 'NotAllowedError') {
+      throw new Error("Verification declined or timed out. Please try again.");
     }
 
     if (!window.isSecureContext) {
       throw new Error("Secure context (HTTPS) required for biometric authentication.");
     }
     
-    throw new Error("System biometric handshake failed. Proceeding with Access Key protocol.");
+    throw new Error("System biometric handshake failed: " + (error.message || "Unknown Error"));
   }
 };
 

@@ -4,7 +4,6 @@ import { UserProfile as UserProfileType } from '../types';
 import { uploadImageToStorage } from '../services/storageService';
 import { compressImage } from '../utils/imageCompression';
 import { updateProfile, deleteProfile } from '../services/profileService';
-import { registerBiometrics } from '../services/biometricService';
 import { InputField } from './InputField';
 import { ROLES, SITES, STORAGE_KEYS, AUTHORIZED_ADMIN_ROLES } from '../constants';
 import { sendNotification, requestNotificationPermission } from '../services/notificationService';
@@ -89,25 +88,6 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
     setProfile(prev => ({ ...prev, [id]: value }));
   };
 
-  const handleToggleBiometrics = async () => {
-    if (profile.webauthn_credential_id) {
-      const updated = { ...profile, webauthn_credential_id: undefined, webauthn_public_key: undefined };
-      setProfile(updated);
-      if (profile.id) await updateProfile(profile.id, { webauthn_credential_id: '', webauthn_public_key: '' });
-      localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(updated));
-    } else {
-      try {
-        const cred = await registerBiometrics(profile.name);
-        const updated = { ...profile, webauthn_credential_id: cred.credentialId, webauthn_public_key: cred.publicKey };
-        setProfile(updated);
-        if (profile.id) await updateProfile(profile.id, { webauthn_credential_id: cred.credentialId, webauthn_public_key: cred.publicKey });
-        localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(updated));
-      } catch (err: any) {
-        setErrorMessage(err.message || "Biometric registration failed");
-      }
-    }
-  };
-
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -152,7 +132,6 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
 
   const handleSignOut = () => {
     localStorage.removeItem(STORAGE_KEYS.PROFILE);
-    // Keep LAST_USER for quick biometric return, but clear current session profile
     window.location.reload();
   };
 
@@ -242,22 +221,6 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
         </div>
 
         <div className="space-y-3">
-          <div className={`p-4 rounded-2xl border flex items-center justify-between transition-colors ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/5'}`}>
-            <div>
-              <p className={`text-[10px] font-black uppercase tracking-widest ${isLight ? 'text-slate-900' : 'text-white'}`}>Biometric Lock</p>
-              <p className={`text-[8px] font-black uppercase tracking-tighter mt-1 ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>
-                {profile.webauthn_credential_id ? 'Native Scanner Enabled' : 'Native Scanner Disabled'}
-              </p>
-            </div>
-            <button 
-              type="button"
-              onClick={handleToggleBiometrics}
-              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${profile.webauthn_credential_id ? 'bg-blue-600' : 'bg-slate-700'}`}
-            >
-              <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${profile.webauthn_credential_id ? 'translate-x-5' : 'translate-x-0'}`} />
-            </button>
-          </div>
-
           <div className={`p-4 rounded-2xl border flex items-center justify-between transition-colors ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/5'}`}>
             <div>
               <p className={`text-[10px] font-black uppercase tracking-widest ${isLight ? 'text-slate-900' : 'text-white'}`}>Interface Theme</p>

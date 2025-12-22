@@ -7,7 +7,6 @@ import { Dashboard } from './components/Dashboard';
 import { UserProfile } from './components/UserProfile';
 import { AuthScreen } from './components/AuthScreen';
 import { TutorialModal } from './components/TutorialModal';
-import { BiometricLockModal } from './components/BiometricLockModal';
 import { FeedbackAssistant } from './components/FeedbackAssistant';
 import { PolicyModal, PolicyTab } from './components/PolicyModal';
 import { CookieBanner } from './components/CookieBanner';
@@ -24,7 +23,6 @@ export default function App() {
   const [showPolicy, setShowPolicy] = useState(false);
   const [policyInitialTab, setPolicyInitialTab] = useState<PolicyTab>('environmental');
   const [showTutorial, setShowTutorial] = useState(false);
-  const [isLocked, setIsLocked] = useState(false);
   const [baseId] = useState(AIRTABLE_CONFIG.BASE_ID);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [syncCount, setSyncCount] = useState(0);
@@ -111,11 +109,6 @@ export default function App() {
     if (!profile) {
       setView('auth');
     } else {
-      // If profile exists, check if we need to lock it.
-      // If no biometric credential, just go to dashboard directly.
-      if (profile.webauthn_credential_id) {
-        setIsLocked(true);
-      }
       setView('dashboard');
 
       const tutorialSeen = localStorage.getItem(STORAGE_KEYS.TUTORIAL_SEEN);
@@ -195,7 +188,6 @@ export default function App() {
     localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(profile));
     setUserProfile(profile);
     setView('dashboard');
-    setIsLocked(false);
     if (!localStorage.getItem(STORAGE_KEYS.TUTORIAL_SEEN)) setShowTutorial(true);
     requestNotificationPermission();
   };
@@ -268,7 +260,6 @@ export default function App() {
         </div>
       )}
       {showTutorial && <TutorialModal onClose={() => { localStorage.setItem(STORAGE_KEYS.TUTORIAL_SEEN, 'true'); setShowTutorial(false); }} appTheme={appTheme} />}
-      {isLocked && userProfile && <BiometricLockModal profile={userProfile} onUnlock={() => setIsLocked(false)} onSwitchAccount={() => { localStorage.removeItem(STORAGE_KEYS.PROFILE); window.location.reload(); }} appTheme={appTheme} />}
       {showPolicy && <PolicyModal onClose={() => setShowPolicy(false)} appTheme={appTheme} initialTab={policyInitialTab} />}
       <CookieBanner appTheme={appTheme} onViewDetails={handleOpenCookiePolicy} />
       {syncCount > 0 && <div className="fixed bottom-24 right-6 z-50 bg-blue-600 text-white px-4 py-2 rounded-xl shadow-2xl text-[10px] font-black uppercase tracking-widest">{syncCount} Synced</div>}

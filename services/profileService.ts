@@ -15,8 +15,6 @@ export const registerProfile = async (profile: UserProfile): Promise<UserProfile
       site: profile.site,
       password: profile.password,
       profile_image_url: profile.profileImageUrl,
-      webauthn_credential_id: profile.webauthn_credential_id,
-      webauthn_public_key: profile.webauthn_public_key,
       // Compliance persistence
       privacy_policy_consent: profile.privacy_policy_consent,
       user_agreement_consent: profile.user_agreement_consent,
@@ -38,8 +36,6 @@ export const registerProfile = async (profile: UserProfile): Promise<UserProfile
     site: data.site,
     password: data.password,
     profileImageUrl: data.profile_image_url,
-    webauthn_credential_id: data.webauthn_credential_id,
-    webauthn_public_key: data.webauthn_public_key,
     privacy_policy_consent: data.privacy_policy_consent,
     user_agreement_consent: data.user_agreement_consent,
     image_consent: data.image_consent,
@@ -64,8 +60,6 @@ export const getProfileByName = async (name: string): Promise<UserProfile | null
     site: data.site,
     password: data.password,
     profileImageUrl: data.profile_image_url,
-    webauthn_credential_id: data.webauthn_credential_id,
-    webauthn_public_key: data.webauthn_public_key,
     privacy_policy_consent: data.privacy_policy_consent,
     user_agreement_consent: data.user_agreement_consent,
     image_consent: data.image_consent,
@@ -88,38 +82,12 @@ export const getAllProfiles = async (): Promise<UserProfile[]> => {
   }));
 };
 
-export const getProfileByCredentialId = async (credentialId: string): Promise<UserProfile | null> => {
-  const { data, error } = await supabase
-    .from(TABLE_NAME)
-    .select('*')
-    .eq('webauthn_credential_id', credentialId)
-    .maybeSingle();
-
-  if (error) throw new Error(error.message);
-  return data ? {
-    id: data.id,
-    name: data.name,
-    role: data.role,
-    site: data.site,
-    password: data.password,
-    profileImageUrl: data.profile_image_url,
-    webauthn_credential_id: data.webauthn_credential_id,
-    webauthn_public_key: data.webauthn_public_key,
-    privacy_policy_consent: data.privacy_policy_consent,
-    user_agreement_consent: data.user_agreement_consent,
-    image_consent: data.image_consent,
-    consent_timestamp: data.consent_timestamp
-  } : null;
-};
-
 export const updateProfile = async (id: string, updates: Partial<UserProfile>): Promise<void> => {
   const dbUpdates: any = {};
   if (updates.name !== undefined) dbUpdates.name = updates.name;
   if (updates.site !== undefined) dbUpdates.site = updates.site;
   if (updates.password !== undefined) dbUpdates.password = updates.password;
   if (updates.profileImageUrl !== undefined) dbUpdates.profile_image_url = updates.profileImageUrl;
-  if (updates.webauthn_credential_id !== undefined) dbUpdates.webauthn_credential_id = updates.webauthn_credential_id;
-  if (updates.webauthn_public_key !== undefined) dbUpdates.webauthn_public_key = updates.webauthn_public_key;
 
   const { error } = await supabase
     .from(TABLE_NAME)

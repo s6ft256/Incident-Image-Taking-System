@@ -6,8 +6,6 @@ export interface UserProfile {
   site?: string;
   profileImageUrl?: string;
   password?: string;
-  webauthn_credential_id?: string;
-  webauthn_public_key?: string;
   // Compliance Fields
   privacy_policy_consent?: boolean;
   user_agreement_consent?: boolean;

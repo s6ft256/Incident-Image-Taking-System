@@ -6,7 +6,6 @@ import { registerProfile, getProfileByName } from '../services/profileService';
 import { uploadImageToStorage } from '../services/storageService';
 import { compressImage } from '../utils/imageCompression';
 import { InputField } from './InputField';
-import { isBiometricsAvailable, authenticateBiometrics, registerBiometrics } from '../services/biometricService';
 import { PolicyModal } from './PolicyModal';
 
 interface AuthScreenProps {
@@ -57,19 +56,12 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
   const [privacyConsent, setPrivacyConsent] = useState(false);
   const [imageConsent, setImageConsent] = useState(false);
   const [cookieConsent, setCookieConsent] = useState(false);
-  const [enrollBiometrics, setEnrollBiometrics] = useState(false);
   const [showComplianceModal, setShowComplianceModal] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [previewUrl, setPreviewUrl] = useState('');
-  const [bioAvailable, setBioAvailable] = useState(false);
-  const [lastUserName, setLastUserName] = useState<string | null>(localStorage.getItem(LAST_USER_KEY));
 
   const isLight = appTheme === 'light';
-
-  useEffect(() => {
-    isBiometricsAvailable().then(setBioAvailable);
-  }, []);
 
   const handleFieldChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { id, value } = e.target;
@@ -77,30 +69,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
     else setProfile(p => ({ ...p, [id]: value }));
     if (error) setError('');
   }, [error]);
-
-  const handleBiometricLogin = async (targetName?: string) => {
-    const nameToVerify = targetName || profile.name;
-    if (!nameToVerify) return setError('Please enter your personnel name.');
-    setIsProcessing(true);
-    setError('');
-    try {
-      const existing = await getProfileByName(nameToVerify);
-      if (!existing) throw new Error('Personnel identity not found.');
-      if (!existing.webauthn_credential_id) throw new Error('Biometric lock not linked. Use Access Key.');
-      
-      const success = await authenticateBiometrics(existing.webauthn_credential_id);
-      if (success) {
-        localStorage.setItem(LAST_USER_KEY, existing.name);
-        onAuthComplete(existing);
-      } else {
-        setError('Biometric authentication failed.');
-      }
-    } catch (err: any) { 
-      setError(err.message || 'Biometric scanner error.'); 
-    } finally { 
-      setIsProcessing(false); 
-    }
-  };
 
   const validateSignup = () => {
     if (!profile.name || !profile.role || !profile.password) {
@@ -137,6 +105,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
     
     setIsProcessing(true);
     setError('');
+    
     try {
       let imageUrl = '';
       if (fileInputRef.current?.files?.[0]) {
@@ -144,40 +113,19 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
         imageUrl = await uploadImageToStorage(compressed, 'profiles');
       }
 
-      let webauthnData = {};
-      if (enrollBiometrics) {
-        try {
-          const cred = await registerBiometrics(profile.name);
-          webauthnData = {
-            webauthn_credential_id: cred.credentialId,
-            webauthn_public_key: cred.publicKey
-          };
-        } catch (bioErr: any) {
-          // If biometric enrollment fails (e.g. policy restriction), show a warning but let the signup finish
-          console.warn("Biometric enrollment skipped:", bioErr.message);
-          // Optional: You could show a subtle notification here
-        }
-      }
-
       const newProfile = await registerProfile({ 
         ...profile, 
         profileImageUrl: imageUrl,
-        ...webauthnData,
         privacy_policy_consent: true,
         user_agreement_consent: true,
         image_consent: imageConsent
       });
 
-      // Save user to quick-access list
       localStorage.setItem(LAST_USER_KEY, newProfile.name);
-      localStorage.setItem('hse_guardian_cookies_accepted', 'true');
-      
-      // Hand over to application
       onAuthComplete(newProfile);
     } catch (err: any) { 
-      setError(err.message || 'Onboarding flow interrupted. Please try again.'); 
-    } finally { 
-      setIsProcessing(false); 
+      setError(err.message || 'Onboarding flow interrupted.'); 
+      setIsProcessing(false);
     }
   };
 
@@ -217,11 +165,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
               <div className="flex flex-col items-center"><div className="h-1 w-10 bg-red-600 mt-1 rounded-full shadow-[0_0_15px_rgba(220,38,38,0.8)]"></div></div>
             </div>
             <div className="w-full flex flex-col gap-3">
-              {lastUserName && bioAvailable && (
-                <button onClick={() => handleBiometricLogin(lastUserName)} className="group w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 rounded-2xl shadow-xl transition-all active:scale-[0.98] uppercase tracking-widest text-[10px] border border-emerald-400/30 flex items-center justify-center gap-2">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> Scan: {lastUserName.split(' ')[0]}
-                </button>
-              )}
               <button onClick={() => setMode('login')} className={`w-full font-black py-4 rounded-2xl transition-all active:scale-[0.98] uppercase tracking-widest text-[10px] border ${isLight ? 'bg-blue-600 text-white border-blue-400 shadow-blue-500/20 shadow-md' : 'bg-white/10 border-white/10 text-white hover:bg-white/20'}`}>Access Protocol</button>
               <button onClick={() => setMode('signup')} className={`w-full font-black py-4 rounded-2xl transition-all active:scale-[0.98] uppercase tracking-widest text-[10px] border ${isLight ? 'bg-white border-blue-200 text-slate-900 shadow-sm' : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'}`}>New Identity</button>
             </div>
@@ -239,6 +182,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
           </div>
           <div className="relative z-10">
             {error && <div className="bg-rose-500/10 border border-rose-500/20 text-rose-500 p-3 rounded-xl mb-4 text-[8px] font-black uppercase tracking-widest flex items-center gap-2 animate-in shake"><svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>{error}</div>}
+            
             <form onSubmit={mode === 'signup' ? handleSignup : handleLogin} className="space-y-4">
               {mode === 'signup' && (
                 <div className="flex flex-col items-center pb-2" onClick={() => fileInputRef.current?.click()}>
@@ -251,16 +195,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
               <div className="space-y-4">
                 <div className="relative">
                   <InputField id="name" label="Personnel Name" value={profile.name} onChange={handleFieldChange} required placeholder="Full Name" autoComplete="name" />
-                  {mode === 'login' && bioAvailable && (
-                    <button 
-                      type="button"
-                      onClick={() => handleBiometricLogin()}
-                      className="absolute right-3 bottom-3 text-blue-500 hover:text-blue-400 p-1 rounded-lg transition-colors"
-                      title="Biometric Login"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                    </button>
-                  )}
                 </div>
                 {mode === 'signup' && (
                   <>
@@ -274,30 +208,22 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
 
               {mode === 'signup' && (
                 <div className="space-y-3 pt-2">
-                   {bioAvailable && (
-                     <div className="flex items-start gap-3 px-1">
-                        <input type="checkbox" id="enrollBiometrics" checked={enrollBiometrics} onChange={(e) => setEnrollBiometrics(e.target.checked)} className="mt-0.5 w-4 h-4 rounded border-slate-700 bg-slate-900 text-blue-600 focus:ring-blue-500" />
-                        <label htmlFor="enrollBiometrics" className={`text-[7px] font-black uppercase tracking-widest leading-relaxed ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
-                          Enable Biometric Lock (Recommended for safety terminals).
-                        </label>
-                     </div>
-                   )}
                    <div className="flex items-start gap-3 px-1">
                       <input type="checkbox" id="privacyConsent" checked={privacyConsent} onChange={(e) => setPrivacyConsent(e.target.checked)} className="mt-0.5 w-4 h-4 rounded border-slate-700 bg-slate-900 text-blue-600 focus:ring-blue-500" />
                       <label htmlFor="privacyConsent" className={`text-[7px] font-black uppercase tracking-widest leading-relaxed ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
-                        I agree to the <button type="button" onClick={() => setShowComplianceModal(true)} className="text-blue-500 underline decoration-blue-500/30">User Agreement & Privacy Policy</button>.
+                        I agree to the <button type="button" onClick={() => setShowComplianceModal(true)} className="text-blue-500 underline">User Agreement</button>.
                       </label>
                    </div>
                    <div className="flex items-start gap-3 px-1">
                       <input type="checkbox" id="imageConsent" checked={imageConsent} onChange={(e) => setImageConsent(e.target.checked)} className="mt-0.5 w-4 h-4 rounded border-slate-700 bg-slate-900 text-blue-600 focus:ring-blue-500" />
                       <label htmlFor="imageConsent" className={`text-[7px] font-black uppercase tracking-widest leading-relaxed ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
-                        I authorize image processing for evidence collection.
+                        I authorize evidence image collection.
                       </label>
                    </div>
                    <div className="flex items-start gap-3 px-1">
                       <input type="checkbox" id="cookieConsent" checked={cookieConsent} onChange={(e) => setCookieConsent(e.target.checked)} className="mt-0.5 w-4 h-4 rounded border-slate-700 bg-slate-900 text-blue-600 focus:ring-blue-500" />
                       <label htmlFor="cookieConsent" className={`text-[7px] font-black uppercase tracking-widest leading-relaxed ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
-                        I acknowledge the use of Essential cookies.
+                        I acknowledge use of Essential cookies.
                       </label>
                    </div>
                 </div>
