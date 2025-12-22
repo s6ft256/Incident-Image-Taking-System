@@ -8,7 +8,6 @@
 *   **Secure Access:** Biometric lock (FaceID/Fingerprint) and Password Gateway.
 *   **Evidence Acquisition:** Multi-image capture with local compression and offline queueing.
 *   **Command Dashboard:** Real-time data visualization of site risks and resolution status.
-*   **HSECES Assistant:** AI-powered expert for Critical Equipment and Safety Systems.
 *   **PWA Ready:** Installable on Android and iOS for offline field operations.
 
 ## Deployment & GitHub Workflow

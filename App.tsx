@@ -8,7 +8,6 @@ import { UserProfile } from './components/UserProfile';
 import { AuthScreen } from './components/AuthScreen';
 import { TutorialModal } from './components/TutorialModal';
 import { BiometricLockModal } from './components/BiometricLockModal';
-import { HSEAssistant } from './components/HSEAssistant';
 import { FeedbackAssistant } from './components/FeedbackAssistant';
 import { PolicyModal } from './components/PolicyModal';
 import { syncOfflineReports } from './services/syncService';
@@ -301,13 +300,6 @@ export default function App() {
               <span className={`px-2 py-0.5 rounded-md text-[7px] font-black uppercase tracking-widest border shadow-sm transition-all duration-300 ${isMenuOpen ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'} ${appTheme === 'dark' ? 'bg-slate-800 border-white/10 text-slate-400' : 'bg-white border-slate-200 text-slate-500'}`}>Feed</span>
               <div className="pointer-events-auto">
                 <FeedbackAssistant appTheme={appTheme} userName={userProfile?.name} />
-              </div>
-            </div>
-
-            <div className="flex flex-col items-center gap-1 group">
-              <span className={`px-2 py-0.5 rounded-md text-[7px] font-black uppercase tracking-widest border shadow-sm transition-all duration-300 ${isMenuOpen ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'} ${appTheme === 'dark' ? 'bg-slate-800 border-white/10 text-slate-400' : 'bg-white border-slate-200 text-slate-500'}`}>Assistant</span>
-              <div className="pointer-events-auto">
-                <HSEAssistant appTheme={appTheme} />
               </div>
             </div>
 
