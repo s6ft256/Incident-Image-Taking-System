@@ -111,12 +111,12 @@ export default function App() {
     if (!profile) {
       setView('auth');
     } else {
+      // If profile exists, check if we need to lock it.
+      // If no biometric credential, just go to dashboard directly.
       if (profile.webauthn_credential_id) {
         setIsLocked(true);
-        setView('dashboard'); 
-      } else {
-        setView('auth');
       }
+      setView('dashboard');
 
       const tutorialSeen = localStorage.getItem(STORAGE_KEYS.TUTORIAL_SEEN);
       if (!tutorialSeen) {

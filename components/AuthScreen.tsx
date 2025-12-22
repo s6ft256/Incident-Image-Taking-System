@@ -108,24 +108,24 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
       return false;
     }
     if (profile.password.length < 6) {
-      setError('Key must be > 6 characters.');
+      setError('Key must be at least 6 characters.');
       return false;
     }
     if (profile.password !== confirmPassword) {
-      setError('Keys do not match.');
+      setError('Access keys do not match.');
       return false;
     }
     if (!privacyConsent) {
-      setError('Accept User Agreement & Privacy Policy.');
+      setError('Please accept the User Agreement.');
       setShowComplianceModal(true);
       return false;
     }
     if (!cookieConsent) {
-      setError('Acknowledge Essential Cookie Handshake.');
+      setError('Please acknowledge the Cookie Handshake.');
       return false;
     }
     if (!imageConsent) {
-      setError('Confirm Image Upload Authorization.');
+      setError('Please confirm Image Authorization.');
       return false;
     }
     return true;
@@ -153,8 +153,9 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
             webauthn_public_key: cred.publicKey
           };
         } catch (bioErr: any) {
-          // If biometric enrollment fails, inform the user but allow account completion with just password
+          // If biometric enrollment fails (e.g. policy restriction), show a warning but let the signup finish
           console.warn("Biometric enrollment skipped:", bioErr.message);
+          // Optional: You could show a subtle notification here
         }
       }
 
@@ -174,7 +175,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
       // Hand over to application
       onAuthComplete(newProfile);
     } catch (err: any) { 
-      setError(err.message || 'Signup flow interrupted. Try again.'); 
+      setError(err.message || 'Onboarding flow interrupted. Please try again.'); 
     } finally { 
       setIsProcessing(false); 
     }
@@ -192,7 +193,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
           localStorage.setItem(LAST_USER_KEY, existing.name);
           onAuthComplete(existing);
         } else setError('Incorrect Access Key.');
-      } else setError('Personnel not registered.');
+      } else setError('Personnel identity not found.');
     } catch (err: any) { 
       setError(err.message || 'Authentication timeout.'); 
     } finally { 
@@ -237,7 +238,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
             <div className="text-right"><h3 className={`text-lg font-black tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>{mode === 'signup' ? 'Profile' : 'Access'}</h3><span className="text-[8px] font-black uppercase text-blue-500 tracking-widest">Protocol</span></div>
           </div>
           <div className="relative z-10">
-            {error && <div className="bg-rose-500/10 border border-rose-500/20 text-rose-500 p-3 rounded-xl mb-4 text-[8px] font-black uppercase tracking-widest flex items-center gap-2"><svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>{error}</div>}
+            {error && <div className="bg-rose-500/10 border border-rose-500/20 text-rose-500 p-3 rounded-xl mb-4 text-[8px] font-black uppercase tracking-widest flex items-center gap-2 animate-in shake"><svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>{error}</div>}
             <form onSubmit={mode === 'signup' ? handleSignup : handleLogin} className="space-y-4">
               {mode === 'signup' && (
                 <div className="flex flex-col items-center pb-2" onClick={() => fileInputRef.current?.click()}>
@@ -277,7 +278,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
                      <div className="flex items-start gap-3 px-1">
                         <input type="checkbox" id="enrollBiometrics" checked={enrollBiometrics} onChange={(e) => setEnrollBiometrics(e.target.checked)} className="mt-0.5 w-4 h-4 rounded border-slate-700 bg-slate-900 text-blue-600 focus:ring-blue-500" />
                         <label htmlFor="enrollBiometrics" className={`text-[7px] font-black uppercase tracking-widest leading-relaxed ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
-                          Secure this device with Biometric Lock (FaceID/Fingerprint).
+                          Enable Biometric Lock (Recommended for safety terminals).
                         </label>
                      </div>
                    )}
@@ -290,13 +291,13 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
                    <div className="flex items-start gap-3 px-1">
                       <input type="checkbox" id="imageConsent" checked={imageConsent} onChange={(e) => setImageConsent(e.target.checked)} className="mt-0.5 w-4 h-4 rounded border-slate-700 bg-slate-900 text-blue-600 focus:ring-blue-500" />
                       <label htmlFor="imageConsent" className={`text-[7px] font-black uppercase tracking-widest leading-relaxed ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
-                        Confirm Image Upload Authorization for HSE reporting.
+                        I authorize image processing for evidence collection.
                       </label>
                    </div>
                    <div className="flex items-start gap-3 px-1">
                       <input type="checkbox" id="cookieConsent" checked={cookieConsent} onChange={(e) => setCookieConsent(e.target.checked)} className="mt-0.5 w-4 h-4 rounded border-slate-700 bg-slate-900 text-blue-600 focus:ring-blue-500" />
                       <label htmlFor="cookieConsent" className={`text-[7px] font-black uppercase tracking-widest leading-relaxed ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
-                        I acknowledge the use of Essential cookies for security.
+                        I acknowledge the use of Essential cookies.
                       </label>
                    </div>
                 </div>

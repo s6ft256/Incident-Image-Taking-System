@@ -26,6 +26,8 @@ export const isBiometricsAvailable = async (): Promise<boolean> => {
     if (!window.PublicKeyCredential) return false;
     // Ensure we are in a secure context (HTTPS or localhost)
     if (!window.isSecureContext) return false;
+    
+    // Check if the feature is explicitly disabled by Permissions-Policy
     return await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
   } catch (error) {
     return false;
@@ -73,15 +75,22 @@ export const registerBiometrics = async (userName: string): Promise<{ credential
       publicKey: bufferToBase64(response.getPublicKey()),
     };
   } catch (error: any) {
-    console.error("Enrollment Error:", error);
-    if (error.name === 'NotAllowedError') throw new Error("Verification declined by user.");
-    if (error.name === 'SecurityError') {
-      if (error.message.includes('publickey-credentials-create')) {
-        throw new Error("Biometrics restricted by browser environment policy. Please use Access Key (Password) protocol.");
-      }
-      throw new Error("Secure context (HTTPS) required for biometrics.");
+    console.error("Biometric Handshake Error:", error);
+    
+    // Catch common browser errors
+    if (error.name === 'NotAllowedError') {
+      throw new Error("Verification declined or timed out. Please try again.");
     }
-    throw new Error("System biometric handshake failed.");
+    
+    if (error.name === 'SecurityError' || error.message?.includes('publickey-credentials-create')) {
+      throw new Error("Biometrics restricted by browser environment policy. Please use Access Key (Password) protocol instead.");
+    }
+
+    if (!window.isSecureContext) {
+      throw new Error("Secure context (HTTPS) required for biometric authentication.");
+    }
+    
+    throw new Error("System biometric handshake failed. Proceeding with Access Key protocol.");
   }
 };
 
@@ -107,7 +116,7 @@ export const authenticateBiometrics = async (storedCredentialId: string): Promis
     const assertion = await navigator.credentials.get({ publicKey: options });
     return !!assertion;
   } catch (error: any) {
-    console.warn("Auth Error:", error.name);
+    console.warn("Authentication Handshake Error:", error.name);
     return false;
   }
 };

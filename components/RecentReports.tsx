@@ -324,7 +324,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
               </svg>
            </div>
-           <h3 className={`text-lg font-black tracking-tight mb-8 ${isLight ? 'text-slate-900' : 'text-white'}`}>Admin</h3>
+           <h3 className={`text-lg font-black tracking-tight mb-8 ${isLight ? 'text-slate-900' : 'text-white'}`}>Admin Terminal</h3>
 
            <form onSubmit={handleUnlockArchive} className="w-full max-w-xs space-y-4">
               <div className="space-y-1.5">
