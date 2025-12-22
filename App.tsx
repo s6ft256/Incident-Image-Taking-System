@@ -33,6 +33,7 @@ export default function App() {
   const [isInitialized, setIsInitialized] = useState(false);
   const [criticalTasks, setCriticalTasks] = useState<FetchedIncident[]>([]);
   const [isBellShaking, setIsBellShaking] = useState(false);
+  const [isBadgePinging, setIsBadgePinging] = useState(false);
   
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isFabVisible, setIsFabVisible] = useState(true);
@@ -66,7 +67,6 @@ export default function App() {
     }
   };
 
-  // Helper to get relative time for notifications
   const getRelativeTime = (dateString: string) => {
     const now = new Date();
     const then = new Date(dateString);
@@ -79,7 +79,6 @@ export default function App() {
     return then.toLocaleDateString();
   };
 
-  // Background Alert Monitor (Simulated Push)
   useEffect(() => {
     if (!userProfile?.name || !isOnline) return;
 
@@ -103,10 +102,13 @@ export default function App() {
 
         if (newFoundCount > 0) {
           setIsBellShaking(true);
-          setTimeout(() => setIsBellShaking(false), 3000);
+          setIsBadgePinging(true);
+          setTimeout(() => {
+            setIsBellShaking(false);
+            setIsBadgePinging(false);
+          }, 4000);
         }
 
-        // Cleanup set: remove IDs that are no longer in the critical list (e.g. they were closed)
         const currentIds = new Set(tasks.map(t => t.id));
         lastKnownIncidentIds.current.forEach(id => {
            if (!currentIds.has(id)) lastKnownIncidentIds.current.delete(id);
@@ -117,10 +119,7 @@ export default function App() {
       }
     };
 
-    // Immediate check on login
     monitorCriticalTasks();
-
-    // Poll every 2 minutes for updates
     const interval = setInterval(monitorCriticalTasks, 120000);
     return () => clearInterval(interval);
   }, [userProfile?.name, isOnline, baseId]);
@@ -129,15 +128,11 @@ export default function App() {
     setQuote(SAFETY_QUOTES[Math.floor(Math.random() * SAFETY_QUOTES.length)]);
     const profile = loadProfile();
     
-    if (!profile) {
-      setView('auth');
-    } else {
+    if (profile) {
       setView('dashboard');
-
-      const tutorialSeen = localStorage.getItem(STORAGE_KEYS.TUTORIAL_SEEN);
-      if (!tutorialSeen) {
-        setShowTutorial(true);
-      }
+      if (!localStorage.getItem(STORAGE_KEYS.TUTORIAL_SEEN)) setShowTutorial(true);
+    } else {
+      setView('auth');
     }
 
     requestNotificationPermission();
@@ -236,26 +231,41 @@ export default function App() {
   return (
     <div className={`min-h-screen transition-colors duration-300 relative selection:bg-blue-500/30 overflow-x-hidden flex flex-col ${appTheme === 'dark' ? 'bg-[#020617]' : 'bg-white'}`}>
       <style>{`
-        @keyframes bell-shake {
+        @keyframes bell-swing {
           0% { transform: rotate(0); }
-          15% { transform: rotate(15deg); }
-          30% { transform: rotate(-15deg); }
-          45% { transform: rotate(10deg); }
+          10% { transform: rotate(15deg); }
+          20% { transform: rotate(-15deg); }
+          30% { transform: rotate(12deg); }
+          40% { transform: rotate(-12deg); }
+          50% { transform: rotate(10deg); }
           60% { transform: rotate(-10deg); }
-          75% { transform: rotate(5deg); }
-          85% { transform: rotate(-5deg); }
+          70% { transform: rotate(5deg); }
+          80% { transform: rotate(-5deg); }
           100% { transform: rotate(0); }
         }
-        @keyframes bell-pulse {
-          0% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.4); }
-          70% { box-shadow: 0 0 0 10px rgba(220, 38, 38, 0); }
-          100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
+        @keyframes bell-pulse-soft {
+          0% { transform: scale(1); opacity: 1; }
+          50% { transform: scale(1.05); opacity: 0.9; }
+          100% { transform: scale(1); opacity: 1; }
         }
-        .bell-shake-animate {
-          animation: bell-shake 0.8s ease-in-out infinite;
+        @keyframes badge-ping {
+          0% { transform: scale(1); opacity: 1; }
+          50% { transform: scale(1.8); opacity: 0; }
+          100% { transform: scale(1.8); opacity: 0; }
         }
-        .bell-pulse-animate {
-          animation: bell-pulse 2s infinite;
+        .bell-swing-animate {
+          animation: bell-swing 1s cubic-bezier(0.36, 0.07, 0.19, 0.97) infinite;
+        }
+        .bell-tasks-active {
+          animation: bell-pulse-soft 2s ease-in-out infinite;
+        }
+        .badge-ping-layer {
+          position: absolute;
+          inset: 0;
+          border-radius: 9999px;
+          background-color: rgb(225, 29, 72);
+          animation: badge-ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
+          z-index: -1;
         }
       `}</style>
       <div className="relative z-10 flex flex-col flex-grow">
@@ -280,17 +290,20 @@ export default function App() {
                  <div ref={notificationsRef} className="relative">
                    <button 
                      onClick={() => setShowNotifications(!showNotifications)}
-                     className={`relative p-2.5 rounded-xl transition-all flex items-center justify-center ${isBellShaking ? 'bell-shake-animate' : ''} ${criticalTasks.length > 0 ? 'bell-pulse-animate' : ''} ${appTheme === 'dark' ? 'hover:bg-white/5 text-slate-400 hover:text-white' : 'hover:bg-slate-100 text-slate-500 hover:text-slate-900'}`}
+                     className={`relative p-2.5 rounded-xl transition-all flex items-center justify-center 
+                       ${isBellShaking ? 'bell-swing-animate' : (criticalTasks.length > 0 ? 'bell-tasks-active' : '')} 
+                       ${appTheme === 'dark' ? 'hover:bg-white/5 text-slate-400 hover:text-white' : 'hover:bg-slate-100 text-slate-500 hover:text-slate-900'}`}
                      title="Critical Alerts"
                    >
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="transition-transform">
                         <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
                         <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
                       </svg>
                       {criticalTasks.length > 0 && (
-                        <span className="absolute top-1 right-1 flex h-4.5 w-4.5 items-center justify-center rounded-full bg-rose-600 text-[9px] font-black text-white ring-2 ring-[#020617] animate-in zoom-in">
+                        <div className="absolute top-1 right-1 flex h-4.5 w-4.5 items-center justify-center rounded-full bg-rose-600 text-[9px] font-black text-white ring-2 ring-[#020617] transition-all">
+                          {isBadgePinging && <span className="badge-ping-layer" />}
                           {criticalTasks.length}
-                        </span>
+                        </div>
                       )}
                    </button>
                    
