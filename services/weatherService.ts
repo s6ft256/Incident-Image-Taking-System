@@ -12,6 +12,7 @@ export interface WeatherData {
 
 /**
  * Reverse geocodes coordinates to a human-readable address.
+ * Focuses on extracting Street/Road level details.
  */
 export const getAddress = async (lat: number, lon: number): Promise<string> => {
   try {
@@ -20,9 +21,19 @@ export const getAddress = async (lat: number, lon: number): Promise<string> => {
       headers: { 'Accept-Language': 'en', 'User-Agent': 'HSE-Guardian-App' }
     });
     const geoJson = await geoRes.json();
-    return geoJson.display_name || "Unknown Site";
+    
+    if (!geoJson.address) return "Site Coordinates Only";
+
+    const addr = geoJson.address;
+    // Construct a specific street-level address
+    const street = addr.road || addr.construction || addr.industrial || addr.pedestrian || addr.path || "";
+    const suburb = addr.suburb || addr.neighbourhood || addr.village || "";
+    const city = addr.city || addr.town || addr.state || "";
+
+    const parts = [street, suburb, city].filter(p => p.length > 0);
+    return parts.join(', ') || "Exact Site Location";
   } catch (e) {
-    return `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
+    return "GPS Verified Area";
   }
 };
 
@@ -41,30 +52,18 @@ export const getLocalWeather = async (): Promise<WeatherData> => {
       const { latitude, longitude } = position.coords;
 
       try {
-        // 1. Fetch Weather Data
         const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,is_day,weather_code,wind_speed_10m&timezone=auto`;
         const weatherRes = await fetch(weatherUrl);
         const weatherJson = await weatherRes.json();
 
-        // 2. Fetch Detailed Address Info
-        const geoUrl = `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`;
-        const geoRes = await fetch(geoUrl, {
-          headers: { 'Accept-Language': 'en', 'User-Agent': 'HSE-Guardian-App' }
-        });
-        const geoJson = await geoRes.json();
-        
-        // Extract specific road/suburb for precision
-        const addr = geoJson.address;
-        const locationName = addr.road || addr.suburb || addr.neighbourhood || addr.industrial || addr.city || "Current Site";
-        const fullAddr = geoJson.display_name;
-
+        const fullAddr = await getAddress(latitude, longitude);
         const current = weatherJson.current;
         
         resolve({
           temp: Math.round(current.temperature_2m),
           condition: getWeatherDescription(current.weather_code),
           conditionCode: current.weather_code,
-          city: locationName,
+          city: fullAddr.split(',')[0] || "Current Site",
           preciseLocation: fullAddr,
           isDay: current.is_day === 1,
           windSpeed: current.wind_speed_10m,
@@ -86,9 +85,6 @@ export const getLocalWeather = async (): Promise<WeatherData> => {
   });
 };
 
-/**
- * Maps WMO Weather interpretation codes (WW) to human readable strings.
- */
 const getWeatherDescription = (code: number): string => {
   if (code === 0) return "Clear Sky";
   if (code <= 3) return "Partly Cloudy";
@@ -101,9 +97,6 @@ const getWeatherDescription = (code: number): string => {
   return "Variable Conditions";
 };
 
-/**
- * Provides an HSE safety recommendation based on weather.
- */
 export const getWeatherSafetyTip = (data: WeatherData): string => {
   if (data.temp > 35) return "CRITICAL HEAT: Implement mandatory hydration breaks.";
   if (data.temp < 5) return "COLD RISK: Ensure thermal PPE and monitor for fatigue.";

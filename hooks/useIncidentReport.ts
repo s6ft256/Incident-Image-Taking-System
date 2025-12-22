@@ -90,11 +90,15 @@ export const useIncidentReport = (baseId: string) => {
       async (position) => {
         const { latitude, longitude } = position.coords;
         try {
-          const address = await getAddress(latitude, longitude);
-          const locationStr = `${address} (${latitude.toFixed(6)}, ${longitude.toFixed(6)})`;
+          // Attempt to get the street/road address
+          const streetAddress = await getAddress(latitude, longitude);
+          const coords = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+          // Format as: Street | Lat, Lon
+          const locationStr = `${streetAddress} | GPS: ${coords}`;
           setFormData(prev => ({ ...prev, location: locationStr }));
         } catch (e) {
-          const fallbackStr = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+          // Fallback to just coordinates if geocoding fails
+          const fallbackStr = `GPS: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
           setFormData(prev => ({ ...prev, location: fallbackStr }));
         } finally {
           setIsLocating(false);
