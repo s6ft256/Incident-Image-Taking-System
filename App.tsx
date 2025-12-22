@@ -66,6 +66,19 @@ export default function App() {
     }
   };
 
+  // Helper to get relative time for notifications
+  const getRelativeTime = (dateString: string) => {
+    const now = new Date();
+    const then = new Date(dateString);
+    const diffInMs = now.getTime() - then.getTime();
+    const diffInMins = Math.floor(diffInMs / (1000 * 60));
+    const diffInHours = Math.floor(diffInMs / (1000 * 60 * 60));
+    
+    if (diffInMins < 60) return `${diffInMins}m ago`;
+    if (diffInHours < 24) return `${diffInHours}h ago`;
+    return then.toLocaleDateString();
+  };
+
   // Background Alert Monitor (Simulated Push)
   useEffect(() => {
     if (!userProfile?.name || !isOnline) return;
@@ -90,7 +103,7 @@ export default function App() {
 
         if (newFoundCount > 0) {
           setIsBellShaking(true);
-          setTimeout(() => setIsBellShaking(false), 2000);
+          setTimeout(() => setIsBellShaking(false), 3000);
         }
 
         // Cleanup set: remove IDs that are no longer in the critical list (e.g. they were closed)
@@ -233,8 +246,16 @@ export default function App() {
           85% { transform: rotate(-5deg); }
           100% { transform: rotate(0); }
         }
+        @keyframes bell-pulse {
+          0% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.4); }
+          70% { box-shadow: 0 0 0 10px rgba(220, 38, 38, 0); }
+          100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
+        }
         .bell-shake-animate {
           animation: bell-shake 0.8s ease-in-out infinite;
+        }
+        .bell-pulse-animate {
+          animation: bell-pulse 2s infinite;
         }
       `}</style>
       <div className="relative z-10 flex flex-col flex-grow">
@@ -259,7 +280,7 @@ export default function App() {
                  <div ref={notificationsRef} className="relative">
                    <button 
                      onClick={() => setShowNotifications(!showNotifications)}
-                     className={`relative p-2 rounded-xl transition-all ${isBellShaking ? 'bell-shake-animate' : ''} ${appTheme === 'dark' ? 'hover:bg-white/5 text-slate-400 hover:text-white' : 'hover:bg-slate-100 text-slate-500 hover:text-slate-900'}`}
+                     className={`relative p-2.5 rounded-xl transition-all flex items-center justify-center ${isBellShaking ? 'bell-shake-animate' : ''} ${criticalTasks.length > 0 ? 'bell-pulse-animate' : ''} ${appTheme === 'dark' ? 'hover:bg-white/5 text-slate-400 hover:text-white' : 'hover:bg-slate-100 text-slate-500 hover:text-slate-900'}`}
                      title="Critical Alerts"
                    >
                       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -267,38 +288,53 @@ export default function App() {
                         <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
                       </svg>
                       {criticalTasks.length > 0 && (
-                        <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-600 text-[9px] font-black text-white ring-2 ring-[#020617] animate-in zoom-in">
+                        <span className="absolute top-1 right-1 flex h-4.5 w-4.5 items-center justify-center rounded-full bg-rose-600 text-[9px] font-black text-white ring-2 ring-[#020617] animate-in zoom-in">
                           {criticalTasks.length}
                         </span>
                       )}
                    </button>
                    
                    {showNotifications && (
-                     <div className={`absolute top-full right-0 mt-4 w-72 sm:w-80 rounded-2xl border shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 ${appTheme === 'dark' ? 'bg-[#0f172a] border-white/10' : 'bg-white border-slate-200'}`}>
-                        <div className={`px-4 py-3 border-b flex items-center justify-between ${appTheme === 'dark' ? 'bg-white/5 border-white/5' : 'bg-slate-50 border-slate-100'}`}>
-                           <span className={`text-[10px] font-black uppercase tracking-widest ${appTheme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>Critical Observations</span>
-                           <span className="bg-rose-600 text-[8px] font-black text-white px-2 py-0.5 rounded-full uppercase">Priority</span>
+                     <div className={`absolute top-full right-0 mt-4 w-72 sm:w-80 rounded-[2rem] border shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300 ${appTheme === 'dark' ? 'bg-[#0f172a] border-white/10' : 'bg-white border-slate-200'}`}>
+                        <div className={`px-6 py-4 border-b flex items-center justify-between ${appTheme === 'dark' ? 'bg-white/5 border-white/5' : 'bg-slate-50 border-slate-100'}`}>
+                           <div className="flex flex-col">
+                             <span className={`text-[10px] font-black uppercase tracking-widest ${appTheme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>Security Alerts</span>
+                             <span className="text-[8px] font-black text-blue-500 uppercase tracking-widest mt-0.5">Critical Queue</span>
+                           </div>
+                           <span className="bg-rose-600/10 text-rose-500 border border-rose-500/20 text-[8px] font-black px-2.5 py-1 rounded-full uppercase tracking-widest">
+                             {criticalTasks.length} Active
+                           </span>
                         </div>
-                        <div className="max-h-64 overflow-y-auto">
+                        <div className="max-h-80 overflow-y-auto scrollbar-hide">
                            {criticalTasks.length === 0 ? (
-                             <div className="p-8 text-center opacity-30">
-                                <p className="text-[10px] font-black uppercase tracking-widest">No Critical Alerts</p>
+                             <div className="p-12 text-center opacity-30 flex flex-col items-center gap-3">
+                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><path d="M9 12l2 2 4-4" /></svg>
+                                <p className="text-[10px] font-black uppercase tracking-widest">Zero Threats Detected</p>
                              </div>
                            ) : (
                              criticalTasks.map(task => (
                                <div 
                                  key={task.id} 
                                  onClick={() => { setView('my-tasks'); setShowNotifications(false); }}
-                                 className={`p-4 border-b cursor-pointer transition-colors last:border-0 ${appTheme === 'dark' ? 'border-white/5 hover:bg-white/5' : 'border-slate-100 hover:bg-slate-50'}`}
+                                 className={`p-5 border-b cursor-pointer transition-all last:border-0 relative overflow-hidden group ${appTheme === 'dark' ? 'border-white/5 hover:bg-white/5' : 'border-slate-100 hover:bg-slate-50'}`}
                                >
-                                 <div className="flex items-start gap-3">
-                                   <div className="w-8 h-8 rounded-lg bg-rose-500/10 flex items-center justify-center text-rose-500 shrink-0">
-                                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                                 <div className="flex items-start gap-4">
+                                   <div className="w-10 h-10 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-500 shrink-0 group-hover:scale-110 transition-transform">
+                                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
                                    </div>
                                    <div className="flex-1 min-w-0">
-                                      <p className={`text-[11px] font-black truncate ${appTheme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{task.fields["Incident Type"]}</p>
-                                      <p className="text-[9px] font-bold text-slate-500 truncate mt-0.5">{task.fields["Site / Location"]}</p>
-                                      <p className="text-[7px] font-black text-blue-500 uppercase tracking-widest mt-1">Pending Action</p>
+                                      <div className="flex justify-between items-start">
+                                        <p className={`text-[11px] font-black truncate pr-2 ${appTheme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{task.fields["Incident Type"]}</p>
+                                        <span className="text-[8px] font-black text-slate-500 whitespace-nowrap">{getRelativeTime(task.createdTime)}</span>
+                                      </div>
+                                      <p className="text-[9px] font-bold text-slate-500 truncate mt-1 flex items-center gap-1">
+                                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>
+                                        {task.fields["Site / Location"]}
+                                      </p>
+                                      <div className="mt-2.5 flex items-center gap-2">
+                                        <span className="h-1.5 w-1.5 rounded-full bg-rose-500 animate-pulse"></span>
+                                        <span className="text-[7px] font-black text-rose-500 uppercase tracking-widest">Immediate Response Required</span>
+                                      </div>
                                    </div>
                                  </div>
                                </div>
@@ -306,12 +342,12 @@ export default function App() {
                            )}
                         </div>
                         {criticalTasks.length > 0 && (
-                          <div className={`p-3 text-center border-t ${appTheme === 'dark' ? 'bg-white/5 border-white/5' : 'bg-slate-50 border-slate-100'}`}>
+                          <div className={`p-4 text-center border-t ${appTheme === 'dark' ? 'bg-white/5 border-white/5' : 'bg-slate-50 border-slate-100'}`}>
                             <button 
                               onClick={() => { setView('my-tasks'); setShowNotifications(false); }}
-                              className="text-[9px] font-black uppercase tracking-widest text-blue-500 hover:text-blue-400"
+                              className="w-full py-3 bg-blue-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-blue-500 transition-all shadow-lg border border-blue-400/20"
                             >
-                              Manage All Tasks
+                              Dispatch To All Tasks
                             </button>
                           </div>
                         )}
@@ -321,12 +357,12 @@ export default function App() {
                )}
                <div ref={profileCardRef} className="relative">
                  <div onClick={() => setShowProfileCard(!showProfileCard)} className="cursor-pointer group">
-                    <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full overflow-hidden border-2 ${showProfileCard ? 'border-blue-500' : 'border-slate-700'}`}>
+                    <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full overflow-hidden border-2 transition-all ${showProfileCard ? 'border-blue-500 ring-4 ring-blue-500/20 scale-105' : 'border-slate-700'}`}>
                       {userProfile?.profileImageUrl ? <img src={userProfile.profileImageUrl} alt="User" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center bg-blue-600 text-white font-black">{userProfile?.name?.charAt(0)}</div>}
                     </div>
                  </div>
                  {showProfileCard && (
-                   <div className="absolute top-full right-0 mt-4 w-72 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                   <div className="absolute top-full right-0 mt-4 w-72 z-50 animate-in fade-in slide-in-from-top-2 duration-300">
                      <UserProfile onBack={() => setShowProfileCard(false)} baseId={baseId} />
                    </div>
                  )}

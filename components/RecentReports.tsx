@@ -101,7 +101,8 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
 
   const handleAssignToMember = async (reportId: string) => {
     const assignee = localAssignee[reportId];
-    if (!assignee) return;
+    // We allow an empty string to signify unassigning
+    if (assignee === undefined) return;
 
     setReassigningId(reportId);
     try {
@@ -110,7 +111,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
         ...r,
         fields: { ...r.fields, "Assigned To": assignee }
       } : r));
-      setAssignmentSuccess("Personnel successfully assigned to incident.");
+      setAssignmentSuccess(assignee ? "Personnel successfully assigned." : "Incident unassigned.");
       setTimeout(() => setAssignmentSuccess(null), 3000);
     } catch (err: any) {
       setError(err.message || "Failed to update assignment.");
@@ -500,10 +501,10 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
                               </select>
                               <button 
                                 onClick={() => handleAssignToMember(report.id)}
-                                disabled={reassigningId === report.id || localAssignee[report.id] === report.fields["Assigned To"]}
+                                disabled={reassigningId === report.id || localAssignee[report.id] === (report.fields["Assigned To"] || "")}
                                 className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg disabled:opacity-50 transition-all"
                               >
-                                {reassigningId === report.id ? 'Updating...' : 'Assign Personnel'}
+                                {reassigningId === report.id ? 'Updating...' : (localAssignee[report.id] === "" ? 'Unassign Personnel' : 'Assign Personnel')}
                               </button>
                            </div>
                         </div>
