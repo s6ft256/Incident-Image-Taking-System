@@ -150,6 +150,12 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
     }
   };
 
+  const handleSignOut = () => {
+    localStorage.removeItem(STORAGE_KEYS.PROFILE);
+    // Keep LAST_USER for quick biometric return, but clear current session profile
+    window.location.reload();
+  };
+
   const handleTestNotification = async () => {
     const granted = await requestNotificationPermission();
     setNotificationPermission(Notification.permission);
@@ -219,7 +225,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
         <span className={`text-[9px] font-black uppercase tracking-[0.4em] mt-1 ${isSecureIdentity ? 'text-emerald-500' : 'text-blue-500'}`}>Clearance {clearanceLevel}</span>
       </div>
 
-      <form onSubmit={handleSave} className="space-y-6">
+      <div className="space-y-6">
         <div className="space-y-4">
           <div className="flex justify-between items-center px-1">
              <h4 className={`text-[10px] font-black uppercase tracking-widest ${isLight ? 'text-slate-400' : 'text-slate-600'}`}>Identity Protocol</h4>
@@ -285,18 +291,57 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
           </div>
         </div>
 
-        <button 
-          type="submit" 
-          disabled={!hasChanges || isUploading || saveStatus === 'saving'}
-          className={`w-full py-5 rounded-2xl font-black uppercase tracking-[0.2em] transition-all duration-300 shadow-2xl ${
-            !hasChanges 
-              ? `${isLight ? 'bg-slate-100 text-slate-400' : 'bg-slate-800 text-slate-600'} cursor-not-allowed opacity-50`
-              : 'bg-blue-600 text-white hover:bg-blue-500 active:scale-[0.98] border border-blue-400/20'
-          }`}
-        >
-          <span className="text-[11px]">{saveStatus === 'saving' ? 'Syncing...' : 'Save Changes'}</span>
-        </button>
-      </form>
+        <div className="flex flex-col gap-3">
+          <button 
+            type="button" 
+            onClick={handleSave}
+            disabled={!hasChanges || isUploading || saveStatus === 'saving'}
+            className={`w-full py-5 rounded-2xl font-black uppercase tracking-[0.2em] transition-all duration-300 shadow-2xl ${
+              !hasChanges 
+                ? `${isLight ? 'bg-slate-100 text-slate-400' : 'bg-slate-800 text-slate-600'} cursor-not-allowed opacity-50`
+                : 'bg-blue-600 text-white hover:bg-blue-500 active:scale-[0.98] border border-blue-400/20'
+            }`}
+          >
+            <span className="text-[11px]">{saveStatus === 'saving' ? 'Syncing...' : 'Save Changes'}</span>
+          </button>
+
+          <button 
+            type="button" 
+            onClick={handleSignOut}
+            className={`w-full py-4 rounded-2xl font-black uppercase tracking-[0.2em] transition-all duration-300 flex items-center justify-center gap-2 border ${
+              isLight ? 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50' : 'bg-white/5 border-white/10 text-white hover:bg-white/10'
+            }`}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            <span className="text-[10px]">Sign Out</span>
+          </button>
+
+          <button 
+            type="button" 
+            onClick={() => setShowDeleteConfirm(true)}
+            className="w-full py-2 text-[8px] font-black uppercase tracking-[0.3em] text-rose-500 opacity-60 hover:opacity-100 transition-opacity"
+          >
+            Purge Identity Record
+          </button>
+        </div>
+      </div>
+
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
+           <div className={`w-full max-w-xs p-8 rounded-[2rem] border text-center ${isLight ? 'bg-white border-slate-200 shadow-2xl' : 'bg-slate-900 border-white/10 shadow-black shadow-2xl'}`}>
+              <h4 className={`text-lg font-black uppercase tracking-tight mb-2 ${isLight ? 'text-slate-900' : 'text-white'}`}>Purge Protocol</h4>
+              <p className="text-[10px] text-slate-500 mb-8 uppercase font-bold leading-relaxed">This will permanently delete your personnel profile from the safety grid. Are you sure?</p>
+              <div className="flex flex-col gap-3">
+                 <button onClick={handleDeleteIdentity} disabled={isDeleting} className="w-full py-4 bg-rose-600 text-white font-black rounded-2xl uppercase text-[10px] tracking-widest hover:bg-rose-500 transition-all">
+                   {isDeleting ? 'Purging...' : 'Confirm Purge'}
+                 </button>
+                 <button onClick={() => setShowDeleteConfirm(false)} className={`w-full py-4 font-black rounded-2xl uppercase text-[10px] tracking-widest ${isLight ? 'bg-slate-100' : 'bg-white/5 text-white'}`}>
+                   Cancel
+                 </button>
+              </div>
+           </div>
+        </div>
+      )}
     </div>
   );
 };

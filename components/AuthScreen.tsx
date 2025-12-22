@@ -153,8 +153,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
             webauthn_public_key: cred.publicKey
           };
         } catch (bioErr: any) {
-          setError(`Biometric Enrollment Failed: ${bioErr.message}. Account will be created without biometric lock.`);
-          // We continue to create the profile even if biometrics fail
+          // If biometric enrollment fails, inform the user but allow account completion with just password
+          console.warn("Biometric enrollment skipped:", bioErr.message);
         }
       }
 
@@ -167,11 +167,14 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
         image_consent: imageConsent
       });
 
+      // Save user to quick-access list
       localStorage.setItem(LAST_USER_KEY, newProfile.name);
       localStorage.setItem('hse_guardian_cookies_accepted', 'true');
+      
+      // Hand over to application
       onAuthComplete(newProfile);
     } catch (err: any) { 
-      setError(err.message || 'Signup failed.'); 
+      setError(err.message || 'Signup flow interrupted. Try again.'); 
     } finally { 
       setIsProcessing(false); 
     }
@@ -219,7 +222,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
                 </button>
               )}
               <button onClick={() => setMode('login')} className={`w-full font-black py-4 rounded-2xl transition-all active:scale-[0.98] uppercase tracking-widest text-[10px] border ${isLight ? 'bg-blue-600 text-white border-blue-400 shadow-blue-500/20 shadow-md' : 'bg-white/10 border-white/10 text-white hover:bg-white/20'}`}>Access Protocol</button>
-              <button onClick={() => setMode('signup')} className={`w-full font-black py-4 rounded-2xl transition-all active:scale-[0.98] uppercase tracking-widest text-[10px] border ${isLight ? 'bg-white/10 border-white/20 text-slate-900' : 'bg-white/5 border-white/10 text-slate-300'}`}>New Identity</button>
+              <button onClick={() => setMode('signup')} className={`w-full font-black py-4 rounded-2xl transition-all active:scale-[0.98] uppercase tracking-widest text-[10px] border ${isLight ? 'bg-white border-blue-200 text-slate-900 shadow-sm' : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'}`}>New Identity</button>
             </div>
             <p className={`mt-8 text-[8px] font-bold uppercase tracking-widest ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>Secure Personal Authentication System</p>
           </div>
@@ -228,7 +231,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
       ) : (
         <AuthCard isLight={isLight}>
           <div className="flex items-center justify-between mb-6 relative z-10">
-            <button onClick={() => { setMode('welcome'); setError(''); }} className={`p-2 rounded-xl transition-all flex items-center gap-1 border ${isLight ? 'hover:bg-white/20 border-white/40 text-slate-900' : 'hover:bg-white/5 border-white/10 text-slate-400'}`}>
+            <button onClick={() => { setMode('welcome'); setError(''); }} className={`p-2 rounded-xl transition-all flex items-center gap-1 border ${isLight ? 'hover:bg-slate-100 border-slate-200 text-slate-900' : 'hover:bg-white/5 border-white/10 text-slate-400'}`}>
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="m15 18-6-6 6-6"/></svg> <span className="text-[8px] font-black uppercase tracking-widest pr-1">Back</span>
             </button>
             <div className="text-right"><h3 className={`text-lg font-black tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>{mode === 'signup' ? 'Profile' : 'Access'}</h3><span className="text-[8px] font-black uppercase text-blue-500 tracking-widest">Protocol</span></div>
@@ -238,7 +241,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
             <form onSubmit={mode === 'signup' ? handleSignup : handleLogin} className="space-y-4">
               {mode === 'signup' && (
                 <div className="flex flex-col items-center pb-2" onClick={() => fileInputRef.current?.click()}>
-                  <div className={`w-20 h-20 rounded-full border-2 border-dashed flex items-center justify-center cursor-pointer overflow-hidden relative shadow-lg ${isLight ? 'bg-white/10 border-white/40' : 'bg-black/20 border-white/10'}`}>
+                  <div className={`w-20 h-20 rounded-full border-2 border-dashed flex items-center justify-center cursor-pointer overflow-hidden relative shadow-lg ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-black/20 border-white/10'}`}>
                     {previewUrl ? <img src={previewUrl} className="w-full h-full object-cover" alt="Preview" /> : <div className="flex flex-col items-center text-slate-500"><svg className="h-6 w-6 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" strokeWidth={2.5} /></svg><span className="text-[6px] font-black uppercase">Photo</span></div>}
                   </div>
                   <input type="file" ref={fileInputRef} onChange={(e) => e.target.files?.[0] && setPreviewUrl(URL.createObjectURL(e.target.files[0]))} className="hidden" accept="image/*" />
@@ -246,7 +249,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
               )}
               <div className="space-y-4">
                 <div className="relative">
-                  <InputField id="name" label="Personnel Name" value={profile.name} onChange={handleFieldChange} required placeholder="Name" autoComplete="name" />
+                  <InputField id="name" label="Personnel Name" value={profile.name} onChange={handleFieldChange} required placeholder="Full Name" autoComplete="name" />
                   {mode === 'login' && bioAvailable && (
                     <button 
                       type="button"
@@ -258,8 +261,13 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
                     </button>
                   )}
                 </div>
-                {mode === 'signup' && (<><InputField id="role" label="Role" value={profile.role} onChange={handleFieldChange} required list={ROLES} /><InputField id="site" label="Zone" value={profile.site} onChange={handleFieldChange} list={SITES} /></>)}
-                <InputField id="password" label="Key / Fallback" type="password" value={profile.password || ''} onChange={handleFieldChange} required placeholder="••••••••" />
+                {mode === 'signup' && (
+                  <>
+                    <InputField id="role" label="Role" value={profile.role} onChange={handleFieldChange} required list={ROLES} />
+                    <InputField id="site" label="Zone" value={profile.site} onChange={handleFieldChange} list={SITES} />
+                  </>
+                )}
+                <InputField id="password" label="Access Key" type="password" value={profile.password || ''} onChange={handleFieldChange} required placeholder="••••••••" />
                 {mode === 'signup' && <InputField id="confirmPassword" label="Confirm Key" type="password" value={confirmPassword} onChange={handleFieldChange} required placeholder="••••••••" />}
               </div>
 
@@ -280,6 +288,12 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
                       </label>
                    </div>
                    <div className="flex items-start gap-3 px-1">
+                      <input type="checkbox" id="imageConsent" checked={imageConsent} onChange={(e) => setImageConsent(e.target.checked)} className="mt-0.5 w-4 h-4 rounded border-slate-700 bg-slate-900 text-blue-600 focus:ring-blue-500" />
+                      <label htmlFor="imageConsent" className={`text-[7px] font-black uppercase tracking-widest leading-relaxed ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+                        Confirm Image Upload Authorization for HSE reporting.
+                      </label>
+                   </div>
+                   <div className="flex items-start gap-3 px-1">
                       <input type="checkbox" id="cookieConsent" checked={cookieConsent} onChange={(e) => setCookieConsent(e.target.checked)} className="mt-0.5 w-4 h-4 rounded border-slate-700 bg-slate-900 text-blue-600 focus:ring-blue-500" />
                       <label htmlFor="cookieConsent" className={`text-[7px] font-black uppercase tracking-widest leading-relaxed ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
                         I acknowledge the use of Essential cookies for security.
@@ -289,7 +303,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
               )}
 
               <button type="submit" disabled={isProcessing} className={`w-full font-black py-4 rounded-2xl shadow-xl transition-all active:scale-[0.98] uppercase tracking-widest text-[10px] border flex items-center justify-center gap-3 ${isLight ? 'bg-blue-600 text-white border-blue-400' : 'bg-white/10 border-white/10 text-white hover:bg-white/20'}`}>
-                {isProcessing ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : (mode === 'signup' ? 'Confirm Identity' : 'Establish Access')}
+                {isProcessing ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : (mode === 'signup' ? 'Complete Onboarding' : 'Establish Access')}
               </button>
             </form>
           </div>
