@@ -11,12 +11,13 @@ import { FeedbackAssistant } from './components/FeedbackAssistant';
 import { PolicyModal, PolicyTab } from './components/PolicyModal';
 import { CookieBanner } from './components/CookieBanner';
 import { NotificationSystem } from './components/NotificationSystem';
+import { PersonnelGrid } from './components/PersonnelGrid';
 import { syncOfflineReports } from './services/syncService';
 import { UserProfile as UserProfileType, FetchedIncident } from './types';
 import { requestNotificationPermission, sendNotification } from './services/notificationService';
 import { getAssignedCriticalIncidents } from './services/airtableService';
 
-type ViewState = 'dashboard' | 'create' | 'recent' | 'auth' | 'my-tasks';
+type ViewState = 'dashboard' | 'create' | 'recent' | 'auth' | 'my-tasks' | 'personnel';
 
 export default function App() {
   const [view, setView] = useState<ViewState>('auth');
@@ -231,6 +232,7 @@ export default function App() {
       case 'create': return <CreateReportForm baseId={baseId} appTheme={appTheme} onBack={() => setView('dashboard')} />;
       case 'recent': return <RecentReports baseId={baseId} appTheme={appTheme} onBack={() => setView('dashboard')} />;
       case 'my-tasks': return <RecentReports baseId={baseId} appTheme={appTheme} onBack={() => setView('dashboard')} filterAssignee={userProfile?.name} />;
+      case 'personnel': return <PersonnelGrid appTheme={appTheme} onBack={() => setView('dashboard')} />;
       default: return <Dashboard baseId={baseId} appTheme={appTheme} onNavigate={(target) => setView(target)} />;
     }
   };
