@@ -10,6 +10,7 @@ import { TutorialModal } from './components/TutorialModal';
 import { FeedbackAssistant } from './components/FeedbackAssistant';
 import { PolicyModal, PolicyTab } from './components/PolicyModal';
 import { CookieBanner } from './components/CookieBanner';
+import { NotificationSystem } from './components/NotificationSystem';
 import { syncOfflineReports } from './services/syncService';
 import { UserProfile as UserProfileType, FetchedIncident } from './types';
 import { requestNotificationPermission, sendNotification } from './services/notificationService';
@@ -88,10 +89,14 @@ export default function App() {
         setCriticalTasks(tasks);
         
         let newFoundCount = 0;
+        let lastNewTask: FetchedIncident | null = null;
+
         tasks.forEach(task => {
           if (!lastKnownIncidentIds.current.has(task.id)) {
             newFoundCount++;
+            lastNewTask = task;
             lastKnownIncidentIds.current.add(task.id);
+            // Tier 1: System Level
             sendNotification(
               "CRITICAL HAZARD ASSIGNED", 
               `Alert: ${task.fields["Incident Type"]} at ${task.fields["Site / Location"]} requires immediate action.`,
@@ -100,7 +105,10 @@ export default function App() {
           }
         });
 
-        if (newFoundCount > 0) {
+        if (newFoundCount > 0 && lastNewTask) {
+          // Tier 2: App Level - HSE Guardian Alert
+          window.dispatchEvent(new CustomEvent('hse-guardian-alert', { detail: lastNewTask }));
+          
           setIsBellShaking(true);
           setIsBadgePinging(true);
           setTimeout(() => {
@@ -198,6 +206,7 @@ export default function App() {
         const count = await syncOfflineReports(baseId);
         if (count > 0) {
             setSyncCount(count);
+            window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: `${count} Reports Synced`, type: 'success' } }));
             setTimeout(() => setSyncCount(0), 5000);
         }
     } catch (e) { console.error("Auto-sync failed", e); }
@@ -268,6 +277,7 @@ export default function App() {
           z-index: -1;
         }
       `}</style>
+      <NotificationSystem appTheme={appTheme} onViewTask={(id) => setView('my-tasks')} />
       <div className="relative z-10 flex flex-col flex-grow">
         <header className={`sticky top-0 z-40 backdrop-blur-2xl border-b transition-all duration-300 ${appTheme === 'dark' ? 'bg-[#020617]/90 border-white/5 shadow-xl' : 'bg-white border-slate-200 shadow-sm'} ${view === 'auth' ? 'hidden' : ''}`}>
           <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2 flex items-center justify-between gap-4">
@@ -333,7 +343,7 @@ export default function App() {
                                >
                                  <div className="flex items-start gap-4">
                                    <div className="w-10 h-10 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-500 shrink-0 group-hover:scale-110 transition-transform">
-                                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
                                    </div>
                                    <div className="flex-1 min-w-0">
                                       <div className="flex justify-between items-start">
@@ -407,7 +417,6 @@ export default function App() {
       {showTutorial && <TutorialModal onClose={() => { localStorage.setItem(STORAGE_KEYS.TUTORIAL_SEEN, 'true'); setShowTutorial(false); }} appTheme={appTheme} />}
       {showPolicy && <PolicyModal onClose={() => setShowPolicy(false)} appTheme={appTheme} initialTab={policyInitialTab} />}
       <CookieBanner appTheme={appTheme} onViewDetails={handleOpenCookiePolicy} />
-      {syncCount > 0 && <div className="fixed bottom-24 right-6 z-50 bg-blue-600 text-white px-4 py-2 rounded-xl shadow-2xl text-[10px] font-black uppercase tracking-widest">{syncCount} Synced</div>}
     </div>
   );
 }
