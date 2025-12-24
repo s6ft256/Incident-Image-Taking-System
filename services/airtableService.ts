@@ -1,5 +1,5 @@
 
-import { IncidentForm, IncidentRecord, FetchedIncident } from '../types';
+import { ObservationForm, ObservationRecord, FetchedObservation } from '../types';
 import { AIRTABLE_CONFIG } from '../constants';
 
 interface AirtableConfigOverride {
@@ -13,28 +13,47 @@ interface AttachmentData {
 }
 
 /**
+ * Escapes single quotes for Airtable formulas.
+ */
+const escapeFormulaValue = (value: string): string => {
+  return value.replace(/'/g, "\\'");
+};
+
+/**
  * Maps Airtable API errors to user-friendly messages for safety personnel.
  */
 const handleAirtableError = (response: Response, errorData: any): string => {
+  const detail = errorData?.error?.message || "";
+  
   if (response.status === 401) return "System authentication failed. The safety database credentials may have expired.";
   if (response.status === 403) return "Access denied. You do not have permission to write to this safety report log.";
   if (response.status === 404) return "The requested safety database or table could not be found. Please check the Base ID.";
   if (response.status === 413) return "The report is too large. Try reducing the number of high-resolution images.";
   
   if (response.status === 422) {
-    const detail = errorData?.error?.message || "";
-    const fieldMatch = detail.match(/(?:field|name)\s+["'\\"]+(.*?)["'\\"]+/i);
-    const fieldName = fieldMatch ? fieldMatch[1] : "Unknown";
+    const fieldMatch = detail.match(/['"]([^'"]+)['"]/) || detail.match(/(?:field|column|name)\s+([^ ]+)/i);
+    let fieldName = fieldMatch ? fieldMatch[1] : null;
+
+    if (fieldName) {
+      fieldName = fieldName.replace(/^names?:\s*/i, '').replace(/^[:\s'"]+|[:\s'"]+$/g, '');
+    }
     
-    if (detail.toLowerCase().includes("unknown field") || detail.toLowerCase().includes("could not find field")) {
-      return `Database structure mismatch: Field "${fieldName}" is missing in Airtable. Ensure columns match exactly (case-sensitive) or contact the administrator to add the column.`;
+    if (detail.toLowerCase().includes("unknown field") || 
+        detail.toLowerCase().includes("could not find field") || 
+        detail.toLowerCase().includes("not exist") ||
+        detail.toLowerCase().includes("invalid filter by formula")) {
+      
+      if (fieldName) {
+        return `Database structure mismatch: The field "${fieldName}" is missing or misnamed in your Airtable. Please ensure a column named exactly "${fieldName}" exists in your table (case-sensitive).`;
+      }
+      return `Database structure mismatch: A required column is missing or a formula is invalid. Raw error: "${detail}". Please check your Airtable base configuration.`;
     }
     return detail || "The safety data format is incompatible with the database. Please contact support.";
   }
   
   if (response.status >= 500) return "The safety database is currently experiencing high traffic. Retrying connection...";
   
-  return errorData?.error?.message || response.statusText || "A secure connection to the database could not be established.";
+  return detail || response.statusText || "A secure connection to the database could not be established.";
 };
 
 /**
@@ -81,10 +100,10 @@ const fetchWithRetry = async (
 };
 
 /**
- * Creates a record in Airtable with robust error handling.
+ * Creates an observation record in Airtable with robust error handling.
  */
-export const submitIncidentReport = async (
-  form: IncidentForm, 
+export const submitObservationReport = async (
+  form: ObservationForm, 
   images: AttachmentData[], 
   configOverride?: AirtableConfigOverride
 ): Promise<boolean> => {
@@ -107,7 +126,7 @@ export const submitIncidentReport = async (
     "Name": form.name,
     "Role / Position": form.role,
     "Site / Location": form.site,
-    "Incident Type": form.category,
+    "Observation Type": form.category,
     "Observation": form.observation,
     "Open observations": evidenceAttachments
   };
@@ -133,9 +152,9 @@ export const submitIncidentReport = async (
 };
 
 /**
- * Updates an incident record with robust error handling.
+ * Updates an observation record with robust error handling.
  */
-export const updateIncidentAction = async (
+export const updateObservationAction = async (
   recordId: string,
   actionTaken: string,
   closedBy: string,
@@ -175,9 +194,9 @@ export const updateIncidentAction = async (
 };
 
 /**
- * Assigns an incident to a user.
+ * Assigns an observation to a user.
  */
-export const assignIncident = async (
+export const assignObservation = async (
   recordId: string,
   assignee: string,
   configOverride?: AirtableConfigOverride
@@ -203,45 +222,22 @@ export const assignIncident = async (
 };
 
 /**
- * Fetches reports submitted within the last 24 hours.
+ * Fetches critical unclosed observations assigned to a specific user.
  */
-export const getRecentReports = async (
-  configOverride?: AirtableConfigOverride
-): Promise<FetchedIncident[]> => {
-  const BASE_ID = configOverride?.baseId || AIRTABLE_CONFIG.BASE_ID;
-  const API_KEY = configOverride?.apiKey || AIRTABLE_CONFIG.API_KEY;
-  const TABLE_NAME = AIRTABLE_CONFIG.TABLE_NAME;
-
-  if (!BASE_ID || !API_KEY) throw new Error("Safety Database Configuration Missing.");
-
-  const formula = `IS_AFTER(CREATED_TIME(), DATEADD(NOW(), -1, 'days'))`;
-  const url = `https://api.airtable.com/v0/${BASE_ID}/${encodeURIComponent(TABLE_NAME)}?filterByFormula=${encodeURIComponent(formula)}`;
-
-  const data = await fetchWithRetry(url, {
-    method: 'GET',
-    headers: { 'Authorization': `Bearer ${API_KEY}` }
-  });
-
-  const records = data.records as FetchedIncident[];
-  return records.sort((a, b) => new Date(b.createdTime).getTime() - new Date(a.createdTime).getTime());
-};
-
-/**
- * Fetches critical unclosed incidents assigned to a specific user.
- */
-export const getAssignedCriticalIncidents = async (
+export const getAssignedCriticalObservations = async (
   userName: string,
   configOverride?: AirtableConfigOverride
-): Promise<FetchedIncident[]> => {
+): Promise<FetchedObservation[]> => {
   const BASE_ID = configOverride?.baseId || AIRTABLE_CONFIG.BASE_ID;
   const API_KEY = configOverride?.apiKey || AIRTABLE_CONFIG.API_KEY;
   const TABLE_NAME = AIRTABLE_CONFIG.TABLE_NAME;
 
   if (!BASE_ID || !API_KEY) throw new Error("Safety Database Configuration Missing.");
 
+  const escapedName = escapeFormulaValue(userName);
   const criticalTypes = ['Fire Risk', 'Chemical Spill', 'Respiratory Hazard', 'Equipment Failure'];
-  const typeFormula = `OR(${criticalTypes.map(t => `{Incident Type}='${t}'`).join(',')})`;
-  const formula = `AND({Assigned To}='${userName}', {Action taken}='', ${typeFormula})`;
+  const typeFormula = `OR(${criticalTypes.map(t => `{Observation Type}='${escapeFormulaValue(t)}'`).join(',')})`;
+  const formula = `AND({Assigned To}='${escapedName}', {Action taken}='', ${typeFormula})`;
   
   const url = `https://api.airtable.com/v0/${BASE_ID}/${encodeURIComponent(TABLE_NAME)}?filterByFormula=${encodeURIComponent(formula)}`;
 
@@ -250,7 +246,7 @@ export const getAssignedCriticalIncidents = async (
     headers: { 'Authorization': `Bearer ${API_KEY}` }
   });
 
-  return data.records as FetchedIncident[];
+  return data.records as FetchedObservation[];
 };
 
 /**
@@ -258,7 +254,7 @@ export const getAssignedCriticalIncidents = async (
  */
 export const getAllReports = async (
   configOverride?: AirtableConfigOverride
-): Promise<FetchedIncident[]> => {
+): Promise<FetchedObservation[]> => {
   const BASE_ID = configOverride?.baseId || AIRTABLE_CONFIG.BASE_ID;
   const API_KEY = configOverride?.apiKey || AIRTABLE_CONFIG.API_KEY;
   const TABLE_NAME = AIRTABLE_CONFIG.TABLE_NAME;
@@ -272,7 +268,7 @@ export const getAllReports = async (
       method: 'GET',
       headers: { 'Authorization': `Bearer ${API_KEY}` }
     });
-    const records = data.records as FetchedIncident[];
+    const records = data.records as FetchedObservation[];
     return records.sort((a, b) => new Date(b.createdTime).getTime() - new Date(a.createdTime).getTime());
   } catch (error) {
     console.error('Dashboard analytical fetch failed:', error);

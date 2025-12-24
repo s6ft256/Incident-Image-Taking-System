@@ -13,9 +13,9 @@ import { CookieBanner } from './components/CookieBanner';
 import { NotificationSystem } from './components/NotificationSystem';
 import { PersonnelGrid } from './components/PersonnelGrid';
 import { syncOfflineReports } from './services/syncService';
-import { UserProfile as UserProfileType, FetchedIncident } from './types';
+import { UserProfile as UserProfileType, FetchedObservation } from './types';
 import { requestNotificationPermission, sendNotification } from './services/notificationService';
-import { getAssignedCriticalIncidents } from './services/airtableService';
+import { getAssignedCriticalObservations } from './services/airtableService';
 
 type ViewState = 'dashboard' | 'create' | 'recent' | 'auth' | 'my-tasks' | 'personnel';
 
@@ -33,7 +33,7 @@ export default function App() {
   const [userProfile, setUserProfile] = useState<UserProfileType | null>(null);
   const [appTheme, setAppTheme] = useState<'dark' | 'light'>('dark');
   const [isInitialized, setIsInitialized] = useState(false);
-  const [criticalTasks, setCriticalTasks] = useState<FetchedIncident[]>([]);
+  const [criticalTasks, setCriticalTasks] = useState<FetchedObservation[]>([]);
   const [isBellShaking, setIsBellShaking] = useState(false);
   const [isBadgePinging, setIsBadgePinging] = useState(false);
   
@@ -43,7 +43,7 @@ export default function App() {
   const menuRef = useRef<HTMLDivElement>(null);
   const profileCardRef = useRef<HTMLDivElement>(null);
   const notificationsRef = useRef<HTMLDivElement>(null);
-  const lastKnownIncidentIds = useRef<Set<string>>(new Set());
+  const lastKnownObservationIds = useRef<Set<string>>(new Set());
 
   const loadProfile = () => {
     const saved = localStorage.getItem(STORAGE_KEYS.PROFILE);
@@ -86,21 +86,21 @@ export default function App() {
 
     const monitorCriticalTasks = async () => {
       try {
-        const tasks = await getAssignedCriticalIncidents(userProfile.name, { baseId });
+        const tasks = await getAssignedCriticalObservations(userProfile.name, { baseId });
         setCriticalTasks(tasks);
         
         let newFoundCount = 0;
-        let lastNewTask: FetchedIncident | null = null;
+        let lastNewTask: FetchedObservation | null = null;
 
         tasks.forEach(task => {
-          if (!lastKnownIncidentIds.current.has(task.id)) {
+          if (!lastKnownObservationIds.current.has(task.id)) {
             newFoundCount++;
             lastNewTask = task;
-            lastKnownIncidentIds.current.add(task.id);
+            lastKnownObservationIds.current.add(task.id);
             // Tier 1: System Level
             sendNotification(
               "CRITICAL HAZARD ASSIGNED", 
-              `Alert: ${task.fields["Incident Type"]} at ${task.fields["Site / Location"]} requires immediate action.`,
+              `Alert: ${task.fields["Observation Type"]} at ${task.fields["Site / Location"]} requires immediate action.`,
               true
             );
           }
@@ -119,8 +119,8 @@ export default function App() {
         }
 
         const currentIds = new Set(tasks.map(t => t.id));
-        lastKnownIncidentIds.current.forEach(id => {
-           if (!currentIds.has(id)) lastKnownIncidentIds.current.delete(id);
+        lastKnownObservationIds.current.forEach(id => {
+           if (!currentIds.has(id)) lastKnownObservationIds.current.delete(id);
         });
 
       } catch (e) {
@@ -349,7 +349,7 @@ export default function App() {
                                    </div>
                                    <div className="flex-1 min-w-0">
                                       <div className="flex justify-between items-start">
-                                        <p className={`text-[11px] font-black truncate pr-2 ${appTheme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{task.fields["Incident Type"]}</p>
+                                        <p className={`text-[11px] font-black truncate pr-2 ${appTheme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{task.fields["Observation Type"]}</p>
                                         <span className="text-[8px] font-black text-slate-500 whitespace-nowrap">{getRelativeTime(task.createdTime)}</span>
                                       </div>
                                       <p className="text-[9px] font-bold text-slate-500 truncate mt-1 flex items-center gap-1">

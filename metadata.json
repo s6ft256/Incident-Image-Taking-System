@@ -1,6 +1,6 @@
 {
   "name": "HSE Guardian",
-  "description": "A mobile-first safety reporting tool with offline capabilities, evidence management, and professional incident tracking.",
+  "description": "A mobile-first safety reporting tool with offline capabilities, evidence management, and professional observation tracking.",
   "requestFramePermissions": [
     "camera",
     "geolocation"

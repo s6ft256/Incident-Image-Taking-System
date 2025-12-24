@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { FetchedIncident } from '../types';
+// Fix: Use correct exported member 'FetchedObservation' instead of 'FetchedIncident'
+import { FetchedObservation } from '../types';
 
 interface Toast {
   id: string;
@@ -14,7 +15,8 @@ interface NotificationSystemProps {
 }
 
 export const NotificationSystem: React.FC<NotificationSystemProps> = ({ appTheme, onViewTask }) => {
-  const [activeAlert, setActiveAlert] = useState<FetchedIncident | null>(null);
+  // Fix: Use correct exported member 'FetchedObservation' instead of 'FetchedIncident'
+  const [activeAlert, setActiveAlert] = useState<FetchedObservation | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const isLight = appTheme === 'light';
 
@@ -76,8 +78,9 @@ export const NotificationSystem: React.FC<NotificationSystemProps> = ({ appTheme
               </div>
 
               <div className={`p-4 rounded-2xl border mb-6 ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'}`}>
-                <p className={`text-[11px] font-bold uppercase tracking-wider mb-1 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Incident Type</p>
-                <p className={`text-sm font-black mb-3 ${isLight ? 'text-slate-900' : 'text-white'}`}>{activeAlert.fields["Incident Type"]}</p>
+                {/* Fix: Update labels and field mapping to match types.ts Observation Schema */}
+                <p className={`text-[11px] font-bold uppercase tracking-wider mb-1 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Observation Type</p>
+                <p className={`text-sm font-black mb-3 ${isLight ? 'text-slate-900' : 'text-white'}`}>{activeAlert.fields["Observation Type"]}</p>
                 
                 <p className={`text-[11px] font-bold uppercase tracking-wider mb-1 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Location</p>
                 <p className={`text-sm font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>{activeAlert.fields["Site / Location"]}</p>

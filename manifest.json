@@ -1,7 +1,7 @@
 
 {
   "short_name": "HSE Guardian",
-  "name": "HSE Guardian: Incident Management",
+  "name": "HSE Guardian: Observation Management",
   "description": "Professional safety reporting and critical equipment management system for field personnel.",
   "icons": [
     {
@@ -25,9 +25,9 @@
   "categories": ["business", "productivity", "utilities"],
   "shortcuts": [
     {
-      "name": "New Incident Report",
+      "name": "New Observation Report",
       "short_name": "Report",
-      "description": "Directly open the incident evidence acquisition terminal",
+      "description": "Directly open the observation evidence acquisition terminal",
       "url": "/?view=create",
       "icons": [{ "src": "https://raw.githubusercontent.com/s6ft256/Incident-Image-Taking-System/main/Tj1.jpeg", "sizes": "192x192" }]
     },

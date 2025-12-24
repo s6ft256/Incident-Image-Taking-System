@@ -21,7 +21,7 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('push', (event) => {
   let data = { 
     title: 'HSE Critical Alert', 
-    body: 'New high-risk incident assigned to your terminal.',
+    body: 'New high-risk observation assigned to your terminal.',
     url: '/?view=my-tasks'
   };
 
@@ -56,13 +56,11 @@ self.addEventListener('notificationclick', (event) => {
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
-      // If a tab is already open, focus it and navigate
       for (let client of windowClients) {
         if (client.url.includes(self.location.origin) && 'focus' in client) {
           return client.focus().then(c => c.navigate(urlToOpen));
         }
       }
-      // If no tab is open, open a new one
       if (clients.openWindow) {
         return clients.openWindow(urlToOpen);
       }

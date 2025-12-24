@@ -1,4 +1,6 @@
-import { IncidentForm, UploadedImage } from '../types';
+
+// Fix: Use correct exported member 'ObservationForm' instead of 'IncidentForm'
+import { ObservationForm, UploadedImage } from '../types';
 
 const DB_NAME = 'IncidentReporterDB';
 const STORE_NAME = 'pendingReports';
@@ -6,7 +8,7 @@ const DB_VERSION = 1;
 
 interface OfflineReport {
   id: string;
-  form: IncidentForm;
+  form: ObservationForm;
   images: {
     id: string;
     file: File;
@@ -28,7 +30,8 @@ export const openDB = (): Promise<IDBDatabase> => {
   });
 };
 
-export const saveOfflineReport = async (form: IncidentForm, images: UploadedImage[]) => {
+// Fix: Use correct exported member 'ObservationForm' instead of 'IncidentForm'
+export const saveOfflineReport = async (form: ObservationForm, images: UploadedImage[]) => {
   const db = await openDB();
   const offlineData: OfflineReport = {
     id: crypto.randomUUID(),

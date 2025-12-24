@@ -2,8 +2,8 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { InputField } from './InputField';
 import { ImageGrid } from './ImageGrid';
-import { INCIDENT_TYPES, ROLES, SITES, MIN_IMAGES } from '../constants';
-import { useIncidentReport } from '../hooks/useIncidentReport';
+import { OBSERVATION_TYPES, ROLES, SITES, MIN_IMAGES } from '../constants';
+import { useObservationReport } from '../hooks/useIncidentReport';
 import { getAllProfiles } from '../services/profileService';
 import { UserProfile } from '../types';
 import { sendNotification } from '../services/notificationService';
@@ -41,7 +41,7 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
     handleSubmit,
     resetStatus,
     setFormData
-  } = useIncidentReport(baseId);
+  } = useObservationReport(baseId);
 
   const [teamMembers, setTeamMembers] = useState<string[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -71,14 +71,14 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
         model: 'gemini-3-flash-preview',
         contents: `Analyze this safety observation: "${formData.observation}". 
         Return ONLY a JSON object with: 
-        1. "category": Select exactly one from [${INCIDENT_TYPES.join(', ')}]
+        1. "category": Select exactly one from [${OBSERVATION_TYPES.join(', ')}]
         2. "recommendation": A very short corrective action.
         3. "severity": "Low", "Medium", or "High"`,
         config: { responseMimeType: "application/json" }
       });
 
       const result = JSON.parse(response.text || '{}');
-      if (result.category && INCIDENT_TYPES.includes(result.category)) {
+      if (result.category && OBSERVATION_TYPES.includes(result.category)) {
         setAiResult(result);
       }
     } catch (e) {
@@ -106,7 +106,7 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
     if (submitStatus === 'success') {
       sendNotification(
         "Observation Logged Successfully", 
-        `Incident at ${formData.site || 'Site'} has been synced to the safety database.`
+        `Observation at ${formData.site || 'Site'} has been synced to the safety database.`
       );
     } else if (submitStatus === 'offline-saved') {
       sendNotification(
@@ -130,7 +130,7 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
         <p className={`${isLight ? 'text-slate-600' : 'text-slate-300'} text-sm leading-relaxed max-w-xs mx-auto`}>
             {submitStatus === 'offline-saved' 
                 ? 'Your report is stored locally and will sync once network is available.'
-                : 'Incident successfully logged. All photographic evidence has been securely stored.'
+                : 'Observation successfully logged. All photographic evidence has been securely stored.'
             }
         </p>
         <div className="flex flex-col gap-3 pt-4">
@@ -150,7 +150,7 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
         </button>
         <div className="absolute inset-0 flex flex-col items-center justify-end pb-8">
-             <h2 className="text-3xl font-black text-white tracking-tight drop-shadow-2xl">Log Incident</h2>
+             <h2 className="text-3xl font-black text-white tracking-tight drop-shadow-2xl">Log Observation</h2>
              <p className="text-[10px] font-black text-blue-400 uppercase tracking-[0.3em]">Evidence Acquisition</p>
         </div>
       </div>
@@ -221,13 +221,13 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <InputField 
                 id="category" 
-                label="Incident Type" 
+                label="Observation Type" 
                 value={formData.category} 
                 onChange={handleInputChange} 
                 onBlur={handleBlur}
                 error={validationErrors.category}
                 touched={touched.category}
-                list={INCIDENT_TYPES} 
+                list={OBSERVATION_TYPES} 
                 required 
             />
             <InputField 

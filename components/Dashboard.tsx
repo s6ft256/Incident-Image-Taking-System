@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
 import { getAllReports } from '../services/airtableService';
-import { FetchedIncident, UserProfile } from '../types';
+import { FetchedObservation, UserProfile } from '../types';
 import { WeatherWidget } from './WeatherWidget';
 import { LocationPrompt } from './LocationPrompt';
 import {
@@ -71,7 +71,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appTheme = 'dark' }) => {
-  const [reports, setReports] = useState<FetchedIncident[]>([]);
+  const [reports, setReports] = useState<FetchedObservation[]>([]);
   const [loading, setLoading] = useState(true);
   const [userName, setUserName] = useState<string>('');
   const [locationRefreshKey, setLocationRefreshKey] = useState(0);
@@ -121,7 +121,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
   const siteStats = useMemo(() => {
     return weeklyReports.reduce((acc, curr) => {
       const site = curr.fields["Site / Location"] || 'Other';
-      const type = curr.fields["Incident Type"] || 'Other';
+      const type = curr.fields["Observation Type"] || 'Other';
       const severity = SEVERITY_MAP[type] || 1;
       
       if (!acc[site]) {
@@ -189,7 +189,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
       <div className={`px-6 sm:px-12 py-10 rounded-[2.5rem] text-center shadow-2xl border-2 border-blue-500/30 relative overflow-hidden bg-[#020617]`}>
         <div className="absolute inset-0 bg-blue-600/5 pointer-events-none"></div>
         <p className="text-sm sm:text-lg font-black leading-relaxed max-w-4xl mx-auto uppercase tracking-wider text-white">
-          HSE Guardian isn't just software. It's your proactive safety nerve center. A unified system capturing and managing all safety observations and incident data in real-time.
+          HSE Guardian isn't just software. It's your proactive safety nerve center. A unified system capturing and managing all safety observations and data in real-time.
         </p>
         <div className="mt-4 pt-4 border-t border-white/10 flex justify-center gap-6 text-[11px] font-black uppercase tracking-[0.3em] text-red-500">
           <span className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-red-600 animate-pulse"></div> PERFORMANCE MONITOR</span>
@@ -358,7 +358,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
                </svg>
             </div>
             <div className="flex-1 text-left ml-4 sm:ml-6">
-               <h3 className={`text-lg sm:text-xl font-black tracking-tight leading-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>Report Incident</h3>
+               <h3 className={`text-lg sm:text-xl font-black tracking-tight leading-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>Log Observation</h3>
                <p className="text-[8px] sm:text-[9px] font-black text-blue-400 uppercase tracking-[0.2em] mt-1 opacity-80">Capture New Event</p>
             </div>
           </button>
@@ -416,7 +416,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
                </svg>
             </div>
             <div className="flex-1 text-left ml-4 sm:ml-6">
-               <h3 className={`text-lg sm:text-xl font-black tracking-tight leading-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>Incident Log</h3>
+               <h3 className={`text-lg sm:text-xl font-black tracking-tight leading-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>Observation Log</h3>
                <p className={`text-[8px] sm:text-[9px] font-black uppercase tracking-[0.2em] mt-1 opacity-80 ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>Review Evidence</p>
             </div>
           </button>

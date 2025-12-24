@@ -1,12 +1,12 @@
 
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
-import { FetchedIncident, UploadedImage, UserProfile } from '../types';
-import { getAllReports, updateIncidentAction, assignIncident } from '../services/airtableService';
+import { FetchedObservation, UploadedImage, UserProfile } from '../types';
+import { getAllReports, updateObservationAction, assignObservation } from '../services/airtableService';
 import { uploadImageToStorage } from '../services/storageService';
 import { compressImage } from '../utils/imageCompression';
 import { getAllProfiles } from '../services/profileService';
 import { ImageGrid } from './ImageGrid';
-import { INCIDENT_TYPES } from '../constants';
+import { OBSERVATION_TYPES } from '../constants';
 
 interface RecentReportsProps {
   baseId: string;
@@ -21,7 +21,7 @@ const AUTHORIZED_ADMIN_ROLES = ['technician', 'engineer', 'site supervisor', 'sa
 const PROFILE_KEY = 'hse_guardian_profile';
 
 export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, appTheme = 'dark', filterAssignee }) => {
-  const [allReports, setAllReports] = useState<FetchedIncident[]>([]);
+  const [allReports, setAllReports] = useState<FetchedObservation[]>([]);
   const [teamMembers, setTeamMembers] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -101,17 +101,16 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
 
   const handleAssignToMember = async (reportId: string) => {
     const assignee = localAssignee[reportId];
-    // We allow an empty string to signify unassigning
     if (assignee === undefined) return;
 
     setReassigningId(reportId);
     try {
-      await assignIncident(reportId, assignee, { baseId });
+      await assignObservation(reportId, assignee, { baseId });
       setAllReports(prev => prev.map(r => r.id === reportId ? {
         ...r,
         fields: { ...r.fields, "Assigned To": assignee }
       } : r));
-      setAssignmentSuccess(assignee ? "Personnel successfully assigned." : "Incident unassigned.");
+      setAssignmentSuccess(assignee ? "Personnel successfully assigned." : "Observation unassigned.");
       setTimeout(() => setAssignmentSuccess(null), 3000);
     } catch (err: any) {
       setError(err.message || "Failed to update assignment.");
@@ -250,7 +249,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
         .filter(img => img.status === 'success' && img.serverUrl)
         .map(img => ({ url: img.serverUrl!, filename: img.file.name }));
 
-      await updateIncidentAction(id, actionTaken, closedByValue, attachmentData, { baseId });
+      await updateObservationAction(id, actionTaken, closedByValue, attachmentData, { baseId });
       
       setAllReports(prev => prev.map(r => r.id === id ? {
         ...r,
@@ -263,7 +262,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
       } : r));
       
       setExpandedId(null);
-      setAssignmentSuccess("Incident verified and archived successfully.");
+      setAssignmentSuccess("Observation verified and archived successfully.");
       setTimeout(() => setAssignmentSuccess(null), 3000);
     } catch (err: any) {
       setResolveErrors(prev => ({...prev, [id]: err.message || "System error during finalization."}));
@@ -287,13 +286,13 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
       const isClosed = report.fields["Action taken"]?.trim().length > 0;
       const assignedTo = report.fields["Assigned To"]?.trim() || "";
       const isUnassigned = !assignedTo || assignedTo === "None";
-      const matchesType = filterType === 'All Types' || report.fields["Incident Type"] === filterType;
+      const matchesType = filterType === 'All Types' || report.fields["Observation Type"] === filterType;
 
       if (isMyTasksMode) return !isClosed && assignedTo === filterAssignee && matchesType;
 
       const matchesSearch = searchTerm.trim() === '' || 
         report.fields["Observation"]?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        report.fields["Incident Type"]?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        report.fields["Observation Type"]?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         report.fields["Site / Location"]?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         report.fields["Name"]?.toLowerCase().includes(searchTerm.toLowerCase());
 
@@ -306,7 +305,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
   const tabCounts = useMemo(() => {
     const baseReports = filterType === 'All Types' 
       ? allReports 
-      : allReports.filter(r => r.fields["Incident Type"] === filterType);
+      : allReports.filter(r => r.fields["Observation Type"] === filterType);
 
     return {
       open: baseReports.filter(r => {
@@ -337,7 +336,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
         </button>
         <div className="flex flex-col">
             <h2 className={`text-xl font-black tracking-tight leading-none ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                {isMyTasksMode ? 'My Tasks' : 'Incident Log'}
+                {isMyTasksMode ? 'My Tasks' : 'Observation Log'}
             </h2>
             <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest mt-1">
                 {isMyTasksMode ? 'Personal Assignment Queue' : 'Global Safety Database'}
@@ -419,7 +418,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
                <svg className="w-12 h-12 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                </svg>
-               <p className="text-[10px] font-black uppercase tracking-[0.3em]">No incidents detected in this queue</p>
+               <p className="text-[10px] font-black uppercase tracking-[0.3em]">No observations detected in this queue</p>
             </div>
           ) : (
             tabFilteredReports.map((report) => (
@@ -427,7 +426,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
                 <div className="flex-1 flex flex-col">
                   <div onClick={() => handleRowClick(report.id)} className="flex items-center gap-3 p-4 cursor-pointer">
                     <div className={`w-20 text-[10px] font-black tracking-tighter shrink-0 ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>{new Date(report.createdTime).toLocaleDateString()}</div>
-                    <div className={`flex-1 text-sm font-black truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>{report.fields["Incident Type"] || 'Incident'}</div>
+                    <div className={`flex-1 text-sm font-black truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>{report.fields["Observation Type"] || 'Observation'}</div>
                     <div className={`shrink-0 transition-transform ${expandedId === report.id ? 'rotate-90 text-blue-500' : 'text-slate-600'}`}>
                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="m9 18 6-6-6-6"/></svg>
                     </div>
@@ -484,7 +483,6 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
                         </div>
                       )}
 
-                      {/* Personnel Assignment Section */}
                       {!report.fields["Action taken"]?.trim() && (
                         <div className={`p-4 rounded-2xl border ${isLight ? 'bg-blue-50 border-blue-100' : 'bg-blue-500/5 border-blue-500/20'}`}>
                            <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-4">Personnel Assignment</h4>

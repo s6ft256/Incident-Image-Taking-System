@@ -13,7 +13,7 @@ export interface UserProfile {
   consent_timestamp?: string;
 }
 
-export interface IncidentForm {
+export interface ObservationForm {
   name: string;
   role: string;
   site: string;
@@ -24,12 +24,12 @@ export interface IncidentForm {
   location?: string; // New field for GPS/Precise location
 }
 
-export interface IncidentRecord {
+export interface ObservationRecord {
   fields: {
     "Name": string;
     "Role / Position": string;
     "Site / Location": string;
-    "Incident Type"?: string;
+    "Observation Type"?: string;
     "Observation": string;
     "Action taken": string;
     "Closed by"?: string;
@@ -46,14 +46,14 @@ export interface IncidentRecord {
   }
 }
 
-export interface FetchedIncident {
+export interface FetchedObservation {
   id: string;
   createdTime: string;
   fields: {
     "Name": string;
     "Role / Position": string;
     "Site / Location": string;
-    "Incident Type"?: string;
+    "Observation Type"?: string;
     "Observation": string;
     "Action taken": string;
     "Closed by"?: string;

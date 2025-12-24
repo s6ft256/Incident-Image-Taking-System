@@ -53,7 +53,7 @@ export const SITES = [
   'Other'
 ];
 
-export const INCIDENT_TYPES = [
+export const OBSERVATION_TYPES = [
   'Respiratory Hazard',
   'Unsafe Act',
   'Unsafe Condition',

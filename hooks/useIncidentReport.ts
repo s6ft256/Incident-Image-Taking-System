@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { IncidentForm, UploadedImage, UserProfile } from '../types';
+import { ObservationForm, UploadedImage, UserProfile } from '../types';
 import { MIN_IMAGES, STORAGE_KEYS } from '../constants';
-import { submitIncidentReport } from '../services/airtableService';
+import { submitObservationReport } from '../services/airtableService';
 import { uploadImageToStorage } from '../services/storageService';
 import { compressImage } from '../utils/imageCompression';
 import { saveOfflineReport } from '../services/offlineStorage';
@@ -10,8 +10,8 @@ import { getAddress } from '../services/weatherService';
 
 export type SubmitStatus = 'idle' | 'success' | 'error' | 'offline-saved';
 
-export const useIncidentReport = (baseId: string) => {
-  const [formData, setFormData] = useState<IncidentForm>({
+export const useObservationReport = (baseId: string) => {
+  const [formData, setFormData] = useState<ObservationForm>({
     name: '',
     role: '',
     site: '',
@@ -59,7 +59,7 @@ export const useIncidentReport = (baseId: string) => {
     if (!formData.name.trim()) errors.name = "Observer name is required";
     if (!formData.role.trim()) errors.role = "Current role is required";
     if (!formData.site.trim()) errors.site = "Site location is required";
-    if (!formData.category.trim()) errors.category = "Incident type is required";
+    if (!formData.category.trim()) errors.category = "Observation type is required";
     if (!formData.observation.trim()) errors.observation = "Description is required";
     else if (formData.observation.length < 10) errors.observation = "Please provide more detail (min 10 chars)";
     
@@ -90,14 +90,11 @@ export const useIncidentReport = (baseId: string) => {
       async (position) => {
         const { latitude, longitude } = position.coords;
         try {
-          // Attempt to get the street/road address
           const streetAddress = await getAddress(latitude, longitude);
           const coords = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
-          // Format as: Street | Lat, Lon
           const locationStr = `${streetAddress} | GPS: ${coords}`;
           setFormData(prev => ({ ...prev, location: locationStr }));
         } catch (e) {
-          // Fallback to just coordinates if geocoding fails
           const fallbackStr = `GPS: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
           setFormData(prev => ({ ...prev, location: fallbackStr }));
         } finally {
@@ -134,7 +131,7 @@ export const useIncidentReport = (baseId: string) => {
     setImages(prev => {
       const imageToRemove = prev.find(img => id === img.id);
       if (imageToRemove) URL.revokeObjectURL(imageToRemove.previewUrl);
-      return prev.filter(img => img.id !== id);
+      return prev.filter(img => id === id);
     });
   }, []);
 
@@ -225,7 +222,7 @@ export const useIncidentReport = (baseId: string) => {
         throw new Error("Critical Failure: Evidence upload failed.");
       }
 
-      await submitIncidentReport(formData, totalAttachments, { baseId });
+      await submitObservationReport(formData, totalAttachments, { baseId });
       setSubmitStatus('success');
     } catch (error: any) {
       setSubmitStatus('error');
