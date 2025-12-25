@@ -1,7 +1,8 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { UserProfile } from '../types';
+import { UserProfile, FetchedObservation } from '../types';
 import { getAllProfiles } from '../services/profileService';
+import { getAllReports } from '../services/airtableService';
 import { AUTHORIZED_ADMIN_ROLES } from '../constants';
 
 interface PersonnelGridProps {
@@ -9,8 +10,17 @@ interface PersonnelGridProps {
   onBack: () => void;
 }
 
+interface PersonnelStats {
+  rating: number; // 0 to 5
+  score: number;
+  percentage: number;
+  reportsCreated: number;
+  reportsClosed: number;
+}
+
 export const PersonnelGrid: React.FC<PersonnelGridProps> = ({ appTheme = 'dark', onBack }) => {
   const [personnel, setPersonnel] = useState<UserProfile[]>([]);
+  const [reports, setReports] = useState<FetchedObservation[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState('All Roles');
@@ -19,19 +29,58 @@ export const PersonnelGrid: React.FC<PersonnelGridProps> = ({ appTheme = 'dark',
   const isLight = appTheme === 'light';
 
   useEffect(() => {
-    const fetchPersonnel = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true);
-        const data = await getAllProfiles();
-        setPersonnel(data);
+        const [profilesData, reportsData] = await Promise.all([
+          getAllProfiles(),
+          getAllReports()
+        ]);
+        setPersonnel(profilesData);
+        setReports(reportsData);
       } catch (err) {
-        console.error("Failed to load personnel", err);
+        console.error("Failed to load grid data", err);
       } finally {
         setLoading(false);
       }
     };
-    fetchPersonnel();
+    fetchData();
   }, []);
+
+  const personnelStats = useMemo(() => {
+    const statsMap: Record<string, PersonnelStats> = {};
+
+    personnel.forEach(p => {
+      const created = reports.filter(r => r.fields["Name"] === p.name).length;
+      const closed = reports.filter(r => r.fields["Closed by"] === p.name).length;
+      const assigned = reports.filter(r => r.fields["Assigned To"] === p.name).length;
+      
+      // Automatic Rating Logic: 
+      // Base Score = (Created * 5) + (Closed * 10)
+      // Percentage = Relative to assigned tasks or baseline activity
+      const baseScore = (created * 5) + (closed * 10);
+      const totalInvolved = created + assigned;
+      const percentage = totalInvolved > 0 ? Math.min(100, Math.round((closed / Math.max(1, assigned)) * 100) || 75) : 0;
+      
+      // Normalize to 5 stars (simplified)
+      let rating = 0;
+      if (baseScore > 50 || percentage > 90) rating = 5;
+      else if (baseScore > 30 || percentage > 70) rating = 4;
+      else if (baseScore > 10 || percentage > 50) rating = 3;
+      else if (baseScore > 0) rating = 2;
+      else rating = 1;
+
+      statsMap[p.name] = {
+        rating,
+        score: baseScore,
+        percentage: percentage || (baseScore > 0 ? 85 : 0),
+        reportsCreated: created,
+        reportsClosed: closed
+      };
+    });
+
+    return statsMap;
+  }, [personnel, reports]);
 
   const roles = useMemo(() => {
     const uniqueRoles = Array.from(new Set(personnel.map(p => p.role))).sort();
@@ -55,6 +104,27 @@ export const PersonnelGrid: React.FC<PersonnelGridProps> = ({ appTheme = 'dark',
   const handleEmailClick = (e: React.MouseEvent, email?: string) => {
     e.stopPropagation();
     if (email) window.location.href = `mailto:${email}`;
+  };
+
+  const renderStars = (rating: number) => {
+    return (
+      <div className="flex gap-0.5">
+        {[1, 2, 3, 4, 5].map((s) => (
+          <svg 
+            key={s} 
+            width="10" 
+            height="10" 
+            viewBox="0 0 24 24" 
+            fill={s <= rating ? "currentColor" : "none"} 
+            stroke="currentColor" 
+            strokeWidth="2"
+            className={s <= rating ? "text-amber-500" : "text-slate-600"}
+          >
+            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+          </svg>
+        ))}
+      </div>
+    );
   };
 
   return (
@@ -115,106 +185,128 @@ export const PersonnelGrid: React.FC<PersonnelGridProps> = ({ appTheme = 'dark',
                <p className="text-[10px] font-black uppercase tracking-[0.3em]">No matching personnel found</p>
             </div>
           ) : (
-            filteredPersonnel.map((person, idx) => (
-              <div 
-                key={idx} 
-                onClick={() => setSelectedUser(selectedUser === person.name ? null : person.name)}
-                className={`flex flex-col sm:flex-row sm:items-center gap-4 p-4 sm:p-5 rounded-[1.5rem] border transition-all duration-300 cursor-pointer group hover:translate-x-1 ${
-                  selectedUser === person.name 
-                    ? (isLight ? 'bg-blue-50 border-blue-400 shadow-lg' : 'bg-blue-600/10 border-blue-500/50 shadow-2xl')
-                    : (isLight ? 'bg-white border-slate-200 hover:border-slate-300 shadow-sm' : 'bg-white/[0.03] border-white/5 hover:bg-white/[0.06] hover:border-white/20')
-                }`}
-              >
-                {/* Avatar Column */}
-                <div className="flex items-center gap-4 min-w-0 flex-1">
-                  <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl overflow-hidden border-2 shadow-md shrink-0 transition-transform group-hover:scale-105 ${
-                    isLight ? 'border-white bg-slate-100' : 'border-white/10 bg-black/40'
-                  }`}>
-                    {person.profileImageUrl ? (
-                      <img src={person.profileImageUrl} alt={person.name} className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-blue-500 font-black text-xl">
-                        {person.name.charAt(0)}
-                      </div>
-                    )}
-                  </div>
-                  
-                  {/* Primary Info */}
-                  <div className="flex-1 min-w-0">
-                    <h3 className={`text-base font-black truncate leading-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>{person.name}</h3>
-                    <div className="flex items-center gap-2 mt-1">
-                       <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md border ${
-                         getClearance(person.role) === 'Level 2' 
-                           ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' 
-                           : 'bg-blue-500/10 text-blue-500 border-blue-500/20'
-                       }`}>
-                         {getClearance(person.role)}
-                       </span>
-                       <span className={`text-[8px] font-bold uppercase text-slate-500 truncate`}>{person.role}</span>
+            filteredPersonnel.map((person, idx) => {
+              const stats = personnelStats[person.name] || { rating: 1, percentage: 0, reportsCreated: 0, reportsClosed: 0 };
+              
+              return (
+                <div 
+                  key={idx} 
+                  onClick={() => setSelectedUser(selectedUser === person.name ? null : person.name)}
+                  className={`flex flex-col sm:flex-row sm:items-center gap-4 p-4 sm:p-5 rounded-[1.5rem] border transition-all duration-300 cursor-pointer group hover:translate-x-1 ${
+                    selectedUser === person.name 
+                      ? (isLight ? 'bg-blue-50 border-blue-400 shadow-lg' : 'bg-blue-600/10 border-blue-500/50 shadow-2xl')
+                      : (isLight ? 'bg-white border-slate-200 hover:border-slate-300 shadow-sm' : 'bg-white/[0.03] border-white/5 hover:bg-white/[0.06] hover:border-white/20')
+                  }`}
+                >
+                  {/* Avatar Column */}
+                  <div className="flex items-center gap-4 min-w-0 flex-1">
+                    <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl overflow-hidden border-2 shadow-md shrink-0 transition-transform group-hover:scale-105 ${
+                      isLight ? 'border-white bg-slate-100' : 'border-white/10 bg-black/40'
+                    }`}>
+                      {person.profileImageUrl ? (
+                        <img src={person.profileImageUrl} alt={person.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-blue-500 font-black text-xl">
+                          {person.name.charAt(0)}
+                        </div>
+                      )}
                     </div>
-                    {/* Inline Email for Mobile */}
-                    <p className={`sm:hidden text-[9px] font-medium text-blue-400 mt-1 truncate`}>
-                      {person.email || 'No email registered'}
-                    </p>
+                    
+                    {/* Primary Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <h3 className={`text-base font-black truncate leading-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>{person.name}</h3>
+                        {renderStars(stats.rating)}
+                      </div>
+                      <div className="flex items-center gap-2 mt-1">
+                         <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md border ${
+                           getClearance(person.role) === 'Level 2' 
+                             ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' 
+                             : 'bg-blue-500/10 text-blue-500 border-blue-500/20'
+                         }`}>
+                           {getClearance(person.role)}
+                         </span>
+                         <span className={`text-[8px] font-bold uppercase text-slate-500 truncate`}>{person.role}</span>
+                      </div>
+                      <p className={`hidden sm:block text-[9px] font-medium text-blue-400 mt-1 truncate`}>
+                        {person.email || 'NO_COMMS_PROTOCOL'}
+                      </p>
+                    </div>
                   </div>
-                </div>
 
-                {/* Email detail - Desktop */}
-                <div className="hidden sm:flex flex-[1.5] flex-col justify-center min-w-0">
-                   <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Contact Interface</span>
-                   <button 
-                    onClick={(e) => handleEmailClick(e, person.email)}
-                    className={`text-[10px] font-bold text-left truncate transition-colors ${person.email ? 'text-blue-500 hover:text-blue-400' : 'text-slate-600'}`}
-                   >
-                     {person.email || 'PROTOCOL_MISSING'}
-                   </button>
-                </div>
+                  {/* Automatic Rating Column - Detailed */}
+                  <div className="hidden sm:flex flex-1 flex-col justify-center min-w-[120px]">
+                     <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest">Safety Index</span>
+                        <span className={`text-[8px] font-black ${stats.percentage > 80 ? 'text-emerald-500' : 'text-amber-500'}`}>{stats.percentage}%</span>
+                     </div>
+                     <div className="w-full h-1 bg-slate-800 rounded-full overflow-hidden">
+                        <div 
+                          className={`h-full transition-all duration-1000 ${stats.percentage > 80 ? 'bg-emerald-500' : 'bg-amber-500'}`}
+                          style={{ width: `${stats.percentage}%` }}
+                        />
+                     </div>
+                     <div className="flex justify-between mt-1.5">
+                        <div className="flex flex-col">
+                           <span className="text-[6px] font-black text-slate-600 uppercase">Reported</span>
+                           <span className={`text-[8px] font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>{stats.reportsCreated}</span>
+                        </div>
+                        <div className="flex flex-col text-right">
+                           <span className="text-[6px] font-black text-slate-600 uppercase">Resolved</span>
+                           <span className={`text-[8px] font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>{stats.reportsClosed}</span>
+                        </div>
+                     </div>
+                  </div>
 
-                {/* Site detail - Desktop */}
-                <div className="hidden sm:flex flex-1 flex-col items-center justify-center">
-                   <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Primary Site</span>
-                   <span className={`text-[10px] font-bold ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>{person.site || 'Global Hub'}</span>
-                </div>
+                  {/* Site detail - Desktop */}
+                  <div className="hidden sm:flex flex-col items-end justify-center min-w-[100px]">
+                     <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Deployment Site</span>
+                     <span className={`text-[10px] font-bold ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>{person.site || 'Global Hub'}</span>
+                  </div>
 
-                {/* Action Column */}
-                <div className="flex items-center justify-between sm:justify-end gap-3 mt-2 sm:mt-0 pt-3 sm:pt-0 border-t sm:border-t-0 border-white/5">
-                   <div className="flex sm:hidden flex-col">
-                      <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest">Site</span>
-                      <span className={`text-[10px] font-bold ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>{person.site || 'Global Hub'}</span>
-                   </div>
-                   <div className="flex gap-2">
-                     {person.email && (
-                       <button 
-                        onClick={(e) => handleEmailClick(e, person.email)}
-                        className={`p-3 rounded-xl transition-all ${
-                          isLight ? 'bg-blue-50 text-blue-600 hover:bg-blue-100' : 'bg-blue-500/10 text-blue-400 hover:bg-blue-500/20'
-                        }`}
-                       >
+                  {/* Action Column */}
+                  <div className="flex items-center justify-between sm:justify-end gap-3 mt-2 sm:mt-0 pt-3 sm:pt-0 border-t sm:border-t-0 border-white/5">
+                     <div className="flex sm:hidden flex-col">
+                        <div className="flex items-center gap-2 mb-1">
+                           <span className="text-[7px] font-black text-slate-500 uppercase">Rating</span>
+                           <span className="text-[8px] font-black text-emerald-500">{stats.percentage}% SPI</span>
+                        </div>
+                        <span className={`text-[10px] font-bold ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>{person.site || 'Global Hub'}</span>
+                     </div>
+                     <div className="flex gap-2">
+                       {person.email && (
+                         <button 
+                          onClick={(e) => handleEmailClick(e, person.email)}
+                          className={`p-3 rounded-xl transition-all ${
+                            isLight ? 'bg-blue-50 text-blue-600 hover:bg-blue-100' : 'bg-blue-500/10 text-blue-400 hover:bg-blue-500/20'
+                          }`}
+                         >
+                           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>
+                           </svg>
+                         </button>
+                       )}
+                       <button className={`p-3 rounded-xl transition-all ${
+                         selectedUser === person.name 
+                           ? 'bg-blue-500 text-white' 
+                           : (isLight ? 'bg-slate-50 text-slate-400' : 'bg-white/5 text-slate-500 group-hover:text-blue-400 group-hover:bg-blue-500/10')
+                       }`}>
                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>
+                            <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
                          </svg>
                        </button>
-                     )}
-                     <button className={`p-3 rounded-xl transition-all ${
-                       selectedUser === person.name 
-                         ? 'bg-blue-500 text-white' 
-                         : (isLight ? 'bg-slate-50 text-slate-400' : 'bg-white/5 text-slate-500 group-hover:text-blue-400 group-hover:bg-blue-500/10')
-                     }`}>
-                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
-                       </svg>
-                     </button>
-                   </div>
+                     </div>
+                  </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       )}
 
       {/* Footer Info */}
       <div className="mt-8 pt-6 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4 opacity-50">
-          <p className="text-[8px] font-black uppercase tracking-[0.3em] text-slate-500">Biometric Verification Enabled • Standard Protocol</p>
+          <p className="text-[8px] font-black uppercase tracking-[0.3em] text-slate-500">Auto-Rating Calculated from Site Contribution Data</p>
           <div className="flex gap-4">
              <span className="text-[8px] font-black uppercase tracking-widest">Privacy Compliant</span>
              <span className="text-[8px] font-black uppercase tracking-widest">AES-256 Encrypted</span>

@@ -131,7 +131,7 @@ export const useObservationReport = (baseId: string) => {
     setImages(prev => {
       const imageToRemove = prev.find(img => id === img.id);
       if (imageToRemove) URL.revokeObjectURL(imageToRemove.previewUrl);
-      return prev.filter(img => id === id);
+      return prev.filter(img => img.id !== id);
     });
   }, []);
 

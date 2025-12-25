@@ -85,6 +85,9 @@ export default function App() {
     if (!userProfile?.name || !isOnline) return;
 
     const monitorCriticalTasks = async () => {
+      // Check online status before initiating fetch to reduce "Failed to fetch" errors
+      if (!navigator.onLine) return;
+
       try {
         const tasks = await getAssignedCriticalObservations(userProfile.name, { baseId });
         setCriticalTasks(tasks);
@@ -123,8 +126,13 @@ export default function App() {
            if (!currentIds.has(id)) lastKnownObservationIds.current.delete(id);
         });
 
-      } catch (e) {
-        console.error("Critical Monitor Link Error:", e);
+      } catch (e: any) {
+        // If it's a connection failure, we ignore it silently and wait for the next interval 
+        // to avoid spamming the user or logs during minor network flickers.
+        if (e.message?.includes('fetch') || e.name === 'TypeError') {
+           return;
+        }
+        console.warn("Critical Monitor Background Sync Issue:", e.message);
       }
     };
 

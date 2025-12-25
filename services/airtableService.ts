@@ -92,7 +92,15 @@ const fetchWithRetry = async (
       return await response.json();
     } catch (error: any) {
       lastError = error;
-      if (attempt === maxRetries) throw error;
+      // "Failed to fetch" is a TypeError thrown by the browser on CORS issues or total connection loss.
+      // We handle it gracefully by allowing retries if it's likely a temporary network blip.
+      if (error.name === 'TypeError' && error.message === 'Failed to fetch') {
+         if (attempt === maxRetries) {
+            throw new Error("Airtable Connection Blocked: Check internet or local firewall/CORS policies.");
+         }
+      } else if (attempt === maxRetries) {
+         throw error;
+      }
       await new Promise(res => setTimeout(res, Math.pow(2, attempt) * 1000));
     }
   }
