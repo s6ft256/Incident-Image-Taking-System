@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { AIRTABLE_CONFIG, SAFETY_QUOTES, STORAGE_KEYS, SYSTEM_LOGO_URL } from './constants';
+import { AIRTABLE_CONFIG, SAFETY_QUOTES, STORAGE_KEYS, SYSTEM_LOGO_URL, AUTHORIZED_ADMIN_ROLES } from './constants';
 import { CreateReportForm } from './components/CreateReportForm';
 import { RecentReports } from './components/RecentReports';
 import { Dashboard } from './components/Dashboard';
@@ -14,8 +14,8 @@ import { NotificationSystem } from './components/NotificationSystem';
 import { PersonnelGrid } from './components/PersonnelGrid';
 import { syncOfflineReports } from './services/syncService';
 import { UserProfile as UserProfileType, FetchedObservation } from './types';
-import { requestNotificationPermission, sendNotification } from './services/notificationService';
-import { getAssignedCriticalObservations } from './services/airtableService';
+import { requestNotificationPermission, sendNotification, sendToast } from './services/notificationService';
+import { getAssignedCriticalObservations, getAllReports } from './services/airtableService';
 
 type ViewState = 'dashboard' | 'create' | 'recent' | 'auth' | 'my-tasks' | 'personnel';
 
@@ -44,6 +44,7 @@ export default function App() {
   const profileCardRef = useRef<HTMLDivElement>(null);
   const notificationsRef = useRef<HTMLDivElement>(null);
   const lastKnownObservationIds = useRef<Set<string>>(new Set());
+  const escalatedIds = useRef<Set<string>>(new Set());
 
   const loadProfile = () => {
     const saved = localStorage.getItem(STORAGE_KEYS.PROFILE);
@@ -84,62 +85,85 @@ export default function App() {
   useEffect(() => {
     if (!userProfile?.name || !isOnline) return;
 
-    const monitorCriticalTasks = async () => {
-      // Check online status before initiating fetch to reduce "Failed to fetch" errors
+    const monitorSafetyStatus = async () => {
       if (!navigator.onLine) return;
 
       try {
+        // Task 1: Check Assigned Critical Tasks (Personal - Now every 30s)
         const tasks = await getAssignedCriticalObservations(userProfile.name, { baseId });
         setCriticalTasks(tasks);
         
-        let newFoundCount = 0;
-        let lastNewTask: FetchedObservation | null = null;
-
         tasks.forEach(task => {
           if (!lastKnownObservationIds.current.has(task.id)) {
-            newFoundCount++;
-            lastNewTask = task;
             lastKnownObservationIds.current.add(task.id);
-            // Tier 1: System Level
+            
+            // 1. OS-Level Notification & Audio Tone
             sendNotification(
               "CRITICAL HAZARD ASSIGNED", 
               `Alert: ${task.fields["Observation Type"]} at ${task.fields["Site / Location"]} requires immediate action.`,
               true
             );
+
+            // 2. High-Priority In-App Alert Modal
+            window.dispatchEvent(new CustomEvent('hse-guardian-alert', { detail: task }));
+
+            // 3. UI Animations
+            setIsBellShaking(true);
+            setIsBadgePinging(true);
+            setTimeout(() => { setIsBellShaking(false); setIsBadgePinging(false); }, 6000);
           }
         });
 
-        if (newFoundCount > 0 && lastNewTask) {
-          // Tier 2: App Level - HSE Guardian Alert
-          window.dispatchEvent(new CustomEvent('hse-guardian-alert', { detail: lastNewTask }));
-          
-          setIsBellShaking(true);
-          setIsBadgePinging(true);
-          setTimeout(() => {
-            setIsBellShaking(false);
-            setIsBadgePinging(false);
-          }, 4000);
-        }
+        // Task 2: Escalation Check (Global for Supervisors/Safety Leads)
+        const isSafetyLead = AUTHORIZED_ADMIN_ROLES.includes(userProfile.role.toLowerCase()) || 
+                             userProfile.role.toLowerCase().includes('safety');
+        
+        if (isSafetyLead) {
+          const allReports = await getAllReports({ baseId });
+          const now = Date.now();
+          const ESCALATION_THRESHOLD = 48 * 60 * 60 * 1000; // 48 Hours
 
-        const currentIds = new Set(tasks.map(t => t.id));
-        lastKnownObservationIds.current.forEach(id => {
-           if (!currentIds.has(id)) lastKnownObservationIds.current.delete(id);
-        });
+          allReports.forEach(report => {
+            const isUnresolved = !report.fields["Action taken"] || report.fields["Action taken"].trim().length === 0;
+            const reportAge = now - new Date(report.createdTime).getTime();
+            
+            if (isUnresolved && reportAge > ESCALATION_THRESHOLD && !escalatedIds.current.has(report.id)) {
+              escalatedIds.current.add(report.id);
+              
+              sendNotification(
+                "SYSTEM ESCALATION: OVERDUE HAZARD",
+                `ID ${report.id.slice(-5)}: ${report.fields["Observation Type"]} remains unresolved after 48 hours.`,
+                true
+              );
+
+              sendToast(
+                `Escalated: ${report.fields["Observation Type"]}`,
+                "critical",
+                `esc-${report.id}`,
+                undefined,
+                {
+                  label: "Inspect Report",
+                  onClick: () => {
+                    setView('recent');
+                    window.location.hash = `view-report-${report.id}`;
+                  }
+                }
+              );
+            }
+          });
+        }
 
       } catch (e: any) {
-        // If it's a connection failure, we ignore it silently and wait for the next interval 
-        // to avoid spamming the user or logs during minor network flickers.
-        if (e.message?.includes('fetch') || e.name === 'TypeError') {
-           return;
-        }
-        console.warn("Critical Monitor Background Sync Issue:", e.message);
+        if (e.message?.includes('fetch') || e.name === 'TypeError') return;
+        console.warn("Safety Monitor Sync Issue:", e.message);
       }
     };
 
-    monitorCriticalTasks();
-    const interval = setInterval(monitorCriticalTasks, 120000);
+    monitorSafetyStatus();
+    // Faster interval (30 seconds) for real-time feel
+    const interval = setInterval(monitorSafetyStatus, 30000);
     return () => clearInterval(interval);
-  }, [userProfile?.name, isOnline, baseId]);
+  }, [userProfile?.name, userProfile?.role, isOnline, baseId]);
 
   useEffect(() => {
     setQuote(SAFETY_QUOTES[Math.floor(Math.random() * SAFETY_QUOTES.length)]);
@@ -252,10 +276,10 @@ export default function App() {
       <style>{`
         @keyframes bell-swing {
           0% { transform: rotate(0); }
-          10% { transform: rotate(15deg); }
-          20% { transform: rotate(-15deg); }
-          30% { transform: rotate(12deg); }
-          40% { transform: rotate(-12deg); }
+          10% { transform: rotate(20deg); }
+          20% { transform: rotate(-20deg); }
+          30% { transform: rotate(15deg); }
+          40% { transform: rotate(-15deg); }
           50% { transform: rotate(10deg); }
           60% { transform: rotate(-10deg); }
           70% { transform: rotate(5deg); }
@@ -263,17 +287,18 @@ export default function App() {
           100% { transform: rotate(0); }
         }
         @keyframes bell-pulse-soft {
-          0% { transform: scale(1); opacity: 1; }
-          50% { transform: scale(1.05); opacity: 0.9; }
-          100% { transform: scale(1); opacity: 1; }
+          0% { transform: scale(1); filter: brightness(1); }
+          50% { transform: scale(1.1); filter: brightness(1.3); }
+          100% { transform: scale(1); filter: brightness(1); }
         }
         @keyframes badge-ping {
-          0% { transform: scale(1); opacity: 1; }
-          50% { transform: scale(1.8); opacity: 0; }
-          100% { transform: scale(1.8); opacity: 0; }
+          0% { transform: scale(1); opacity: 0.8; }
+          50% { transform: scale(2.2); opacity: 0; }
+          100% { transform: scale(2.2); opacity: 0; }
         }
         .bell-swing-animate {
-          animation: bell-swing 1s cubic-bezier(0.36, 0.07, 0.19, 0.97) infinite;
+          animation: bell-swing 0.8s cubic-bezier(0.36, 0.07, 0.19, 0.97) infinite;
+          color: #f43f5e !important;
         }
         .bell-tasks-active {
           animation: bell-pulse-soft 2s ease-in-out infinite;
@@ -283,11 +308,11 @@ export default function App() {
           inset: 0;
           border-radius: 9999px;
           background-color: rgb(225, 29, 72);
-          animation: badge-ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
+          animation: badge-ping 1.2s cubic-bezier(0, 0, 0.2, 1) infinite;
           z-index: -1;
         }
       `}</style>
-      <NotificationSystem appTheme={appTheme} onViewTask={(id) => setView('my-tasks')} />
+      <NotificationSystem appTheme={appTheme} onViewTask={(id) => { setView('recent'); window.location.hash = `view-report-${id}`; }} />
       <div className="relative z-10 flex flex-col flex-grow">
         <header className={`sticky top-0 z-40 backdrop-blur-2xl border-b transition-all duration-300 ${appTheme === 'dark' ? 'bg-[#020617]/90 border-white/5 shadow-xl' : 'bg-white border-slate-200 shadow-sm'} ${view === 'auth' ? 'hidden' : ''}`}>
           <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2 flex items-center justify-between gap-4">
@@ -320,8 +345,8 @@ export default function App() {
                         <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
                       </svg>
                       {criticalTasks.length > 0 && (
-                        <div className="absolute top-1 right-1 flex h-4.5 w-4.5 items-center justify-center rounded-full bg-rose-600 text-[9px] font-black text-white ring-2 ring-[#020617] transition-all">
-                          {isBadgePinging && <span className="badge-ping-layer" />}
+                        <div className="absolute top-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-rose-600 text-[10px] font-black text-white ring-2 ring-[#020617] transition-all">
+                          <span className="badge-ping-layer" />
                           {criticalTasks.length}
                         </div>
                       )}
@@ -344,7 +369,7 @@ export default function App() {
                             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4"><path d="M12 2v10m0 4v4"/></svg>
                           </div>
                           <p className={`text-[9px] font-bold leading-relaxed ${appTheme === 'dark' ? 'text-blue-400' : 'text-blue-600'}`}>
-                            Please add your company/work email in profile settings to receive instant Notifications.
+                            Personnel Alerts: You have {criticalTasks.length} high-risk hazards pending your immediate review.
                           </p>
                         </div>
 

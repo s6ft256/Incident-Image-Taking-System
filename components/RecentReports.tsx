@@ -20,6 +20,7 @@ type Tab = 'open' | 'assigned' | 'closed';
 const AUTHORIZED_ADMIN_ROLES = ['technician', 'engineer', 'site supervisor', 'safety officer'];
 const PROFILE_KEY = 'hse_guardian_profile';
 const OPEN_TAB_BG = 'https://i.pinimg.com/736x/dc/1b/16/dc1b165f2032d49a7559a0d9df666a4e.jpg';
+const ASSIGNED_TAB_BG = 'https://i.pinimg.com/1200x/e5/c2/35/e5c235f049cd3468d9e5346f6194e431.jpg';
 
 export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, appTheme = 'dark', filterAssignee }) => {
   const [allReports, setAllReports] = useState<FetchedObservation[]>([]);
@@ -77,6 +78,27 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
       }
     }
   }, [baseId]);
+
+  // Handle Escalation Deep Linking
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash.startsWith('#view-report-')) {
+      const id = hash.replace('#view-report-', '');
+      const report = allReports.find(r => r.id === id);
+      if (report) {
+        const isClosed = report.fields["Action taken"]?.trim().length > 0;
+        const assignedTo = report.fields["Assigned To"]?.trim() || "";
+        
+        if (isClosed) setActiveTab('closed');
+        else if (assignedTo && assignedTo !== "None") setActiveTab('assigned');
+        else setActiveTab('open');
+
+        setExpandedId(id);
+        // Clean up hash after navigation
+        window.location.hash = '';
+      }
+    }
+  }, [allReports]);
 
   const fetchReports = async () => {
     try {
@@ -331,10 +353,14 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
         </div>
       )}
 
-      {/* Aesthetic Background for Open Tab */}
-      {activeTab === 'open' && !isMyTasksMode && (
+      {/* Aesthetic Backgrounds for Open and Assigned Tabs */}
+      {!isMyTasksMode && (activeTab === 'open' || activeTab === 'assigned') && (
         <div className="absolute inset-0 z-0 pointer-events-none opacity-10 sm:opacity-20">
-          <img src={OPEN_TAB_BG} className="w-full h-full object-cover rounded-[3rem]" alt="Thematic Background" />
+          <img 
+            src={activeTab === 'open' ? OPEN_TAB_BG : ASSIGNED_TAB_BG} 
+            className="w-full h-full object-cover rounded-[3rem]" 
+            alt="Thematic Background" 
+          />
           <div className={`absolute inset-0 bg-gradient-to-b ${isLight ? 'from-white via-white/80 to-white' : 'from-[#020617] via-transparent to-[#020617]'}`}></div>
         </div>
       )}
@@ -432,7 +458,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
               </div>
             ) : (
               tabFilteredReports.map((report) => (
-                <div key={report.id} className={`rounded-xl overflow-hidden transition-all duration-300 border flex ${expandedId === report.id ? `${isLight ? 'bg-white border-blue-500 ring-2 ring-blue-500/10' : 'bg-slate-800 border-blue-500/50 shadow-2xl'}` : `${isLight ? 'bg-white/90 border-slate-200 backdrop-blur-md' : 'bg-slate-800/80 border-slate-700 hover:border-slate-600 backdrop-blur-sm'}`}`}>
+                <div key={report.id} id={`report-${report.id}`} className={`rounded-xl overflow-hidden transition-all duration-300 border flex ${expandedId === report.id ? `${isLight ? 'bg-white border-blue-500 ring-2 ring-blue-500/10' : 'bg-slate-800 border-blue-500/50 shadow-2xl'}` : `${isLight ? 'bg-white/90 border-slate-200 backdrop-blur-md' : 'bg-slate-800/80 border-slate-700 hover:border-slate-600 backdrop-blur-sm'}`}`}>
                   <div className="flex-1 flex flex-col">
                     <div onClick={() => handleRowClick(report.id)} className="flex items-center gap-3 p-4 cursor-pointer">
                       <div className={`w-20 text-[10px] font-black tracking-tighter shrink-0 ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>{new Date(report.createdTime).toLocaleDateString()}</div>
