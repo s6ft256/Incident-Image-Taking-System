@@ -48,7 +48,7 @@ const VideoBackground: React.FC<{ isLight: boolean }> = ({ isLight }) => (
 
 export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme }) => {
   const [mode, setMode] = useState<'welcome' | 'signup' | 'login'>('welcome');
-  const [profile, setProfile] = useState<UserProfile>({ name: '', role: '', site: '', password: '' });
+  const [profile, setProfile] = useState<UserProfile>({ name: '', role: '', site: '', email: '', password: '' });
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState('');
@@ -73,6 +73,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
   const validateSignup = () => {
     if (!profile.name || !profile.role || !profile.password) {
       setError('Identification details required.');
+      return false;
+    }
+    if (profile.email && !profile.email.includes('@')) {
+      setError('Invalid email format.');
       return false;
     }
     if (profile.password.length < 6) {
@@ -181,7 +185,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
             <div className="text-right"><h3 className={`text-lg font-black tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>{mode === 'signup' ? 'Profile' : 'Access'}</h3><span className="text-[8px] font-black uppercase text-blue-500 tracking-widest">Protocol</span></div>
           </div>
           <div className="relative z-10">
-            {error && <div className="bg-rose-500/10 border border-rose-500/20 text-rose-500 p-3 rounded-xl mb-4 text-[8px] font-black uppercase tracking-widest flex items-center gap-2 animate-in shake"><svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>{error}</div>}
+            {error && <div className="bg-rose-500/10 border border-rose-500/20 text-rose-500 p-3 rounded-xl mb-4 text-[8px] font-black uppercase tracking-widest flex items-center gap-2 animate-in shake"><svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>{error}</div>}
             
             <form onSubmit={mode === 'signup' ? handleSignup : handleLogin} className="space-y-4">
               {mode === 'signup' && (
@@ -198,6 +202,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
                 </div>
                 {mode === 'signup' && (
                   <>
+                    <InputField id="email" label="Company Email" value={profile.email || ''} onChange={handleFieldChange} placeholder="user@trojanholding.ae" autoComplete="email" />
                     <InputField id="role" label="Role" value={profile.role} onChange={handleFieldChange} required list={ROLES} />
                     <InputField id="site" label="Zone" value={profile.site} onChange={handleFieldChange} list={SITES} />
                   </>
