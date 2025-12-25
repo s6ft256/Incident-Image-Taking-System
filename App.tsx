@@ -325,10 +325,11 @@ export default function App() {
                  />
                </div>
              </div>
-             <div className="flex flex-[2] flex-col items-center">
-               <h1 className="text-2xl sm:text-4xl font-black tracking-tighter" onClick={() => setView('dashboard')}>
+             <div className="flex flex-[2] flex-col items-center group cursor-pointer" onClick={() => setView('dashboard')}>
+               <h1 className="text-2xl sm:text-4xl font-black tracking-tighter">
                  <span className={appTheme === 'dark' ? 'text-white' : 'text-slate-900'}>HSE</span> <span className="text-blue-500">Guardian</span>
                </h1>
+               <div className="h-1 w-12 sm:w-20 bg-red-600 mt-1 rounded-full shadow-[0_0_15px_rgba(220,38,38,0.8)] transition-all duration-500 group-hover:w-24 sm:group-hover:w-32"></div>
              </div>
              <div className="flex-1 flex justify-end items-center gap-2 sm:gap-4 relative">
                {userProfile && (
