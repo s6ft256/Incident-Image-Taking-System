@@ -18,7 +18,7 @@ import {
 
 interface DashboardProps {
   baseId: string;
-  onNavigate: (view: 'create' | 'recent' | 'my-tasks' | 'personnel') => void;
+  onNavigate: (view: 'create' | 'recent' | 'my-tasks' | 'personnel' | 'checklists') => void;
   appTheme?: 'dark' | 'light';
 }
 
@@ -345,7 +345,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
         </>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 pt-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-6 pt-2">
           <button
             onClick={() => onNavigate('create')}
             className={`group relative h-24 sm:h-28 flex items-center backdrop-blur-xl border rounded-2xl sm:rounded-[2rem] overflow-hidden transition-all active:scale-[0.98] duration-300 px-6 sm:px-8 ${
@@ -386,6 +386,23 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
           </button>
 
           <button
+            onClick={() => onNavigate('checklists')}
+            className={`group relative h-24 sm:h-28 flex items-center backdrop-blur-xl border rounded-2xl sm:rounded-[2rem] overflow-hidden transition-all active:scale-[0.98] duration-300 px-6 sm:px-8 ${
+              isLight ? 'bg-white border-slate-200 hover:bg-slate-50 hover:border-amber-300' : 'bg-white/[0.04] border-white/10 hover:bg-white/[0.08] hover:border-amber-500/30'
+            }`}
+          >
+            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-amber-600 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-2xl group-hover:scale-105 transition-transform shrink-0 border border-amber-400/30">
+               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 sm:h-8 sm:w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 00 2 2h10a2 2 0 00 2-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 00 2 2h2a2 2 0 00 2-2M9 5a2 2 0 0 0-2-2h2a2 2 0 0 0 2 2m-6 9l2 2 4-4" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" />
+               </svg>
+            </div>
+            <div className="flex-1 text-left ml-4 sm:ml-6">
+               <h3 className={`text-lg sm:text-xl font-black tracking-tight leading-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>Check lists</h3>
+               <p className="text-[8px] sm:text-[9px] font-black text-amber-400 uppercase tracking-[0.2em] mt-1 opacity-80">Inspection Hub</p>
+            </div>
+          </button>
+
+          <button
             onClick={() => onNavigate('personnel')}
             className={`group relative h-24 sm:h-28 flex items-center backdrop-blur-xl border rounded-2xl sm:rounded-[2rem] overflow-hidden transition-all active:scale-[0.98] duration-300 px-6 sm:px-8 ${
               isLight ? 'bg-white border-slate-200 hover:bg-slate-50 hover:border-indigo-300' : 'bg-white/[0.04] border-white/10 hover:bg-white/[0.08] hover:border-indigo-500/30'
@@ -412,7 +429,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
               isLight ? 'bg-slate-100 border-slate-200' : 'bg-slate-800 border-white/10'
             }`}>
                <svg xmlns="http://www.w3.org/2000/svg" className={`h-6 w-6 sm:h-8 sm:w-8 ${isLight ? 'text-slate-500' : 'text-slate-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 0 2-2h2a2 2 0 0 0 2 2" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 0-2-2h2a2 2 0 0 0 2 2" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" />
                </svg>
             </div>
             <div className="flex-1 text-left ml-4 sm:ml-6">

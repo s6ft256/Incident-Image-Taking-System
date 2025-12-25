@@ -12,12 +12,14 @@ import { PolicyModal, PolicyTab } from './components/PolicyModal';
 import { CookieBanner } from './components/CookieBanner';
 import { NotificationSystem } from './components/NotificationSystem';
 import { PersonnelGrid } from './components/PersonnelGrid';
+import { Checklists } from './components/Checklists';
+import { InspectionViewer } from './components/InspectionViewer';
 import { syncOfflineReports } from './services/syncService';
 import { UserProfile as UserProfileType, FetchedObservation } from './types';
 import { requestNotificationPermission, sendNotification, sendToast } from './services/notificationService';
 import { getAssignedCriticalObservations, getAllReports } from './services/airtableService';
 
-type ViewState = 'dashboard' | 'create' | 'recent' | 'auth' | 'my-tasks' | 'personnel';
+type ViewState = 'dashboard' | 'create' | 'recent' | 'auth' | 'my-tasks' | 'personnel' | 'checklists' | 'inspection-viewer';
 
 export default function App() {
   const [view, setView] = useState<ViewState>('auth');
@@ -36,6 +38,7 @@ export default function App() {
   const [criticalTasks, setCriticalTasks] = useState<FetchedObservation[]>([]);
   const [isBellShaking, setIsBellShaking] = useState(false);
   const [isBadgePinging, setIsBadgePinging] = useState(false);
+  const [activeInspectionUrl, setActiveInspectionUrl] = useState('');
   
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isFabVisible, setIsFabVisible] = useState(true);
@@ -89,7 +92,6 @@ export default function App() {
       if (!navigator.onLine) return;
 
       try {
-        // Task 1: Check Assigned Critical Tasks (Personal - Now every 30s)
         const tasks = await getAssignedCriticalObservations(userProfile.name, { baseId });
         setCriticalTasks(tasks);
         
@@ -97,24 +99,20 @@ export default function App() {
           if (!lastKnownObservationIds.current.has(task.id)) {
             lastKnownObservationIds.current.add(task.id);
             
-            // 1. OS-Level Notification & Audio Tone
             sendNotification(
               "CRITICAL HAZARD ASSIGNED", 
               `Alert: ${task.fields["Observation Type"]} at ${task.fields["Site / Location"]} requires immediate action.`,
               true
             );
 
-            // 2. High-Priority In-App Alert Modal
             window.dispatchEvent(new CustomEvent('hse-guardian-alert', { detail: task }));
 
-            // 3. UI Animations
             setIsBellShaking(true);
             setIsBadgePinging(true);
             setTimeout(() => { setIsBellShaking(false); setIsBadgePinging(false); }, 6000);
           }
         });
 
-        // Task 2: Escalation Check (Global for Supervisors/Safety Leads)
         const isSafetyLead = AUTHORIZED_ADMIN_ROLES.includes(userProfile.role.toLowerCase()) || 
                              userProfile.role.toLowerCase().includes('safety');
         
@@ -160,7 +158,6 @@ export default function App() {
     };
 
     monitorSafetyStatus();
-    // Faster interval (30 seconds) for real-time feel
     const interval = setInterval(monitorSafetyStatus, 30000);
     return () => clearInterval(interval);
   }, [userProfile?.name, userProfile?.role, isOnline, baseId]);
@@ -258,6 +255,11 @@ export default function App() {
     setShowPolicy(true);
   };
 
+  const handleOpenInspection = (url: string) => {
+    setActiveInspectionUrl(url);
+    setView('inspection-viewer');
+  };
+
   const renderContent = () => {
     if (view === 'auth') return <AuthScreen onAuthComplete={handleAuthComplete} appTheme={appTheme} />;
     switch (view) {
@@ -265,6 +267,8 @@ export default function App() {
       case 'recent': return <RecentReports baseId={baseId} appTheme={appTheme} onBack={() => setView('dashboard')} />;
       case 'my-tasks': return <RecentReports baseId={baseId} appTheme={appTheme} onBack={() => setView('dashboard')} filterAssignee={userProfile?.name} />;
       case 'personnel': return <PersonnelGrid appTheme={appTheme} onBack={() => setView('dashboard')} />;
+      case 'checklists': return <Checklists appTheme={appTheme} onBack={() => setView('dashboard')} onOpenInspection={handleOpenInspection} />;
+      case 'inspection-viewer': return <InspectionViewer url={activeInspectionUrl} appTheme={appTheme} onBack={() => setView('checklists')} />;
       default: return <Dashboard baseId={baseId} appTheme={appTheme} onNavigate={(target) => setView(target)} />;
     }
   };
@@ -313,8 +317,8 @@ export default function App() {
         }
       `}</style>
       <NotificationSystem appTheme={appTheme} onViewTask={(id) => { setView('recent'); window.location.hash = `view-report-${id}`; }} />
-      <div className="relative z-10 flex flex-col flex-grow">
-        <header className={`sticky top-0 z-40 backdrop-blur-2xl border-b transition-all duration-300 ${appTheme === 'dark' ? 'bg-[#020617]/90 border-white/5 shadow-xl' : 'bg-white border-slate-200 shadow-sm'} ${view === 'auth' ? 'hidden' : ''}`}>
+      <div className={`relative z-10 flex flex-col flex-grow ${view === 'inspection-viewer' ? 'h-screen overflow-hidden' : ''}`}>
+        <header className={`sticky top-0 z-40 backdrop-blur-2xl border-b transition-all duration-300 ${appTheme === 'dark' ? 'bg-[#020617]/90 border-white/5 shadow-xl' : 'bg-white border-slate-200 shadow-sm'} ${(view === 'auth' || view === 'inspection-viewer') ? 'hidden' : ''}`}>
           <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2 flex items-center justify-between gap-4">
              <div className="flex-1 flex justify-start">
                <div onClick={() => setView('dashboard')} className="group cursor-pointer">
@@ -439,15 +443,15 @@ export default function App() {
              </div>
           </div>
         </header>
-        <main className="flex-grow max-w-7xl mx-auto px-4 sm:px-6 py-6 w-full">{renderContent()}</main>
-        <footer className={`py-6 px-4 border-t text-center ${appTheme === 'dark' ? 'bg-slate-950/30 border-white/5' : 'bg-slate-50 border-slate-100'}`}>
+        <main className={`flex-grow ${view === 'inspection-viewer' ? 'p-0 max-w-none' : 'max-w-7xl mx-auto px-4 sm:px-6 py-6 w-full'}`}>{renderContent()}</main>
+        <footer className={`py-6 px-4 border-t text-center ${appTheme === 'dark' ? 'bg-slate-950/30 border-white/5' : 'bg-slate-50 border-slate-100'} ${view === 'inspection-viewer' ? 'hidden' : ''}`}>
           <div className="max-w-7xl mx-auto flex flex-col items-center gap-2">
             <div className="px-4 py-2 rounded-full border border-red-600/40 text-[9px] font-black uppercase text-red-500 italic">"{quote}"</div>
             <p className="text-[8px] font-black text-slate-600 uppercase">© ELIUS 2025 • SAFETY FIRST</p>
           </div>
         </footer>
       </div>
-      {view !== 'auth' && (
+      {(view !== 'auth' && view !== 'inspection-viewer') && (
         <div ref={menuRef} className={`fixed bottom-6 right-6 z-50 flex flex-row-reverse items-center gap-3 transition-opacity ${isFabVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
           <button onClick={() => setIsMenuOpen(!isMenuOpen)} className={`w-12 h-12 rounded-full shadow-2xl flex items-center justify-center border-2 transition-transform ${isMenuOpen ? 'bg-rose-600 border-rose-400 rotate-90' : 'bg-blue-600 border-blue-400'} text-white`}>
             {isMenuOpen ? <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M18 6L6 18M6 6l12 12" /></svg> : <div className="flex flex-col gap-0.5"><div className="w-1 h-1 bg-current rounded-full" /><div className="w-1 h-1 bg-current rounded-full" /><div className="w-1 h-1 bg-current rounded-full" /></div>}
