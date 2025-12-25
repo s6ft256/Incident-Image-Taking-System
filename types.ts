@@ -4,6 +4,7 @@ export interface UserProfile {
   name: string;
   role: string;
   site?: string;
+  email?: string; // New field for notifications
   profileImageUrl?: string;
   password?: string;
   // Compliance Fields

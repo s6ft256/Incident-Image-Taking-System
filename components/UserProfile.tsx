@@ -6,7 +6,7 @@ import { compressImage } from '../utils/imageCompression';
 import { updateProfile, deleteProfile } from '../services/profileService';
 import { InputField } from './InputField';
 import { ROLES, SITES, STORAGE_KEYS, AUTHORIZED_ADMIN_ROLES } from '../constants';
-import { requestNotificationPermission } from '../services/notificationService';
+import { requestNotificationPermission, sendToast } from '../services/notificationService';
 
 interface UserProfileProps {
   onBack: () => void;
@@ -14,7 +14,7 @@ interface UserProfileProps {
 }
 
 export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
-  const [profile, setProfile] = useState<UserProfileType>({ name: '', role: '', site: '', profileImageUrl: '' });
+  const [profile, setProfile] = useState<UserProfileType>({ name: '', role: '', site: '', email: '', profileImageUrl: '' });
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [isUploading, setIsUploading] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
@@ -61,9 +61,15 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
     return (
       profile.name !== initialProfile.current.name ||
       profile.role !== initialProfile.current.role ||
-      profile.site !== initialProfile.current.site
+      profile.site !== initialProfile.current.site ||
+      profile.email !== initialProfile.current.email
     );
   }, [profile]);
+
+  const emailNeedsSync = useMemo(() => {
+    if (!initialProfile.current) return false;
+    return profile.email !== initialProfile.current.email && profile.email?.includes('@');
+  }, [profile.email]);
 
   const applyTheme = (t: 'dark' | 'light') => {
     if (t === 'light') { 
@@ -88,6 +94,33 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
     setProfile(prev => ({ ...prev, [id]: value }));
   };
 
+  const handleSave = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!hasChanges) return;
+    
+    setSaveStatus('saving');
+    try {
+      if (profile.id) {
+        await updateProfile(profile.id, { 
+          name: profile.name, 
+          role: profile.role, 
+          site: profile.site,
+          email: profile.email
+        });
+      }
+      localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(profile));
+      initialProfile.current = profile;
+      setSaveStatus('saved');
+      window.dispatchEvent(new Event('profileUpdated'));
+      sendToast("Supabase Identity Synced", "success");
+      setTimeout(() => setSaveStatus('idle'), 2000);
+    } catch (err: any) {
+      setErrorMessage(err.message);
+      setSaveStatus('error');
+      sendToast("Sync Failed", "warning");
+    }
+  };
+
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -101,33 +134,10 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
       initialProfile.current = updatedProfile;
       localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(updatedProfile));
       window.dispatchEvent(new Event('profileUpdated'));
+      sendToast("Photo Verified", "success");
     } catch (err: any) {
       setErrorMessage(err.message || "Upload failed.");
     } finally { setIsUploading(false); }
-  };
-
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!hasChanges) return;
-    
-    setSaveStatus('saving');
-    try {
-      if (profile.id) {
-        await updateProfile(profile.id, { 
-          name: profile.name, 
-          role: profile.role, 
-          site: profile.site 
-        });
-      }
-      localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(profile));
-      initialProfile.current = profile;
-      setSaveStatus('saved');
-      window.dispatchEvent(new Event('profileUpdated'));
-      setTimeout(() => setSaveStatus('idle'), 2000);
-    } catch (err: any) {
-      setErrorMessage(err.message);
-      setSaveStatus('error');
-    }
   };
 
   const handleSignOut = () => {
@@ -213,12 +223,57 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
           
           <div className="space-y-4">
               <InputField id="name" label="Full Name" value={profile.name} onChange={handleFieldChange} placeholder="Name" />
+              
+              <div className="space-y-2">
+                <InputField id="email" label="Company Email" value={profile.email || ''} onChange={handleFieldChange} placeholder="user@trojanholding.ae" autoComplete="email" />
+                {emailNeedsSync && (
+                  <button 
+                    onClick={() => handleSave()}
+                    className="w-full py-2 bg-blue-600/10 border border-blue-500/20 text-blue-400 rounded-xl text-[8px] font-black uppercase tracking-widest hover:bg-blue-600/20 transition-all flex items-center justify-center gap-2 animate-in slide-in-from-top-1"
+                  >
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4"><path d="M20 6L9 17l-5-5"/></svg>
+                    Link Email to Supabase Profile
+                  </button>
+                )}
+              </div>
+
               <InputField id="role" label="Designated Role" value={profile.role} onChange={handleFieldChange} list={ROLES} />
               <InputField id="site" label="Primary Site" value={profile.site || ''} onChange={handleFieldChange} list={SITES} />
           </div>
         </div>
 
         <div className="space-y-3">
+          <div className={`p-4 rounded-2xl border flex flex-col gap-3 transition-colors ${isLight ? 'bg-blue-50 border-blue-100' : 'bg-blue-500/5 border-blue-500/10'}`}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className={`text-[10px] font-black uppercase tracking-widest ${isLight ? 'text-slate-900' : 'text-white'}`}>Notification Protocol</p>
+                <p className={`text-[8px] font-black uppercase tracking-tighter mt-1 ${notificationPermission === 'granted' ? 'text-emerald-500' : 'text-rose-400'}`}>
+                  {notificationPermission === 'granted' ? 'Alerts Optimized' : 'Alerts Restricted'}
+                </p>
+              </div>
+              {notificationPermission !== 'granted' && (
+                <button 
+                  type="button"
+                  onClick={handleEnableNotifications}
+                  className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-[8px] font-black uppercase tracking-widest hover:bg-blue-500 active:scale-95 transition-all shadow-md"
+                >
+                  Enable
+                </button>
+              )}
+              {notificationPermission === 'granted' && (
+                <div className="flex items-center gap-1.5 text-emerald-500">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M20 6L9 17l-5-5"/></svg>
+                  <span className="text-[8px] font-black uppercase tracking-widest">Active</span>
+                </div>
+              )}
+            </div>
+            {!profile.email && (
+              <p className="text-[7px] font-bold text-blue-500 uppercase leading-tight italic">
+                * Note: Add company email above to receive external safety dispatches.
+              </p>
+            )}
+          </div>
+
           <div className={`p-4 rounded-2xl border flex items-center justify-between transition-colors ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/5'}`}>
             <div>
               <p className={`text-[10px] font-black uppercase tracking-widest ${isLight ? 'text-slate-900' : 'text-white'}`}>Interface Theme</p>
@@ -234,36 +289,12 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
               <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${theme === 'dark' ? 'translate-x-5' : 'translate-x-0'}`} />
             </button>
           </div>
-
-          <div className={`p-4 rounded-2xl border flex items-center justify-between transition-colors ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/5'}`}>
-            <div className="flex-1">
-              <p className={`text-[10px] font-black uppercase tracking-widest ${isLight ? 'text-slate-900' : 'text-white'}`}>System Notifications</p>
-              <p className={`text-[8px] font-black uppercase tracking-tighter mt-1 ${notificationPermission === 'granted' ? 'text-emerald-500' : 'text-rose-400'}`}>
-                {notificationPermission === 'granted' ? 'Alerts Optimized' : 'Alerts Restricted'}
-              </p>
-            </div>
-            {notificationPermission !== 'granted' && (
-              <button 
-                type="button"
-                onClick={handleEnableNotifications}
-                className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-[8px] font-black uppercase tracking-widest hover:bg-blue-500 active:scale-95 transition-all"
-              >
-                Enable
-              </button>
-            )}
-            {notificationPermission === 'granted' && (
-              <div className="flex items-center gap-1.5 text-emerald-500">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M20 6L9 17l-5-5"/></svg>
-                <span className="text-[8px] font-black uppercase tracking-widest">Active</span>
-              </div>
-            )}
-          </div>
         </div>
 
         <div className="flex flex-col gap-3">
           <button 
             type="button" 
-            onClick={handleSave}
+            onClick={() => handleSave()}
             disabled={!hasChanges || isUploading || saveStatus === 'saving'}
             className={`w-full py-5 rounded-2xl font-black uppercase tracking-[0.2em] transition-all duration-300 shadow-2xl ${
               !hasChanges 
@@ -271,7 +302,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
                 : 'bg-blue-600 text-white hover:bg-blue-500 active:scale-[0.98] border border-blue-400/20'
             }`}
           >
-            <span className="text-[11px]">{saveStatus === 'saving' ? 'Syncing...' : 'Save Changes'}</span>
+            <span className="text-[11px]">{saveStatus === 'saving' ? 'Syncing...' : 'Save All Changes'}</span>
           </button>
 
           <button 

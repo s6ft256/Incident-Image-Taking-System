@@ -41,7 +41,8 @@ export const PersonnelGrid: React.FC<PersonnelGridProps> = ({ appTheme = 'dark',
   const filteredPersonnel = useMemo(() => {
     return personnel.filter(p => {
       const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                            (p.site || '').toLowerCase().includes(searchTerm.toLowerCase());
+                            (p.site || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            (p.email || '').toLowerCase().includes(searchTerm.toLowerCase());
       const matchesRole = filterRole === 'All Roles' || p.role === filterRole;
       return matchesSearch && matchesRole;
     });
@@ -49,6 +50,11 @@ export const PersonnelGrid: React.FC<PersonnelGridProps> = ({ appTheme = 'dark',
 
   const getClearance = (role: string) => {
     return AUTHORIZED_ADMIN_ROLES.includes(role.toLowerCase()) ? 'Level 2' : 'Level 1';
+  };
+
+  const handleEmailClick = (e: React.MouseEvent, email?: string) => {
+    e.stopPropagation();
+    if (email) window.location.href = `mailto:${email}`;
   };
 
   return (
@@ -75,7 +81,7 @@ export const PersonnelGrid: React.FC<PersonnelGridProps> = ({ appTheme = 'dark',
         <div className="flex-grow relative group">
           <input 
             type="text" 
-            placeholder="Search identity..." 
+            placeholder="Search identity or email..." 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className={`w-full p-4 rounded-2xl border outline-none transition-all pl-12 text-sm font-medium ${
@@ -120,7 +126,7 @@ export const PersonnelGrid: React.FC<PersonnelGridProps> = ({ appTheme = 'dark',
                 }`}
               >
                 {/* Avatar Column */}
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-4 min-w-0 flex-1">
                   <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl overflow-hidden border-2 shadow-md shrink-0 transition-transform group-hover:scale-105 ${
                     isLight ? 'border-white bg-slate-100' : 'border-white/10 bg-black/40'
                   }`}>
@@ -146,23 +152,28 @@ export const PersonnelGrid: React.FC<PersonnelGridProps> = ({ appTheme = 'dark',
                        </span>
                        <span className={`text-[8px] font-bold uppercase text-slate-500 truncate`}>{person.role}</span>
                     </div>
+                    {/* Inline Email for Mobile */}
+                    <p className={`sm:hidden text-[9px] font-medium text-blue-400 mt-1 truncate`}>
+                      {person.email || 'No email registered'}
+                    </p>
                   </div>
                 </div>
 
-                {/* Desktop Details (Hidden on Mobile row, shown in expanded or side) */}
-                <div className="hidden sm:flex flex-1 items-center justify-center gap-8">
-                   <div className="flex flex-col items-center">
-                      <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Primary Site</span>
-                      <span className={`text-[10px] font-bold ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>{person.site || 'Global Hub'}</span>
-                   </div>
-                   <div className="h-8 w-[1px] bg-white/5"></div>
-                   <div className="flex flex-col items-center">
-                      <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Status</span>
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
-                        <span className={`text-[10px] font-bold text-emerald-500 uppercase`}>Active</span>
-                      </div>
-                   </div>
+                {/* Email detail - Desktop */}
+                <div className="hidden sm:flex flex-[1.5] flex-col justify-center min-w-0">
+                   <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Contact Interface</span>
+                   <button 
+                    onClick={(e) => handleEmailClick(e, person.email)}
+                    className={`text-[10px] font-bold text-left truncate transition-colors ${person.email ? 'text-blue-500 hover:text-blue-400' : 'text-slate-600'}`}
+                   >
+                     {person.email || 'PROTOCOL_MISSING'}
+                   </button>
+                </div>
+
+                {/* Site detail - Desktop */}
+                <div className="hidden sm:flex flex-1 flex-col items-center justify-center">
+                   <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Primary Site</span>
+                   <span className={`text-[10px] font-bold ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>{person.site || 'Global Hub'}</span>
                 </div>
 
                 {/* Action Column */}
@@ -171,15 +182,29 @@ export const PersonnelGrid: React.FC<PersonnelGridProps> = ({ appTheme = 'dark',
                       <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest">Site</span>
                       <span className={`text-[10px] font-bold ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>{person.site || 'Global Hub'}</span>
                    </div>
-                   <button className={`p-3 rounded-xl transition-all ${
-                     selectedUser === person.name 
-                       ? 'bg-blue-500 text-white' 
-                       : (isLight ? 'bg-slate-50 text-slate-400' : 'bg-white/5 text-slate-500 group-hover:text-blue-400 group-hover:bg-blue-500/10')
-                   }`}>
-                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
-                     </svg>
-                   </button>
+                   <div className="flex gap-2">
+                     {person.email && (
+                       <button 
+                        onClick={(e) => handleEmailClick(e, person.email)}
+                        className={`p-3 rounded-xl transition-all ${
+                          isLight ? 'bg-blue-50 text-blue-600 hover:bg-blue-100' : 'bg-blue-500/10 text-blue-400 hover:bg-blue-500/20'
+                        }`}
+                       >
+                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>
+                         </svg>
+                       </button>
+                     )}
+                     <button className={`p-3 rounded-xl transition-all ${
+                       selectedUser === person.name 
+                         ? 'bg-blue-500 text-white' 
+                         : (isLight ? 'bg-slate-50 text-slate-400' : 'bg-white/5 text-slate-500 group-hover:text-blue-400 group-hover:bg-blue-500/10')
+                     }`}>
+                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+                       </svg>
+                     </button>
+                   </div>
                 </div>
               </div>
             ))

@@ -330,6 +330,16 @@ export default function App() {
                              {criticalTasks.length} Active
                            </span>
                         </div>
+                        
+                        <div className={`px-5 py-3 border-b flex items-start gap-3 ${appTheme === 'dark' ? 'bg-blue-600/5 border-white/5' : 'bg-blue-50 border-blue-100'}`}>
+                          <div className="w-5 h-5 rounded-full bg-blue-600 flex items-center justify-center text-white shrink-0 mt-0.5 shadow-md">
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4"><path d="M12 2v10m0 4v4"/></svg>
+                          </div>
+                          <p className={`text-[9px] font-bold leading-relaxed ${appTheme === 'dark' ? 'text-blue-400' : 'text-blue-600'}`}>
+                            Please add your company/work email in profile settings to receive instant Notifications.
+                          </p>
+                        </div>
+
                         <div className="max-h-80 overflow-y-auto scrollbar-hide">
                            {criticalTasks.length === 0 ? (
                              <div className="p-12 text-center opacity-30 flex flex-col items-center gap-3">

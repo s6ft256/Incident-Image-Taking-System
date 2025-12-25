@@ -13,6 +13,7 @@ export const registerProfile = async (profile: UserProfile): Promise<UserProfile
       name: profile.name, 
       role: profile.role, 
       site: profile.site,
+      email: profile.email,
       password: profile.password,
       profile_image_url: profile.profileImageUrl,
       // Compliance persistence
@@ -34,6 +35,7 @@ export const registerProfile = async (profile: UserProfile): Promise<UserProfile
     name: data.name,
     role: data.role,
     site: data.site,
+    email: data.email,
     password: data.password,
     profileImageUrl: data.profile_image_url,
     privacy_policy_consent: data.privacy_policy_consent,
@@ -58,6 +60,7 @@ export const getProfileByName = async (name: string): Promise<UserProfile | null
     name: data.name,
     role: data.role,
     site: data.site,
+    email: data.email,
     password: data.password,
     profileImageUrl: data.profile_image_url,
     privacy_policy_consent: data.privacy_policy_consent,
@@ -70,7 +73,7 @@ export const getProfileByName = async (name: string): Promise<UserProfile | null
 export const getAllProfiles = async (): Promise<UserProfile[]> => {
   const { data, error } = await supabase
     .from(TABLE_NAME)
-    .select('name, role, site, profile_image_url');
+    .select('name, role, site, email, profile_image_url');
   
   if (error) throw new Error(error.message);
   
@@ -78,6 +81,7 @@ export const getAllProfiles = async (): Promise<UserProfile[]> => {
     name: d.name,
     role: d.role,
     site: d.site,
+    email: d.email,
     profileImageUrl: d.profile_image_url
   }));
 };
@@ -86,6 +90,7 @@ export const updateProfile = async (id: string, updates: Partial<UserProfile>): 
   const dbUpdates: any = {};
   if (updates.name !== undefined) dbUpdates.name = updates.name;
   if (updates.site !== undefined) dbUpdates.site = updates.site;
+  if (updates.email !== undefined) dbUpdates.email = updates.email;
   if (updates.password !== undefined) dbUpdates.password = updates.password;
   if (updates.profileImageUrl !== undefined) dbUpdates.profile_image_url = updates.profileImageUrl;
 
