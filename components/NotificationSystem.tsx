@@ -62,6 +62,15 @@ export const NotificationSystem: React.FC<NotificationSystemProps> = ({ appTheme
     };
   }, []);
 
+  // Sync global state for the heading glow
+  useEffect(() => {
+    if (activeAlert) {
+      document.body.classList.add('critical-glow-active');
+    } else {
+      document.body.classList.remove('critical-glow-active');
+    }
+  }, [activeAlert]);
+
   const dismissAlert = () => setActiveAlert(null);
   const removeToast = (id: string) => setToasts(prev => prev.filter(t => t.id !== id));
 
@@ -71,6 +80,11 @@ export const NotificationSystem: React.FC<NotificationSystemProps> = ({ appTheme
         @keyframes hazard-slide {
           from { background-position: 0 0; }
           to { background-position: 40px 0; }
+        }
+        @keyframes pulse-red-line {
+          0% { box-shadow: 0 0 10px 2px rgba(220, 38, 38, 0.6); transform: scaleX(1); }
+          50% { box-shadow: 0 0 25px 8px rgba(220, 38, 38, 1); transform: scaleX(1.1); }
+          100% { box-shadow: 0 0 10px 2px rgba(220, 38, 38, 0.6); transform: scaleX(1); }
         }
         .hazard-border {
           background: repeating-linear-gradient(
@@ -85,6 +99,14 @@ export const NotificationSystem: React.FC<NotificationSystemProps> = ({ appTheme
         }
         .toast-stack-item {
           transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .critical-glow-active .main-system-title {
+           text-shadow: 0 0 8px rgba(225, 29, 72, 0.9), 0 0 16px rgba(225, 29, 72, 0.6);
+           color: #f43f5e !important;
+        }
+        .critical-glow-active .system-title-line {
+           background-color: #ff0000 !important;
+           animation: pulse-red-line 1.2s ease-in-out infinite;
         }
       `}</style>
 

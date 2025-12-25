@@ -315,9 +315,12 @@ export default function App() {
           animation: badge-ping 1.2s cubic-bezier(0, 0, 0.2, 1) infinite;
           z-index: -1;
         }
+        .main-system-title {
+          transition: all 0.5s ease-in-out;
+        }
       `}</style>
       <NotificationSystem appTheme={appTheme} onViewTask={(id) => { setView('recent'); window.location.hash = `view-report-${id}`; }} />
-      <div className={`relative z-10 flex flex-col flex-grow ${view === 'inspection-viewer' ? 'h-screen overflow-hidden' : ''}`}>
+      <div className={`relative z-10 flex flex-col flex-grow ${view === 'inspection-viewer' ? 'h-auto overflow-visible' : ''}`}>
         <header className={`sticky top-0 z-40 backdrop-blur-2xl border-b transition-all duration-300 ${appTheme === 'dark' ? 'bg-[#020617]/90 border-white/5 shadow-xl' : 'bg-white border-slate-200 shadow-sm'} ${(view === 'auth' || view === 'inspection-viewer') ? 'hidden' : ''}`}>
           <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2 flex items-center justify-between gap-4">
              <div className="flex-1 flex justify-start">
@@ -330,10 +333,10 @@ export default function App() {
                </div>
              </div>
              <div className="flex flex-[2] flex-col items-center group cursor-pointer" onClick={() => setView('dashboard')}>
-               <h1 className="text-2xl sm:text-4xl font-black tracking-tighter">
+               <h1 className="text-2xl sm:text-4xl font-black tracking-tighter main-system-title">
                  <span className={appTheme === 'dark' ? 'text-white' : 'text-slate-900'}>HSE</span> <span className="text-blue-500">Guardian</span>
                </h1>
-               <div className="h-1 w-12 sm:w-20 bg-red-600 mt-1 rounded-full shadow-[0_0_15px_rgba(220,38,38,0.8)] transition-all duration-500 group-hover:w-24 sm:group-hover:w-32"></div>
+               <div className="h-1 w-12 sm:w-20 bg-red-600 mt-1 rounded-full shadow-[0_0_15px_rgba(220,38,38,0.8)] transition-all duration-500 group-hover:w-24 sm:group-hover:w-32 system-title-line"></div>
              </div>
              <div className="flex-1 flex justify-end items-center gap-2 sm:gap-4 relative">
                {userProfile && (
@@ -444,7 +447,7 @@ export default function App() {
           </div>
         </header>
         <main className={`flex-grow ${view === 'inspection-viewer' ? 'p-0 max-w-none' : 'max-w-7xl mx-auto px-4 sm:px-6 py-6 w-full'}`}>{renderContent()}</main>
-        <footer className={`py-6 px-4 border-t text-center ${appTheme === 'dark' ? 'bg-slate-950/30 border-white/5' : 'bg-slate-50 border-slate-100'} ${view === 'inspection-viewer' ? 'hidden' : ''}`}>
+        <footer className={`py-6 px-4 border-t text-center ${appTheme === 'dark' ? 'bg-slate-950/30 border-white/5' : 'bg-slate-50 border-slate-100'} ${view === 'auth' ? 'hidden' : ''}`}>
           <div className="max-w-7xl mx-auto flex flex-col items-center gap-2">
             <div className="px-4 py-2 rounded-full border border-red-600/40 text-[9px] font-black uppercase text-red-500 italic">"{quote}"</div>
             <p className="text-[8px] font-black text-slate-600 uppercase">© ELIUS 2025 • SAFETY FIRST</p>
