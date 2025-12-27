@@ -14,12 +14,16 @@ import { NotificationSystem } from './components/NotificationSystem';
 import { PersonnelGrid } from './components/PersonnelGrid';
 import { Checklists } from './components/Checklists';
 import { InspectionViewer } from './components/InspectionViewer';
+import { RiskAssessmentModule } from './components/RiskAssessmentModule';
+import { TrainingManagement } from './components/TrainingManagement';
+import { AuditLogViewer } from './components/AuditLogViewer';
+import { ComplianceTracker } from './components/ComplianceTracker';
 import { syncOfflineReports } from './services/syncService';
 import { UserProfile as UserProfileType, FetchedObservation } from './types';
 import { requestNotificationPermission, sendNotification, sendToast } from './services/notificationService';
 import { getAssignedCriticalObservations, getAllReports } from './services/airtableService';
 
-type ViewState = 'dashboard' | 'create' | 'recent' | 'auth' | 'my-tasks' | 'personnel' | 'checklists' | 'inspection-viewer';
+type ViewState = 'dashboard' | 'create' | 'recent' | 'auth' | 'my-tasks' | 'personnel' | 'checklists' | 'inspection-viewer' | 'risk-assessment' | 'training-management' | 'audit-trail' | 'compliance-tracker';
 
 export default function App() {
   // Fast Path: Load profile immediately to avoid auth screen flash and provide "automatic" entry
@@ -294,7 +298,11 @@ export default function App() {
       case 'personnel': return <PersonnelGrid appTheme={appTheme} onBack={() => setView('dashboard')} />;
       case 'checklists': return <Checklists appTheme={appTheme} onBack={() => setView('dashboard')} onOpenInspection={handleOpenInspection} />;
       case 'inspection-viewer': return <InspectionViewer url={activeInspectionUrl} appTheme={appTheme} onBack={() => setView('checklists')} />;
-      default: return <Dashboard baseId={baseId} appTheme={appTheme} onNavigate={(target) => setView(target)} />;
+      case 'risk-assessment': return <RiskAssessmentModule appTheme={appTheme} onBack={() => setView('dashboard')} />;
+      case 'training-management': return <TrainingManagement appTheme={appTheme} onBack={() => setView('dashboard')} />;
+      case 'compliance-tracker': return <ComplianceTracker appTheme={appTheme} onBack={() => setView('dashboard')} />;
+      case 'audit-trail': return <AuditLogViewer appTheme={appTheme} onBack={() => setView('dashboard')} />;
+      default: return <Dashboard baseId={baseId} appTheme={appTheme} onNavigate={(target) => setView(target as any)} />;
     }
   };
 
