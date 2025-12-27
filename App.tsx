@@ -49,6 +49,35 @@ export default function App() {
   const lastKnownObservationIds = useRef<Set<string>>(new Set());
   const escalatedIds = useRef<Set<string>>(new Set());
 
+  // Navigation History Sync: Handle Swipe Back and Browser Back Button
+  useEffect(() => {
+    const handlePopState = (event: PopStateEvent) => {
+      if (event.state && event.state.view) {
+        setView(event.state.view);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    
+    // Set initial state
+    if (view) {
+      window.history.replaceState({ view }, '');
+    }
+
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // Update history when view changes via app logic
+  useEffect(() => {
+    if (!isInitialized) return;
+    
+    const currentState = window.history.state;
+    if (!currentState || currentState.view !== view) {
+      // Don't clutter history with multiple auth entries or same entries
+      window.history.pushState({ view }, '');
+    }
+  }, [view, isInitialized]);
+
   const loadProfile = () => {
     const saved = localStorage.getItem(STORAGE_KEYS.PROFILE);
     if (saved) {
