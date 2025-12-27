@@ -22,7 +22,16 @@ import { getAssignedCriticalObservations, getAllReports } from './services/airta
 type ViewState = 'dashboard' | 'create' | 'recent' | 'auth' | 'my-tasks' | 'personnel' | 'checklists' | 'inspection-viewer';
 
 export default function App() {
-  const [view, setView] = useState<ViewState>('auth');
+  // Fast Path: Load profile immediately to avoid auth screen flash and provide "automatic" entry
+  const [userProfile, setUserProfile] = useState<UserProfileType | null>(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.PROFILE);
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) { return null; }
+    }
+    return null;
+  });
+
+  const [view, setView] = useState<ViewState>(userProfile ? 'dashboard' : 'auth');
   const [showProfileCard, setShowProfileCard] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showPolicy, setShowPolicy] = useState(false);
@@ -32,7 +41,6 @@ export default function App() {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [syncCount, setSyncCount] = useState(0);
   const [quote, setQuote] = useState('');
-  const [userProfile, setUserProfile] = useState<UserProfileType | null>(null);
   const [appTheme, setAppTheme] = useState<'dark' | 'light'>('dark');
   const [isInitialized, setIsInitialized] = useState(false);
   const [criticalTasks, setCriticalTasks] = useState<FetchedObservation[]>([]);
@@ -73,24 +81,9 @@ export default function App() {
     
     const currentState = window.history.state;
     if (!currentState || currentState.view !== view) {
-      // Don't clutter history with multiple auth entries or same entries
       window.history.pushState({ view }, '');
     }
   }, [view, isInitialized]);
-
-  const loadProfile = () => {
-    const saved = localStorage.getItem(STORAGE_KEYS.PROFILE);
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        setUserProfile(parsed);
-        return parsed;
-      } catch (e) {
-        console.error("Failed to load profile", e);
-      }
-    }
-    return null;
-  };
 
   const applyTheme = (t: 'dark' | 'light') => {
     if (t === 'light') {
@@ -193,13 +186,10 @@ export default function App() {
 
   useEffect(() => {
     setQuote(SAFETY_QUOTES[Math.floor(Math.random() * SAFETY_QUOTES.length)]);
-    const profile = loadProfile();
     
-    if (profile) {
-      setView('dashboard');
-      if (!localStorage.getItem(STORAGE_KEYS.TUTORIAL_SEEN)) setShowTutorial(true);
-    } else {
-      setView('auth');
+    // Auto-show tutorial for fresh profiles
+    if (userProfile && !localStorage.getItem(STORAGE_KEYS.TUTORIAL_SEEN)) {
+      setShowTutorial(true);
     }
 
     requestNotificationPermission();
@@ -217,7 +207,13 @@ export default function App() {
       if (online) attemptSync();
     };
 
-    const handleProfileUpdate = () => loadProfile();
+    const handleProfileUpdate = () => {
+      const saved = localStorage.getItem(STORAGE_KEYS.PROFILE);
+      if (saved) {
+        try { setUserProfile(JSON.parse(saved)); } catch (e) {}
+      }
+    };
+
     const handleThemeChange = (e: any) => {
       const newTheme = e.detail;
       setAppTheme(newTheme);

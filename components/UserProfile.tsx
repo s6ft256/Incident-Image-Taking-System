@@ -7,6 +7,7 @@ import { updateProfile, deleteProfile } from '../services/profileService';
 import { InputField } from './InputField';
 import { ROLES, SITES, STORAGE_KEYS, AUTHORIZED_ADMIN_ROLES } from '../constants';
 import { requestNotificationPermission, sendToast } from '../services/notificationService';
+import { isBiometricsAvailable, registerBiometrics } from '../services/biometricService';
 
 interface UserProfileProps {
   onBack: () => void;
@@ -22,6 +23,8 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [notificationPermission, setNotificationPermission] = useState<string>(Notification.permission);
+  const [biometricSupport, setBiometricSupport] = useState(false);
+  const [isLinkingBio, setIsLinkingBio] = useState(false);
   
   const initialProfile = useRef<UserProfileType | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -54,6 +57,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
     }
 
     setNotificationPermission(Notification.permission);
+    isBiometricsAvailable().then(setBiometricSupport);
   }, []);
 
   const hasChanges = useMemo(() => {
@@ -118,6 +122,25 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
       setErrorMessage(err.message);
       setSaveStatus('error');
       sendToast("Sync Failed", "warning");
+    }
+  };
+
+  const handleLinkBiometrics = async () => {
+    setIsLinkingBio(true);
+    setErrorMessage('');
+    try {
+      const { credentialId } = await registerBiometrics(profile.name);
+      const updatedProfile = { ...profile, biometricCredentialId: credentialId };
+      if (profile.id) await updateProfile(profile.id, { biometricCredentialId: credentialId });
+      setProfile(updatedProfile);
+      initialProfile.current = updatedProfile;
+      localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(updatedProfile));
+      sendToast("Biometric Link Verified", "success");
+    } catch (err: any) {
+      setErrorMessage(err.message);
+      sendToast("Biometric Setup Canceled", "warning");
+    } finally {
+      setIsLinkingBio(false);
     }
   };
 
@@ -213,6 +236,12 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
       </div>
 
       <div className="space-y-6">
+        {errorMessage && (
+          <div className="bg-rose-500/10 border border-rose-500/20 text-rose-500 p-3 rounded-xl text-[8px] font-black uppercase tracking-widest animate-in shake">
+            {errorMessage}
+          </div>
+        )}
+
         <div className="space-y-4">
           <div className="flex justify-between items-center px-1">
              <h4 className={`text-[10px] font-black uppercase tracking-widest ${isLight ? 'text-slate-400' : 'text-slate-600'}`}>Identity Protocol</h4>
@@ -246,6 +275,38 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
           <div className={`p-4 rounded-2xl border flex flex-col gap-3 transition-colors ${isLight ? 'bg-blue-50 border-blue-100' : 'bg-blue-500/5 border-blue-500/10'}`}>
             <div className="flex items-center justify-between">
               <div>
+                <p className={`text-[10px] font-black uppercase tracking-widest ${isLight ? 'text-slate-900' : 'text-white'}`}>Biometric Terminal</p>
+                <p className={`text-[8px] font-black uppercase tracking-tighter mt-1 ${profile.biometricCredentialId ? 'text-emerald-500' : 'text-slate-500'}`}>
+                  {profile.biometricCredentialId ? 'Biometric Link Active' : 'No Hardware Link Established'}
+                </p>
+              </div>
+              {biometricSupport && !profile.biometricCredentialId && (
+                <button 
+                  type="button"
+                  onClick={handleLinkBiometrics}
+                  disabled={isLinkingBio}
+                  className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-[8px] font-black uppercase tracking-widest hover:bg-blue-500 active:scale-95 transition-all shadow-md"
+                >
+                  {isLinkingBio ? 'Linking...' : 'Link Access'}
+                </button>
+              )}
+              {profile.biometricCredentialId && (
+                <div className="flex items-center gap-1.5 text-emerald-500">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M20 6L9 17l-5-5"/></svg>
+                  <span className="text-[8px] font-black uppercase tracking-widest">Linked</span>
+                </div>
+              )}
+            </div>
+            {!biometricSupport && (
+              <p className="text-[7px] font-bold text-rose-500 uppercase leading-tight italic">
+                * Note: Secure Context (HTTPS) required for hardware authentication.
+              </p>
+            )}
+          </div>
+
+          <div className={`p-4 rounded-2xl border flex flex-col gap-3 transition-colors ${isLight ? 'bg-blue-50 border-blue-100' : 'bg-blue-500/5 border-blue-500/10'}`}>
+            <div className="flex items-center justify-between">
+              <div>
                 <p className={`text-[10px] font-black uppercase tracking-widest ${isLight ? 'text-slate-900' : 'text-white'}`}>Notification Protocol</p>
                 <p className={`text-[8px] font-black uppercase tracking-tighter mt-1 ${notificationPermission === 'granted' ? 'text-emerald-500' : 'text-rose-400'}`}>
                   {notificationPermission === 'granted' ? 'Alerts Optimized' : 'Alerts Restricted'}
@@ -267,11 +328,6 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
                 </div>
               )}
             </div>
-            {!profile.email && (
-              <p className="text-[7px] font-bold text-blue-500 uppercase leading-tight italic">
-                * Note: Add company email above to receive external safety dispatches.
-              </p>
-            )}
           </div>
 
           <div className={`p-4 rounded-2xl border flex items-center justify-between transition-colors ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/5'}`}>
@@ -282,7 +338,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
               </p>
             </div>
             <button 
-              type="button"
+              type="button" 
               onClick={handleToggleTheme}
               className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${theme === 'dark' ? 'bg-blue-600' : 'bg-slate-300'}`}
             >

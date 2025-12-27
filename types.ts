@@ -7,6 +7,7 @@ export interface UserProfile {
   email?: string; // New field for notifications
   profileImageUrl?: string;
   password?: string;
+  biometricCredentialId?: string; // Support for biometric login
   // Compliance Fields
   privacy_policy_consent?: boolean;
   user_agreement_consent?: boolean;
