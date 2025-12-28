@@ -7,7 +7,6 @@ import { uploadImageToStorage } from '../services/storageService';
 import { compressImage } from '../utils/imageCompression';
 import { InputField } from './InputField';
 import { PolicyModal } from './PolicyModal';
-import { isBiometricsAvailable, authenticateBiometrics } from '../services/biometricService';
 
 interface AuthScreenProps {
   onAuthComplete: (profile: UserProfile) => void;
@@ -53,8 +52,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState('');
-  const [lastUserProfile, setLastUserProfile] = useState<UserProfile | null>(null);
-  const [biometricSupport, setBiometricSupport] = useState(false);
   
   const [privacyConsent, setPrivacyConsent] = useState(false);
   const [imageConsent, setImageConsent] = useState(false);
@@ -67,13 +64,11 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
   const isLight = appTheme === 'light';
 
   useEffect(() => {
-    isBiometricsAvailable().then(setBiometricSupport);
-    
-    // Auto-login fast link logic
+    // Attempt to load last user for context, but no automatic biometric login
     const lastName = localStorage.getItem(LAST_USER_KEY);
     if (lastName) {
       getProfileByName(lastName).then(p => {
-        if (p) setLastUserProfile(p);
+        if (p) setProfile(prev => ({ ...prev, name: p.name }));
       });
     }
   }, []);
@@ -168,24 +163,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
     }
   };
 
-  const handleBiometricLogin = async () => {
-    if (!lastUserProfile?.biometricCredentialId) return;
-    setIsProcessing(true);
-    setError('');
-    try {
-      const success = await authenticateBiometrics(lastUserProfile.biometricCredentialId);
-      if (success) {
-        onAuthComplete(lastUserProfile);
-      } else {
-        setError('Biometric link verification failed.');
-      }
-    } catch (err: any) {
-      setError(err.message || 'Biometric handshake timeout.');
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
   return (
     <div className="relative min-h-[85vh] flex items-center justify-center p-6 overflow-hidden">
       <VideoBackground isLight={isLight} />
@@ -201,25 +178,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
               <h2 className={`text-4xl font-black tracking-tighter ${isLight ? 'text-slate-900' : 'text-white'}`}>HSE <span className="text-blue-500">Guardian</span></h2>
               <div className="flex flex-col items-center"><div className="h-1 w-10 bg-red-600 mt-1 rounded-full shadow-[0_0_15px_rgba(220,38,38,0.8)]"></div></div>
             </div>
-
-            {/* Quick Access Link for established users */}
-            {lastUserProfile && biometricSupport && lastUserProfile.biometricCredentialId && (
-              <div className="w-full mb-6 animate-in slide-in-from-top-2 duration-500">
-                <button 
-                  onClick={handleBiometricLogin}
-                  disabled={isProcessing}
-                  className="w-full group flex items-center gap-4 p-4 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white transition-all active:scale-[0.98] border border-blue-400/30 shadow-xl"
-                >
-                  <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M2 12h2m16 0h2M4.93 19.07l1.41-1.41m11.32-11.32l1.41 1.41M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10Z"/></svg>
-                  </div>
-                  <div className="text-left">
-                    <span className="block text-[8px] font-black uppercase tracking-widest opacity-80">Trusted Terminal</span>
-                    <span className="block text-xs font-black">Link as {lastUserProfile.name.split(' ')[0]}</span>
-                  </div>
-                </button>
-              </div>
-            )}
 
             <div className="w-full flex flex-col gap-3">
               <button onClick={() => setMode('login')} className={`w-full font-black py-4 rounded-2xl transition-all active:scale-[0.98] uppercase tracking-widest text-[10px] border ${isLight ? 'bg-blue-600 text-white border-blue-400 shadow-blue-500/20 shadow-md' : 'bg-white/10 border-white/10 text-white hover:bg-white/20'}`}>Access Protocol</button>
