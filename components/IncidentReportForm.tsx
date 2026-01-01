@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { InputField } from './InputField';
 import { ImageGrid } from './ImageGrid';
-import { INCIDENT_TYPES, SEVERITY_LEVELS, STORAGE_KEYS, MIN_IMAGES, AIRTABLE_CONFIG } from '../constants';
+import { INCIDENT_TYPES, SEVERITY_LEVELS, STORAGE_KEYS, MIN_IMAGES, AIRTABLE_CONFIG, DEPARTMENTS } from '../constants';
 import { UserProfile, IncidentForm, UploadedImage } from '../types';
 import { getAddress } from '../services/weatherService';
 import { compressImage } from '../utils/imageCompression';
@@ -39,8 +39,10 @@ export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ appTheme
     date: new Date().toISOString().split('T')[0],
     time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
     location: '',
+    department: 'Operations',
     description: '',
     involvedParties: '',
+    equipmentInvolved: '',
     witnesses: '',
     immediateAction: '',
     reporterName: '',
@@ -275,6 +277,7 @@ Email: ${userEmail || 'Not provided'}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <InputField id="title" label="Incident Title" value={formData.title} onChange={handleInputChange} placeholder="Brief summary" required />
               <InputField id="type" label="Incident Type" value={formData.type} onChange={handleInputChange} list={INCIDENT_TYPES} required />
+              <InputField id="department" label="Involved Department" value={formData.department} onChange={handleInputChange} list={DEPARTMENTS} required />
               <InputField id="severity" label="Initial Severity" value={formData.severity} onChange={handleInputChange} list={SEVERITY_LEVELS} required />
               <div className="grid grid-cols-2 gap-4">
                 <InputField id="date" label="Date" type="text" value={formData.date} onChange={handleInputChange} required />
@@ -324,9 +327,12 @@ Email: ${userEmail || 'Not provided'}
             />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <InputField id="involvedParties" label="Involved Personnel" type="textarea" rows={2} value={formData.involvedParties} onChange={handleInputChange} placeholder="Names, IDs, Companies" />
-              <InputField id="witnesses" label="Witness Statements" type="textarea" rows={2} value={formData.witnesses} onChange={handleInputChange} placeholder="Names and contact info" />
+              <InputField id="equipmentInvolved" label="Equipment / Assets Involved" type="textarea" rows={2} value={formData.equipmentInvolved} onChange={handleInputChange} placeholder="Plate numbers, IDs, Types" />
             </div>
-            <InputField id="immediateAction" label="Immediate Actions Taken" type="textarea" rows={3} value={formData.immediateAction} onChange={handleInputChange} placeholder="What was done to stabilize the site?" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <InputField id="witnesses" label="Witness Statements" type="textarea" rows={2} value={formData.witnesses} onChange={handleInputChange} placeholder="Names and contact info" />
+              <InputField id="immediateAction" label="Immediate Actions Taken" type="textarea" rows={2} value={formData.immediateAction} onChange={handleInputChange} placeholder="What was done to stabilize the site?" />
+            </div>
           </div>
 
           {/* Section 4: Stakeholder Communication */}

@@ -1,3 +1,4 @@
+
 import { createClient } from '@supabase/supabase-js';
 import { SUPABASE_CONFIG } from '../constants';
 
@@ -8,25 +9,27 @@ const supabase = isValidConfig
   : null;
 
 /**
- * Maps technical storage errors to human-readable safety messages.
+ * Maps technical storage errors to high-integrity safety messages.
  */
 const getFriendlyStorageError = (error: any, bucketName: string): string => {
   const message = error?.message || '';
   if (message.includes('row-level security') || message.includes('policy')) {
-    return "Storage access denied. Please contact the safety administrator to verify storage bucket permissions.";
+    return "VAULT ACCESS DENIED: Digital evidence container is locked. Contact HSE Administrator to verify terminal permissions.";
   }
   if (message.includes('bucket not found')) {
-    return `The '${bucketName}' storage container does not exist. Please check system configuration.`;
+    return `REPOSITORY ERROR: The designated evidence vault '${bucketName}' could not be located in the safety grid.`;
+  }
+  if (message.includes('Payload too large')) {
+    return "TRANSMISSION OVERLOAD: Evidence image exceeds the maximum safety-protocol file size. Try lower resolution.";
   }
   if (message.includes('Network request failed') || message.includes('fetch')) {
-    return "Network instability detected. We are attempting to reconnect to the secure evidence server.";
+    return "SYNC DISRUPTED: Site network instability detected. Attempting to re-establish secure evidence link...";
   }
-  return "An unexpected error occurred while saving the evidence. Our system will attempt to retry.";
+  return "SYSTEM FAULT: An unexpected error occurred while archiving evidence. Protocol will attempt a retry.";
 };
 
 /**
  * Uploads a file to Supabase Storage with automatic retry logic.
- * @param bucketName Optional override for the bucket. Defaults to SUPABASE_CONFIG.BUCKET_NAME.
  */
 export const uploadImageToStorage = async (
   file: File, 
@@ -35,7 +38,7 @@ export const uploadImageToStorage = async (
   bucketName?: string
 ): Promise<string> => {
   if (!supabase) {
-    throw new Error("Safety storage is not configured. Please provide a valid Supabase URL and Key.");
+    throw new Error("CONFIGURATION FAULT: Evidence storage grid is not activated. Verify Supabase credentials.");
   }
 
   const bucketToUse = bucketName || SUPABASE_CONFIG.BUCKET_NAME;
@@ -56,7 +59,6 @@ export const uploadImageToStorage = async (
         });
 
       if (error) {
-        // Don't retry client errors that won't change (auth/permission/not found)
         const isClientError = error.message.includes('security') || 
                             error.message.includes('policy') || 
                             error.message.includes('not found');
@@ -65,7 +67,6 @@ export const uploadImageToStorage = async (
           throw new Error(getFriendlyStorageError(error, bucketToUse));
         }
         
-        // Wait before next attempt (exponential backoff)
         await new Promise(res => setTimeout(res, Math.pow(2, attempt) * 1000));
         continue;
       }

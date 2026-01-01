@@ -1,5 +1,5 @@
 
-import { ObservationForm, ObservationRecord, FetchedObservation, IncidentForm } from '../types';
+import { ObservationForm, ObservationRecord, FetchedObservation, IncidentForm, FetchedIncident } from '../types';
 import { AIRTABLE_CONFIG } from '../constants';
 
 interface AirtableConfigOverride {
@@ -20,15 +20,16 @@ const escapeFormulaValue = (value: string): string => {
 };
 
 /**
- * Maps Airtable API errors to user-friendly messages for safety personnel.
+ * Maps Airtable API errors to professional, user-friendly messages for safety personnel.
  */
 const handleAirtableError = (response: Response, errorData: any): string => {
   const detail = errorData?.error?.message || "";
   
-  if (response.status === 401) return "System authentication failed. The safety database credentials may have expired.";
-  if (response.status === 403) return "Access denied. You do not have permission to write to this safety report log.";
-  if (response.status === 404) return "The requested safety database or table could not be found. Please check the Base ID.";
-  if (response.status === 413) return "The report is too large. Try reducing the number of high-resolution images.";
+  if (response.status === 401) return "SECURE LINK REJECTED: Terminal authentication failed. The safety database credentials may have expired.";
+  if (response.status === 403) return "ACCESS DENIED: Your current ID does not have authorization to write to this safety report registry.";
+  if (response.status === 404) return "REGISTRY NOT FOUND: The requested safety database or 'Incident Reports' table could not be located in the grid.";
+  if (response.status === 413) return "TRANSMISSION OVERLOAD: The report payload is too large. Reduce the number of high-resolution images and retry.";
+  if (response.status === 429) return "NETWORK CONGESTION: Safety server is handling high volume. Please wait for automatic retry protocol.";
   
   if (response.status === 422) {
     const fieldMatch = detail.match(/['"]([^'"]+)['"]/) || detail.match(/(?:field|column|name)\s+([^ ]+)/i);
@@ -44,20 +45,20 @@ const handleAirtableError = (response: Response, errorData: any): string => {
         detail.toLowerCase().includes("invalid filter by formula")) {
       
       if (fieldName) {
-        return `Database structure mismatch: The field "${fieldName}" is missing or misnamed in your Airtable. Please ensure a column named exactly "${fieldName}" exists in your table (case-sensitive).`;
+        return `STRUCTURE MISMATCH: The required field "${fieldName}" is missing or renamed in the incident registry. Please verify the Airtable schema.`;
       }
-      return `Database structure mismatch: A required column is missing or a formula is invalid. Raw error: "${detail}". Please check your Airtable base configuration.`;
+      return `DATABASE MISMATCH: A required column is missing from the safety log. System Error: "${detail}".`;
     }
-    return detail || "The safety data format is incompatible with the database. Please contact support.";
+    return `VALIDATION FAILURE: The safety data format is incompatible with the registry. Manual review required.`;
   }
   
-  if (response.status >= 500) return "The safety database is currently experiencing high traffic. Retrying connection...";
+  if (response.status >= 500) return "DATABASE GRID INSTABILITY: The remote safety server is currently unresponsive. Report preserved in local queue.";
   
-  return detail || response.statusText || "A secure connection to the database could not be established.";
+  return detail || response.statusText || "CONNECTION INTERRUPTED: A secure link to the safety registry could not be established.";
 };
 
 /**
- * Wrapper for fetch with retry logic and error mapping.
+ * Wrapper for fetch with retry logic and enhanced error mapping.
  */
 const fetchWithRetry = async (
   url: string, 
@@ -79,6 +80,7 @@ const fetchWithRetry = async (
         }
 
         const friendlyMsg = handleAirtableError(response, errorData);
+        // Retry on 429 (rate limit) or 5xx (server error)
         const shouldRetry = (response.status >= 500 || response.status === 429) && attempt < maxRetries;
         
         if (!shouldRetry) {
@@ -92,11 +94,9 @@ const fetchWithRetry = async (
       return await response.json();
     } catch (error: any) {
       lastError = error;
-      // "Failed to fetch" is a TypeError thrown by the browser on CORS issues or total connection loss.
-      // We handle it gracefully by allowing retries if it's likely a temporary network blip.
       if (error.name === 'TypeError' && error.message === 'Failed to fetch') {
          if (attempt === maxRetries) {
-            throw new Error("Airtable Connection Blocked: Check internet or local firewall/CORS policies.");
+            throw new Error("SITE OFFLINE: Terminal cannot establish an internet link. Data queued for local sync.");
          }
       } else if (attempt === maxRetries) {
          throw error;
@@ -120,7 +120,7 @@ export const submitObservationReport = async (
   const TABLE_NAME = AIRTABLE_CONFIG.TABLE_NAME;
 
   if (!BASE_ID || !API_KEY) {
-    throw new Error("Safety Database Configuration is missing. Please set your Base ID.");
+    throw new Error("CONFIGURATION FAULT: Safety Database ID or API Key is missing from the terminal.");
   }
 
   const url = `https://api.airtable.com/v0/${BASE_ID}/${encodeURIComponent(TABLE_NAME)}`;
@@ -160,7 +160,7 @@ export const submitObservationReport = async (
 };
 
 /**
- * Creates an incident record in Airtable by mapping it to the standard observation structure.
+ * Creates an incident record in Airtable targeting the 'Incident Reports' table.
  */
 export const submitIncidentReport = async (
   form: IncidentForm, 
@@ -169,30 +169,42 @@ export const submitIncidentReport = async (
 ): Promise<boolean> => {
   const BASE_ID = configOverride?.baseId || AIRTABLE_CONFIG.BASE_ID;
   const API_KEY = configOverride?.apiKey || AIRTABLE_CONFIG.API_KEY;
-  const TABLE_NAME = AIRTABLE_CONFIG.TABLE_NAME;
+  const TABLE_NAME = AIRTABLE_CONFIG.INCIDENT_TABLE_NAME;
 
   if (!BASE_ID || !API_KEY) {
-    throw new Error("Safety Database Configuration is missing. Please set your Base ID.");
+    throw new Error("CONFIGURATION FAULT: Incident Database ID is missing.");
   }
 
   const url = `https://api.airtable.com/v0/${BASE_ID}/${encodeURIComponent(TABLE_NAME)}`;
   
-  const evidenceAttachments = images.map(img => ({ 
-    url: img.url, 
-    filename: img.filename 
-  }));
-
-  // Construct a comprehensive narrative for the single observation field
-  const fullNarrative = `[SEVERITY: ${form.severity.toUpperCase()}] ${form.title}\n\nDescription: ${form.description}\n\nInvolved Parties: ${form.involvedParties || 'None'}\nWitnesses: ${form.witnesses || 'None'}\nImmediate Action: ${form.immediateAction || 'None'}\n\nIncident Time: ${form.date} ${form.time}`;
+  const severityMap: Record<string, number> = {
+    'Minor': 1,
+    'Moderate': 2,
+    'Major': 4,
+    'Critical': 5
+  };
 
   const fields: any = {
-    "Name": form.reporterName,
-    "Role / Position": form.reporterRole,
-    "Site / Location": form.location.split('|')[0].trim() || 'Site Area',
-    "Observation Type": `INCIDENT: ${form.type}`,
-    "Observation": fullNarrative,
-    "Open observations": evidenceAttachments,
-    "Location": form.location
+    "Title": form.title,
+    "Description": form.description,
+    "Incident Date": `${form.date}T${form.time}:00.000Z`,
+    "Location": form.location.split('|')[0].trim() || 'Site Area',
+    "Department": form.department,
+    "Status": "open",
+    "Severity": severityMap[form.severity] || 1,
+    "Category": form.type,
+    "Reporter ID": form.reporterName,
+    "Persons Involved": form.involvedParties,
+    "Equipment Involved": form.equipmentInvolved,
+    "Witnesses": form.witnesses,
+    "Image URLs": images.map(img => img.url).join(', '),
+    "Attachments": images.map(img => ({ url: img.url, filename: img.filename })),
+    "Geolocation": form.location,
+    "Metadata": JSON.stringify({
+      immediateAction: form.immediateAction,
+      reporterRole: form.reporterRole,
+      concernedEmail: form.concernedEmail
+    })
   };
 
   await fetchWithRetry(url, {
@@ -208,7 +220,34 @@ export const submitIncidentReport = async (
 };
 
 /**
- * Updates an observation record with robust error handling.
+ * Fetches all incident reports.
+ */
+export const getAllIncidents = async (
+  configOverride?: AirtableConfigOverride
+): Promise<FetchedIncident[]> => {
+  const BASE_ID = configOverride?.baseId || AIRTABLE_CONFIG.BASE_ID;
+  const API_KEY = configOverride?.apiKey || AIRTABLE_CONFIG.API_KEY;
+  const TABLE_NAME = AIRTABLE_CONFIG.INCIDENT_TABLE_NAME;
+
+  if (!BASE_ID || !API_KEY) throw new Error("CONFIGURATION FAULT: Database credentials missing.");
+
+  const url = `https://api.airtable.com/v0/${BASE_ID}/${encodeURIComponent(TABLE_NAME)}?maxRecords=100`;
+
+  try {
+    const data = await fetchWithRetry(url, {
+      method: 'GET',
+      headers: { 'Authorization': `Bearer ${API_KEY}` }
+    });
+    const records = data.records as FetchedIncident[];
+    return records.sort((a, b) => new Date(b.createdTime).getTime() - new Date(a.createdTime).getTime());
+  } catch (error) {
+    console.error('Incident fetch failed:', error);
+    return [];
+  }
+};
+
+/**
+ * Updates an observation record.
  */
 export const updateObservationAction = async (
   recordId: string,
@@ -221,7 +260,7 @@ export const updateObservationAction = async (
   const API_KEY = configOverride?.apiKey || AIRTABLE_CONFIG.API_KEY;
   const TABLE_NAME = AIRTABLE_CONFIG.TABLE_NAME;
 
-  if (!BASE_ID || !API_KEY) throw new Error("Safety Database Configuration missing.");
+  if (!BASE_ID || !API_KEY) throw new Error("CONFIGURATION FAULT: Database credentials missing.");
 
   const url = `https://api.airtable.com/v0/${BASE_ID}/${encodeURIComponent(TABLE_NAME)}/${recordId}`;
 
@@ -261,7 +300,7 @@ export const assignObservation = async (
   const API_KEY = configOverride?.apiKey || AIRTABLE_CONFIG.API_KEY;
   const TABLE_NAME = AIRTABLE_CONFIG.TABLE_NAME;
 
-  if (!BASE_ID || !API_KEY) throw new Error("Safety Database Configuration missing.");
+  if (!BASE_ID || !API_KEY) throw new Error("CONFIGURATION FAULT: Database credentials missing.");
 
   const url = `https://api.airtable.com/v0/${BASE_ID}/${encodeURIComponent(TABLE_NAME)}/${recordId}`;
 
@@ -288,7 +327,7 @@ export const getAssignedCriticalObservations = async (
   const API_KEY = configOverride?.apiKey || AIRTABLE_CONFIG.API_KEY;
   const TABLE_NAME = AIRTABLE_CONFIG.TABLE_NAME;
 
-  if (!BASE_ID || !API_KEY) throw new Error("Safety Database Configuration Missing.");
+  if (!BASE_ID || !API_KEY) throw new Error("CONFIGURATION FAULT: Database credentials missing.");
 
   const escapedName = escapeFormulaValue(userName);
   const criticalTypes = ['Fire Risk', 'Chemical Spill', 'Respiratory Hazard', 'Equipment Failure'];
@@ -315,7 +354,7 @@ export const getAllReports = async (
   const API_KEY = configOverride?.apiKey || AIRTABLE_CONFIG.API_KEY;
   const TABLE_NAME = AIRTABLE_CONFIG.TABLE_NAME;
 
-  if (!BASE_ID || !API_KEY) throw new Error("Safety Database Configuration Missing.");
+  if (!BASE_ID || !API_KEY) throw new Error("CONFIGURATION FAULT: Database credentials missing.");
 
   const url = `https://api.airtable.com/v0/${BASE_ID}/${encodeURIComponent(TABLE_NAME)}?maxRecords=100`;
 

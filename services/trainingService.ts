@@ -1,3 +1,4 @@
+
 import { createClient } from '@supabase/supabase-js';
 import { SUPABASE_CONFIG } from '../constants';
 import { TraineeRow, UploadedImage } from '../types';
@@ -17,6 +18,16 @@ export interface TrainingSessionData {
 }
 
 /**
+ * Maps Supabase DB technical errors to professional safety messages.
+ */
+const handleDBError = (error: any, context: string): string => {
+  if (!error) return `Fault in ${context}`;
+  if (error.code === '42P01') return `GRID INTEGRITY FAULT: Training registry table is missing.`;
+  if (error.code === '23503') return `REFERENCE FAULT: Linked session record could not be established.`;
+  return `SYNC ERROR [${context}]: ${error.message || 'Operation failed.'}`;
+};
+
+/**
  * Persists a full training roster including trainees and evidence links to Supabase.
  */
 export const saveTrainingRoster = async (data: TrainingSessionData): Promise<string> => {
@@ -34,7 +45,7 @@ export const saveTrainingRoster = async (data: TrainingSessionData): Promise<str
     .select()
     .single();
 
-  if (sessionError) throw new Error(`Session Init Failed: ${sessionError.message}`);
+  if (sessionError) throw new Error(handleDBError(sessionError, "Session Roster"));
 
   const sessionId = session.id;
 
@@ -55,7 +66,7 @@ export const saveTrainingRoster = async (data: TrainingSessionData): Promise<str
       const { error: traineeError } = await supabase
         .from('training_trainees')
         .insert(traineesToInsert);
-      if (traineeError) console.error("Trainee insertion warning:", traineeError.message);
+      if (traineeError) throw new Error(handleDBError(traineeError, "Trainee Manifest"));
     }
   }
 
@@ -70,7 +81,7 @@ export const saveTrainingRoster = async (data: TrainingSessionData): Promise<str
     const { error: photoError } = await supabase
       .from('training_photos')
       .insert(photosToInsert);
-    if (photoError) console.error("Evidence linking warning:", photoError.message);
+    if (photoError) throw new Error(handleDBError(photoError, "Evidence Archiving"));
   }
 
   return sessionId;

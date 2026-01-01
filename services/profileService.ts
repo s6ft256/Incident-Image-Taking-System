@@ -6,6 +6,21 @@ import { UserProfile } from '../types';
 const supabase = createClient(SUPABASE_CONFIG.URL, SUPABASE_CONFIG.ANON_KEY);
 const TABLE_NAME = 'profiles';
 
+/**
+ * Maps Supabase DB technical errors to personnel-appropriate safety messages.
+ */
+const handleDBError = (error: any): string => {
+  if (!error) return "Unknown Database Fault";
+  
+  // PostgreSQL Error Codes
+  if (error.code === '23505') return "IDENTITY OVERLAP: This personnel name is already registered in the safety grid.";
+  if (error.code === '42P01') return "SYSTEM INTEGRITY FAULT: Personnel registry table is missing from the database.";
+  if (error.code === 'PGRST301') return "SECURITY EXPIRED: Your authentication handshake has timed out. Please refresh the terminal.";
+  if (error.message?.includes('JWT')) return "SESSION INVALID: Security credentials rejected. Please log in again.";
+  
+  return error.message || "Registry synchronization failed.";
+};
+
 export const registerProfile = async (profile: UserProfile): Promise<UserProfile> => {
   const { data, error } = await supabase
     .from(TABLE_NAME)
@@ -16,7 +31,6 @@ export const registerProfile = async (profile: UserProfile): Promise<UserProfile
       email: profile.email,
       password: profile.password,
       profile_image_url: profile.profileImageUrl,
-      // Compliance persistence
       privacy_policy_consent: profile.privacy_policy_consent,
       user_agreement_consent: profile.user_agreement_consent,
       image_consent: profile.image_consent,
@@ -25,10 +39,7 @@ export const registerProfile = async (profile: UserProfile): Promise<UserProfile
     .select()
     .single();
 
-  if (error) {
-    if (error.code === '23505') throw new Error('Identity already exists. Please use the Access protocol to login.');
-    throw new Error(error.message);
-  }
+  if (error) throw new Error(handleDBError(error));
   
   return {
     id: data.id,
@@ -52,7 +63,7 @@ export const getProfileByName = async (name: string): Promise<UserProfile | null
     .eq('name', name)
     .maybeSingle();
 
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(handleDBError(error));
   if (!data) return null;
 
   return {
@@ -75,7 +86,7 @@ export const getAllProfiles = async (): Promise<UserProfile[]> => {
     .from(TABLE_NAME)
     .select('name, role, site, email, profile_image_url');
   
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(handleDBError(error));
   
   return (data || []).map(d => ({
     name: d.name,
@@ -99,7 +110,7 @@ export const updateProfile = async (id: string, updates: Partial<UserProfile>): 
     .update(dbUpdates)
     .eq('id', id);
 
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(handleDBError(error));
 };
 
 export const deleteProfile = async (id: string): Promise<void> => {
@@ -108,5 +119,5 @@ export const deleteProfile = async (id: string): Promise<void> => {
     .delete()
     .eq('id', id);
 
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(handleDBError(error));
 };

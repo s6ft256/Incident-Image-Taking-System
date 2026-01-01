@@ -22,13 +22,41 @@ export interface IncidentForm {
   date: string;
   time: string;
   location: string;
+  department: string;
   description: string;
   involvedParties: string;
+  equipmentInvolved: string;
   witnesses: string;
   immediateAction: string;
   reporterName: string;
   reporterRole: string;
   concernedEmail?: string;
+}
+
+export interface FetchedIncident {
+  id: string;
+  createdTime: string;
+  fields: {
+    "Title": string;
+    "Description": string;
+    "Incident Date": string;
+    "Location": string;
+    "Department": string;
+    "Status": string;
+    "Severity": number;
+    "Category": string;
+    "Reporter ID": string;
+    "Persons Involved"?: string;
+    "Equipment Involved"?: string;
+    "Witnesses"?: string;
+    "Image URLs"?: string;
+    "Attachments"?: Array<{ 
+      url: string; 
+      filename: string;
+    }>;
+    "Geolocation"?: string;
+    "Metadata"?: string;
+  };
 }
 
 export interface TrainingRecord {

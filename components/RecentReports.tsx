@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
-import { FetchedObservation, UploadedImage, UserProfile } from '../types';
-import { getAllReports, updateObservationAction, assignObservation } from '../services/airtableService';
+import { FetchedObservation, UploadedImage, UserProfile, FetchedIncident } from '../types';
+import { getAllReports, updateObservationAction, assignObservation, getAllIncidents } from '../services/airtableService';
 import { uploadImageToStorage } from '../services/storageService';
 import { compressImage } from '../utils/imageCompression';
 import { getAllProfiles } from '../services/profileService';
@@ -15,15 +15,17 @@ interface RecentReportsProps {
   filterAssignee?: string; 
 }
 
-type Tab = 'open' | 'assigned' | 'closed';
+type Tab = 'open' | 'assigned' | 'incidents' | 'closed';
 
 const AUTHORIZED_ADMIN_ROLES = ['technician', 'engineer', 'site supervisor', 'safety officer'];
 const PROFILE_KEY = 'hse_guardian_profile';
 const OPEN_TAB_BG = 'https://i.pinimg.com/736x/dc/1b/16/dc1b165f2032d49a7559a0d9df666a4e.jpg';
 const ASSIGNED_TAB_BG = 'https://i.pinimg.com/1200x/e5/c2/35/e5c235f049cd3468d9e5346f6194e431.jpg';
+const INCIDENT_TAB_BG = 'https://i.pinimg.com/1200x/d7/c6/a9/d7c6a95b5b86b28ecd15ff4bb2c1b8eb.jpg';
 
 export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, appTheme = 'dark', filterAssignee }) => {
   const [allReports, setAllReports] = useState<FetchedObservation[]>([]);
+  const [allIncidents, setAllIncidents] = useState<FetchedIncident[]>([]);
   const [teamMembers, setTeamMembers] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -33,7 +35,6 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
   const [filterType, setFilterType] = useState('All Types');
   
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set<string>());
-  const [isMultiAssigning, setIsMultiAssigning] = useState(false);
 
   const [isArchiveUnlocked, setIsArchiveUnlocked] = useState(false);
   const [accessKey, setAccessKey] = useState('');
@@ -60,13 +61,28 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
   const [submittingIds, setSubmittingIds] = useState<Set<string>>(new Set<string>());
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [resolveErrors, setResolveErrors] = useState<Record<string, string>>({});
-  const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [reassigningId, setReassigningId] = useState<string | null>(null);
   const [assignmentSuccess, setAssignmentSuccess] = useState<string | null>(null);
   const [localAssignee, setLocalAssignee] = useState<Record<string, string>>({});
 
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const [reportsData, incidentsData] = await Promise.all([
+        getAllReports({ baseId }),
+        getAllIncidents({ baseId })
+      ]);
+      setAllReports(reportsData);
+      setAllIncidents(incidentsData);
+    } catch (err: any) {
+      setError(err.message || "Failed to load reports from safety database");
+    } finally {
+      setLoading(false);
+    }
+  }, [baseId]);
+
   useEffect(() => {
-    fetchReports();
+    fetchData();
     fetchTeam();
     
     const saved = localStorage.getItem(PROFILE_KEY);
@@ -77,40 +93,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
         console.error("Failed to parse profile", e);
       }
     }
-  }, [baseId]);
-
-  // Handle Escalation Deep Linking
-  useEffect(() => {
-    const hash = window.location.hash;
-    if (hash.startsWith('#view-report-')) {
-      const id = hash.replace('#view-report-', '');
-      const report = allReports.find(r => r.id === id);
-      if (report) {
-        const isClosed = report.fields["Action taken"]?.trim().length > 0;
-        const assignedTo = report.fields["Assigned To"]?.trim() || "";
-        
-        if (isClosed) setActiveTab('closed');
-        else if (assignedTo && assignedTo !== "None") setActiveTab('assigned');
-        else setActiveTab('open');
-
-        setExpandedId(id);
-        // Clean up hash after navigation
-        window.location.hash = '';
-      }
-    }
-  }, [allReports]);
-
-  const fetchReports = async () => {
-    try {
-      setLoading(true);
-      const data = await getAllReports({ baseId });
-      setAllReports(data);
-    } catch (err: any) {
-      setError(err.message || "Failed to load reports from safety database");
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [fetchData]);
 
   const fetchTeam = async () => {
     try {
@@ -185,9 +168,11 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
   };
 
   const handleRowClick = (id: string) => {
-    const report = allReports.find(r => r.id === id);
-    if (report && !localAssignee[id]) {
-      setLocalAssignee(prev => ({ ...prev, [id]: report.fields["Assigned To"] || "" }));
+    const report = allReports.find(r => r.id === id) || allIncidents.find(i => i.id === id);
+    if (!report) return;
+    
+    if ('fields' in report && !('Title' in report.fields) && !localAssignee[id]) {
+      setLocalAssignee(prev => ({ ...prev, [id]: (report as FetchedObservation).fields["Assigned To"] || "" }));
     }
     setExpandedId(expandedId === id ? null : id);
   };
@@ -247,7 +232,6 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
     const report = allReports.find(r => r.id === id);
     if (!report) return;
 
-    setConfirmingId(null);
     setResolveErrors(prev => { const n = {...prev}; delete n[id]; return n; });
 
     const actionTaken = actionInputs[id];
@@ -298,13 +282,24 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
     }
   };
 
-  const sortedReports = [...allReports].sort((a, b) => {
-    const timeA = new Date(a.createdTime).getTime();
-    const timeB = new Date(b.createdTime).getTime();
-    return activeTab === 'open' ? timeA - timeB : timeB - timeA;
-  });
-
   const tabFilteredReports = useMemo(() => {
+    if (activeTab === 'incidents') {
+      return allIncidents.filter(inc => {
+        const matchesSearch = searchTerm.trim() === '' || 
+          inc.fields["Title"]?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          inc.fields["Description"]?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          inc.fields["Location"]?.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesType = filterType === 'All Types' || inc.fields["Category"] === filterType;
+        return matchesSearch && matchesType;
+      });
+    }
+
+    const sortedReports = [...allReports].sort((a, b) => {
+      const timeA = new Date(a.createdTime).getTime();
+      const timeB = new Date(b.createdTime).getTime();
+      return activeTab === 'open' ? timeA - timeB : timeB - timeA;
+    });
+
     return sortedReports.filter(report => {
       const isClosed = report.fields["Action taken"]?.trim().length > 0;
       const assignedTo = report.fields["Assigned To"]?.trim() || "";
@@ -323,12 +318,16 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
       if (activeTab === 'assigned') return !isClosed && !isUnassigned && matchesSearch && matchesType;
       return !isClosed && isUnassigned && matchesSearch && matchesType;
     });
-  }, [sortedReports, activeTab, isMyTasksMode, filterAssignee, searchTerm, filterType]);
+  }, [allReports, allIncidents, activeTab, isMyTasksMode, filterAssignee, searchTerm, filterType]);
 
   const tabCounts = useMemo(() => {
     const baseReports = filterType === 'All Types' 
       ? allReports 
       : allReports.filter(r => r.fields["Observation Type"] === filterType);
+    
+    const baseIncidents = filterType === 'All Types'
+      ? allIncidents
+      : allIncidents.filter(i => i.fields["Category"] === filterType);
 
     return {
       open: baseReports.filter(r => {
@@ -341,9 +340,17 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
         const assignedTo = r.fields["Assigned To"]?.trim() || "";
         return !isClosed && assignedTo && assignedTo !== "None";
       }).length,
+      incidents: baseIncidents.length,
       closed: baseReports.filter(r => r.fields["Action taken"]?.trim().length > 0).length
     };
-  }, [allReports, filterType]);
+  }, [allReports, allIncidents, filterType]);
+
+  const getSeverityStyles = (severity: number) => {
+    if (severity >= 4) return 'bg-rose-600 text-white shadow-[0_0_10px_rgba(225,29,72,0.5)] animate-pulse';
+    if (severity === 3) return 'bg-amber-500 text-white';
+    if (severity === 2) return 'bg-blue-500 text-white';
+    return 'bg-slate-500 text-white';
+  };
 
   return (
     <div className="animate-in slide-in-from-right duration-300 pb-24 min-h-[80vh] relative">
@@ -353,11 +360,10 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
         </div>
       )}
 
-      {/* Aesthetic Backgrounds for Open and Assigned Tabs */}
-      {!isMyTasksMode && (activeTab === 'open' || activeTab === 'assigned') && (
+      {!isMyTasksMode && (activeTab === 'open' || activeTab === 'assigned' || activeTab === 'incidents') && (
         <div className="absolute inset-0 z-0 pointer-events-none opacity-10 sm:opacity-20">
           <img 
-            src={activeTab === 'open' ? OPEN_TAB_BG : ASSIGNED_TAB_BG} 
+            src={activeTab === 'open' ? OPEN_TAB_BG : activeTab === 'assigned' ? ASSIGNED_TAB_BG : INCIDENT_TAB_BG} 
             className="w-full h-full object-cover rounded-[3rem]" 
             alt="Thematic Background" 
           />
@@ -381,20 +387,26 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
         </div>
 
         {!isMyTasksMode && (
-          <div className={`flex p-1 mb-6 rounded-xl border transition-colors ${isLight ? 'bg-slate-100 border-slate-200 shadow-inner' : 'bg-slate-800 border-slate-700'}`}>
-              <button onClick={() => { setActiveTab('open'); setExpandedId(null); setSelectedIds(new Set<string>()); }} className={`flex-1 py-2 text-[11px] uppercase tracking-widest font-black rounded-lg transition-all duration-200 flex items-center justify-center gap-2 ${activeTab === 'open' ? 'bg-blue-600 text-white shadow-lg' : `${isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-400 hover:text-white hover:bg-slate-700/50'}`}`}>
+          <div className={`flex p-1 mb-6 rounded-xl border transition-colors overflow-x-auto scrollbar-hide ${isLight ? 'bg-slate-100 border-slate-200 shadow-inner' : 'bg-slate-800 border-slate-700'}`}>
+              <button onClick={() => { setActiveTab('open'); setExpandedId(null); setSelectedIds(new Set<string>()); }} className={`flex-1 min-w-[80px] py-2 text-[10px] uppercase tracking-widest font-black rounded-lg transition-all duration-200 flex items-center justify-center gap-2 ${activeTab === 'open' ? 'bg-blue-600 text-white shadow-lg' : `${isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-400 hover:text-white hover:bg-slate-700/50'}`}`}>
                   Open
                   <span className={`px-1.5 py-0.5 rounded-full text-[9px] ${activeTab === 'open' ? 'bg-white/20 text-white' : (isLight ? 'bg-slate-200 text-slate-600' : 'bg-white/5 text-slate-400')}`}>
                     {tabCounts.open}
                   </span>
               </button>
-              <button onClick={() => { setActiveTab('assigned'); setExpandedId(null); setSelectedIds(new Set<string>()); }} className={`flex-1 py-2 text-[11px] uppercase tracking-widest font-black rounded-lg transition-all duration-200 flex items-center justify-center gap-2 ${activeTab === 'assigned' ? 'bg-amber-600 text-white shadow-lg' : `${isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-400 hover:text-white hover:bg-slate-700/50'}`}`}>
+              <button onClick={() => { setActiveTab('assigned'); setExpandedId(null); setSelectedIds(new Set<string>()); }} className={`flex-1 min-w-[80px] py-2 text-[10px] uppercase tracking-widest font-black rounded-lg transition-all duration-200 flex items-center justify-center gap-2 ${activeTab === 'assigned' ? 'bg-amber-600 text-white shadow-lg' : `${isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-400 hover:text-white hover:bg-slate-700/50'}`}`}>
                   Assigned
                   <span className={`px-1.5 py-0.5 rounded-full text-[9px] ${activeTab === 'assigned' ? 'bg-white/20 text-white' : (isLight ? 'bg-slate-200 text-slate-600' : 'bg-white/5 text-slate-400')}`}>
                     {tabCounts.assigned}
                   </span>
               </button>
-              <button onClick={() => { setActiveTab('closed'); setExpandedId(null); setSelectedIds(new Set<string>()); }} className={`flex-1 py-2 text-[11px] uppercase tracking-widest font-black rounded-lg transition-all duration-200 flex items-center justify-center gap-2 ${activeTab === 'closed' ? 'bg-emerald-600 text-white shadow-lg' : `${isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-400 hover:text-white hover:bg-slate-700/50'}`}`}>
+              <button onClick={() => { setActiveTab('incidents'); setExpandedId(null); setSelectedIds(new Set<string>()); }} className={`flex-1 min-w-[80px] py-2 text-[10px] uppercase tracking-widest font-black rounded-lg transition-all duration-200 flex items-center justify-center gap-2 ${activeTab === 'incidents' ? 'bg-rose-600 text-white shadow-lg' : `${isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-400 hover:text-white hover:bg-slate-700/50'}`}`}>
+                  Incidents
+                  <span className={`px-1.5 py-0.5 rounded-full text-[9px] ${activeTab === 'incidents' ? 'bg-white/20 text-white' : (isLight ? 'bg-slate-200 text-slate-600' : 'bg-white/5 text-slate-400')}`}>
+                    {tabCounts.incidents}
+                  </span>
+              </button>
+              <button onClick={() => { setActiveTab('closed'); setExpandedId(null); setSelectedIds(new Set<string>()); }} className={`flex-1 min-w-[80px] py-2 text-[10px] uppercase tracking-widest font-black rounded-lg transition-all duration-200 flex items-center justify-center gap-2 ${activeTab === 'closed' ? 'bg-emerald-600 text-white shadow-lg' : `${isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-400 hover:text-white hover:bg-slate-700/50'}`}`}>
                   Archive
                   <span className={`px-1.5 py-0.5 rounded-full text-[9px] ${activeTab === 'closed' ? 'bg-white/20 text-white' : (isLight ? 'bg-slate-200 text-slate-600' : 'bg-white/5 text-slate-400')}`}>
                     {tabCounts.closed}
@@ -403,6 +415,22 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
               </button>
           </div>
         )}
+
+        {/* Search Bar */}
+        <div className="flex flex-col sm:flex-row gap-3 mb-6">
+          <div className="flex-grow relative group">
+            <input 
+              type="text" 
+              placeholder={`Search in ${activeTab}...`} 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className={`w-full p-4 rounded-2xl border outline-none transition-all pl-12 text-sm font-medium ${
+                isLight ? 'bg-white border-slate-200 focus:border-blue-500 shadow-sm' : 'bg-white/5 border-white/10 focus:border-blue-500 text-white'
+              }`}
+            />
+            <svg className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors ${isLight ? 'text-slate-400 group-focus-within:text-blue-500' : 'text-slate-500 group-focus-within:text-blue-500'}`} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          </div>
+        </div>
 
         {/* Admin Lock Screen for Archive */}
         {activeTab === 'closed' && !isArchiveUnlocked && !isMyTasksMode && (
@@ -438,33 +466,19 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
                   Establish Secure Link
                 </button>
              </form>
-             
-             <div className="mt-12 flex flex-col items-center opacity-40">
-                <span className="text-[8px] font-black uppercase tracking-[0.8em]">Identity: {userProfile?.role || 'Guest'}</span>
-                <div className={`h-[2px] w-8 mt-2 ${isAuthorized ? 'bg-emerald-500' : 'bg-rose-500'}`}></div>
-             </div>
           </div>
         )}
 
-        {/* Loading Indicator for Initial Data Fetch */}
         {loading && (
           <div className="py-20 flex flex-col items-center justify-center gap-5 animate-in fade-in duration-500">
             <div className="relative w-12 h-12">
               <div className="absolute inset-0 border-4 border-blue-500/20 rounded-full"></div>
               <div className="absolute inset-0 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
             </div>
-            <div className="text-center space-y-1">
-              <p className={`text-[10px] font-black uppercase tracking-[0.3em] ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
-                Synchronizing Safety Database
-              </p>
-              <p className="text-[8px] font-bold uppercase tracking-widest text-blue-500 animate-pulse">
-                Acquiring Incident Logs...
-              </p>
-            </div>
+            <p className={`text-[10px] font-black uppercase tracking-[0.3em] ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>Synchronizing Safety Database...</p>
           </div>
         )}
 
-        {/* Main Reports List */}
         {!loading && !error && (activeTab !== 'closed' || isArchiveUnlocked || isMyTasksMode) && (
           <div className="flex flex-col gap-3">
             {tabFilteredReports.length === 0 ? (
@@ -472,160 +486,260 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
                  <svg className="w-12 h-12 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                  </svg>
-                 <p className="text-[10px] font-black uppercase tracking-[0.3em]">No observations detected in this queue</p>
+                 <p className="text-[10px] font-black uppercase tracking-[0.3em]">No records detected in this queue</p>
               </div>
             ) : (
-              tabFilteredReports.map((report) => (
-                <div key={report.id} id={`report-${report.id}`} className={`rounded-xl overflow-hidden transition-all duration-300 border flex ${expandedId === report.id ? `${isLight ? 'bg-white border-blue-500 ring-2 ring-blue-500/10' : 'bg-slate-800 border-blue-500/50 shadow-2xl'}` : `${isLight ? 'bg-white/90 border-slate-200 backdrop-blur-md' : 'bg-slate-800/80 border-slate-700 hover:border-slate-600 backdrop-blur-sm'}`}`}>
-                  <div className="flex-1 flex flex-col">
-                    <div onClick={() => handleRowClick(report.id)} className="flex items-center gap-3 p-4 cursor-pointer">
-                      <div className={`w-20 text-[10px] font-black tracking-tighter shrink-0 ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>{new Date(report.createdTime).toLocaleDateString()}</div>
-                      <div className={`flex-1 text-sm font-black truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>{report.fields["Observation Type"] || 'Observation'}</div>
-                      <div className={`shrink-0 transition-transform ${expandedId === report.id ? 'rotate-90 text-blue-500' : 'text-slate-600'}`}>
-                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="m9 18 6-6-6-6"/></svg>
+              tabFilteredReports.map((report) => {
+                const isIncident = 'fields' in report && 'Title' in report.fields;
+                
+                if (isIncident) {
+                  const incident = report as FetchedIncident;
+                  return (
+                    <div key={incident.id} className={`rounded-xl overflow-hidden transition-all duration-300 border flex flex-col ${expandedId === incident.id ? `${isLight ? 'bg-white border-rose-500 ring-2 ring-rose-500/10' : 'bg-slate-800 border-rose-500/50 shadow-2xl'}` : `${isLight ? 'bg-white/90 border-slate-200' : 'bg-slate-800/80 border-slate-700 hover:border-slate-600'}`}`}>
+                      <div onClick={() => handleRowClick(incident.id)} className="flex items-center gap-3 p-4 cursor-pointer">
+                        <div className={`w-24 text-[9px] font-black tracking-tighter shrink-0 ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>{new Date(incident.fields["Incident Date"]).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
+                        <div className={`flex-1 text-sm font-black truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>{incident.fields["Title"]}</div>
+                        <div className={`px-2 py-1 rounded-md text-[8px] font-black uppercase tracking-widest ${getSeverityStyles(incident.fields["Severity"])}`}>
+                          SEV: {incident.fields["Severity"]}
+                        </div>
+                        <div className={`shrink-0 transition-transform ${expandedId === incident.id ? 'rotate-90 text-rose-500' : 'text-slate-600'}`}>
+                           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="m9 18 6-6-6-6"/></svg>
+                        </div>
                       </div>
-                    </div>
 
-                    {expandedId === report.id && (
-                      <div className={`border-t p-6 space-y-8 animate-in slide-in-from-top-4 duration-300 ${isLight ? 'bg-slate-50/50' : 'bg-black/20'}`}>
-                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-                          {[
-                            { label: 'Reporter', val: report.fields["Name"] },
-                            { label: 'Role', val: report.fields["Role / Position"] },
-                            { label: 'Site', val: report.fields["Site / Location"] },
-                            { label: 'Time', val: new Date(report.createdTime).toLocaleTimeString() }
-                          ].map(item => (
-                            <div key={item.label}>
-                              <span className="block text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">{item.label}</span>
-                              <span className={`text-xs font-bold ${isLight ? 'text-slate-800' : 'text-slate-100'}`}>{item.val}</span>
-                            </div>
-                          ))}
-                        </div>
-
-                        <div className={`p-4 rounded-2xl border transition-all ${isLight ? 'bg-white border-slate-200' : 'bg-slate-900 border-white/5'}`}>
-                          <div className="flex items-center justify-between mb-3">
-                              <h4 className="text-[10px] font-black text-blue-500 uppercase tracking-widest flex items-center gap-2">
-                                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                                  Precise Site Data
-                              </h4>
-                          </div>
-                          <div className="space-y-3">
-                              <div>
-                                  <span className="block text-[7px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1">Exact Street / Area</span>
-                                  <p className={`text-xs font-bold leading-relaxed break-words ${isLight ? 'text-slate-800' : 'text-slate-100'}`}>
-                                      {report.fields["Location"]?.split('|')[0] || "No street data cached"}
-                                  </p>
-                              </div>
-                          </div>
-                        </div>
-
-                        <div className="space-y-4">
-                          <h4 className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Narrative Description</h4>
-                          <p className={`text-sm p-4 rounded-xl border ${isLight ? 'bg-white border-slate-200' : 'bg-slate-900 border-white/5 text-slate-300'}`}>{report.fields["Observation"]}</p>
-                        </div>
-
-                        {report.fields["Open observations"] && report.fields["Open observations"].length > 0 && (
-                          <div className="space-y-4">
-                             <h4 className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Initial Evidence</h4>
-                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                                {report.fields["Open observations"].map((img, i) => (
-                                  <a key={i} href={img.url} target="_blank" rel="noopener noreferrer" className="aspect-square rounded-xl overflow-hidden border border-white/5">
-                                     <img src={img.url} className="w-full h-full object-cover" alt="Observation" />
-                                  </a>
+                      {expandedId === incident.id && (
+                        <div className={`border-t p-6 sm:p-8 space-y-10 animate-in slide-in-from-top-4 duration-300 ${isLight ? 'bg-rose-50/10' : 'bg-rose-500/[0.03]'}`}>
+                           {/* section: core identification */}
+                           <div className="space-y-4">
+                              <h4 className="text-[10px] font-black text-rose-500 uppercase tracking-widest border-l-4 border-rose-500 pl-3">I. Incident Identification</h4>
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                                {[
+                                  { label: 'Reporter ID', val: incident.fields["Reporter ID"] },
+                                  { label: 'Department', val: incident.fields["Department"] },
+                                  { label: 'Category', val: incident.fields["Category"] },
+                                  { label: 'Status', val: incident.fields["Status"], color: 'text-rose-500' },
+                                  { label: 'Incident Date', val: new Date(incident.fields["Incident Date"]).toLocaleString() },
+                                  { label: 'Location', val: incident.fields["Location"] },
+                                ].map(item => (
+                                  <div key={item.label}>
+                                    <span className="block text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">{item.label}</span>
+                                    <span className={`text-[11px] font-bold uppercase ${item.color || (isLight ? 'text-slate-800' : 'text-slate-100')}`}>{item.val}</span>
+                                  </div>
                                 ))}
-                             </div>
-                          </div>
-                        )}
-
-                        {!report.fields["Action taken"]?.trim() && (
-                          <div className={`p-4 rounded-2xl border ${isLight ? 'bg-blue-50 border-blue-100' : 'bg-blue-500/5 border-blue-500/20'}`}>
-                             <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-4">Personnel Assignment</h4>
-                             <div className="flex flex-col sm:flex-row gap-3">
-                                <select 
-                                  value={localAssignee[report.id] || ""}
-                                  onChange={(e) => setLocalAssignee(prev => ({ ...prev, [report.id]: e.target.value }))}
-                                  className={`flex-1 p-3 rounded-xl border outline-none text-xs font-bold ${isLight ? 'bg-white border-slate-200' : 'bg-slate-900 border-white/5 text-white'}`}
-                                >
-                                  <option value="">Unassigned</option>
-                                  {teamMembers.map(member => (
-                                    <option key={member} value={member}>{member}</option>
-                                  ))}
-                                </select>
-                                <button 
-                                  onClick={() => handleAssignToMember(report.id)}
-                                  disabled={reassigningId === report.id || localAssignee[report.id] === (report.fields["Assigned To"] || "")}
-                                  className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg disabled:opacity-50 transition-all flex items-center justify-center gap-2"
-                                >
-                                  {reassigningId === report.id ? (
-                                    <>
-                                      <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                                      <span>Updating...</span>
-                                    </>
-                                  ) : (localAssignee[report.id] === "" ? 'Unassign Personnel' : 'Assign Personnel')}
-                                </button>
-                             </div>
-                          </div>
-                        )}
-
-                        {!report.fields["Action taken"]?.trim() && (
-                          <div className={`rounded-2xl p-6 border-2 ${isLight ? 'bg-white border-blue-500/20' : 'bg-slate-900 border-blue-500/20'}`}>
-                            <h4 className="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-6">Remediation Control</h4>
-                            <div className="space-y-5">
-                              <textarea 
-                                rows={3} 
-                                placeholder="Detail corrective actions taken..." 
-                                value={actionInputs[report.id] || ''} 
-                                onChange={(e) => handleActionInputChange(report.id, e.target.value)} 
-                                className={`${baseClasses} ${themeClasses} resize-none min-h-[100px]`} 
-                              />
-                              
-                              <div className="pt-2">
-                                 <ImageGrid 
-                                   images={closingImages[report.id] || []} 
-                                   onAdd={(e) => handleAddClosingImage(report.id, e)} 
-                                   onRemove={(imageId) => handleRemoveClosingImage(report.id, imageId)} 
-                                   onRetry={(imageId) => {
-                                     const img = closingImages[report.id]?.find(i => i.id === imageId);
-                                     if (img) processClosingImageUpload(report.id, img);
-                                   }}
-                                   appTheme={appTheme}
-                                 />
-                              </div>
-
-                              {resolveErrors[report.id] && <p className="text-rose-500 text-[10px] font-bold uppercase">{resolveErrors[report.id]}</p>}
-                              <button onClick={() => handleResolve(report.id)} disabled={submittingIds.has(report.id) || !actionInputs[report.id]?.trim()} className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-2xl transition-all uppercase tracking-widest text-[11px] shadow-xl disabled:opacity-50">
-                                {submittingIds.has(report.id) ? 'Finalizing...' : 'Close & Archive'}
-                              </button>
-                            </div>
-                          </div>
-                        )}
-
-                        {report.fields["Action taken"]?.trim() && (
-                           <div className={`rounded-2xl p-6 border-2 ${isLight ? 'bg-emerald-50 border-emerald-100' : 'bg-emerald-500/5 border-emerald-500/20'}`}>
-                              <h4 className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-4">Post-Remediation Compliance</h4>
-                              <p className={`text-sm p-4 rounded-xl border ${isLight ? 'bg-white border-emerald-200' : 'bg-black/20 border-white/5 text-slate-200'}`}>{report.fields["Action taken"]}</p>
-                              
-                              {report.fields["Closed observations"] && report.fields["Closed observations"].length > 0 && (
-                                <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3">
-                                  {report.fields["Closed observations"].map((img, i) => (
-                                    <a key={i} href={img.url} target="_blank" rel="noopener noreferrer" className="aspect-square rounded-xl overflow-hidden border border-emerald-500/10">
-                                       <img src={img.url} className="w-full h-full object-cover" alt="Resolution" />
-                                    </a>
-                                  ))}
-                                </div>
-                              )}
-
-                              <div className="mt-4 flex flex-col">
-                                 <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Authenticated By</span>
-                                 <span className="text-xs font-black text-emerald-500 uppercase tracking-wider">{report.fields["Closed by"]}</span>
                               </div>
                            </div>
-                        )}
+
+                           {/* section: description */}
+                           <div className="space-y-4">
+                              <h4 className="text-[10px] font-black text-rose-500 uppercase tracking-widest border-l-4 border-rose-500 pl-3">II. Comprehensive Narrative</h4>
+                              <div className={`text-sm p-5 rounded-2xl border leading-relaxed ${isLight ? 'bg-white border-slate-200 text-slate-700 shadow-sm' : 'bg-slate-900 border-white/5 text-slate-300 shadow-inner'}`}>
+                                {incident.fields["Description"]}
+                              </div>
+                           </div>
+
+                           {/* section: involved parties */}
+                           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                              <div className="space-y-3">
+                                <h4 className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Persons Involved</h4>
+                                <div className={`text-xs p-4 rounded-xl border min-h-[60px] ${isLight ? 'bg-white/50 border-slate-200' : 'bg-black/20 border-white/5 text-slate-400'}`}>
+                                  {incident.fields["Persons Involved"] || 'Record Null'}
+                                </div>
+                              </div>
+                              <div className="space-y-3">
+                                <h4 className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Equipment Involved</h4>
+                                <div className={`text-xs p-4 rounded-xl border min-h-[60px] ${isLight ? 'bg-white/50 border-slate-200' : 'bg-black/20 border-white/5 text-slate-400'}`}>
+                                  {incident.fields["Equipment Involved"] || 'Record Null'}
+                                </div>
+                              </div>
+                              <div className="space-y-3">
+                                <h4 className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Witness Registry</h4>
+                                <div className={`text-xs p-4 rounded-xl border min-h-[60px] ${isLight ? 'bg-white/50 border-slate-200' : 'bg-black/20 border-white/5 text-slate-400'}`}>
+                                  {incident.fields["Witnesses"] || 'Record Null'}
+                                </div>
+                              </div>
+                           </div>
+
+                           {/* section: evidence */}
+                           {incident.fields["Attachments"] && incident.fields["Attachments"].length > 0 && (
+                            <div className="space-y-4">
+                               <h4 className="text-[10px] font-black text-rose-500 uppercase tracking-widest border-l-4 border-rose-500 pl-3">III. Photographic Evidence</h4>
+                               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                                  {incident.fields["Attachments"].map((img, i) => (
+                                    <a key={i} href={img.url} target="_blank" rel="noopener noreferrer" className="group/img aspect-square rounded-2xl overflow-hidden border-2 border-white/5 shadow-lg relative">
+                                       <img src={img.url} className="w-full h-full object-cover transition-transform duration-500 group-hover/img:scale-110" alt="Incident Evidence" />
+                                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center">
+                                          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+                                       </div>
+                                    </a>
+                                  ))}
+                               </div>
+                            </div>
+                           )}
+
+                           {/* section: technical metadata */}
+                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-white/5">
+                              <div className={`p-4 rounded-2xl border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-black/40 border-white/5'}`}>
+                                <h4 className="text-[9px] font-black text-blue-500 uppercase tracking-[0.2em] mb-3 flex items-center gap-2">
+                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>
+                                  Geospatial Telemetry
+                                </h4>
+                                <p className="text-[10px] font-mono text-slate-500 break-all">{incident.fields["Geolocation"] || 'LAT_LONG_NULL'}</p>
+                              </div>
+                              <div className={`p-4 rounded-2xl border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-black/40 border-white/5'}`}>
+                                <h4 className="text-[9px] font-black text-blue-500 uppercase tracking-[0.2em] mb-3 flex items-center gap-2">
+                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 2v20m10-10H2" /></svg>
+                                  System Structured Metadata
+                                </h4>
+                                <p className="text-[9px] font-mono text-slate-500 truncate">{incident.fields["Metadata"] || 'METADATA_NULL'}</p>
+                              </div>
+                           </div>
+
+                           <div className="flex justify-between items-center opacity-30 pt-4">
+                              <span className="text-[8px] font-black uppercase tracking-widest">Registry ID: {incident.id}</span>
+                              <span className="text-[8px] font-black uppercase tracking-widest">Entry: {new Date(incident.createdTime).toLocaleString()}</span>
+                           </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+
+                const observation = report as FetchedObservation;
+                return (
+                  <div key={observation.id} id={`report-${observation.id}`} className={`rounded-xl overflow-hidden transition-all duration-300 border flex ${expandedId === observation.id ? `${isLight ? 'bg-white border-blue-500 ring-2 ring-blue-500/10' : 'bg-slate-800 border-blue-500/50 shadow-2xl'}` : `${isLight ? 'bg-white/90 border-slate-200 backdrop-blur-md' : 'bg-slate-800/80 border-slate-700 hover:border-slate-600 backdrop-blur-sm'}`}`}>
+                    <div className="flex-1 flex flex-col">
+                      <div onClick={() => handleRowClick(observation.id)} className="flex items-center gap-3 p-4 cursor-pointer">
+                        <div className={`w-24 text-[10px] font-black tracking-tighter shrink-0 ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>{new Date(observation.createdTime).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
+                        <div className={`flex-1 text-sm font-black truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>{observation.fields["Observation Type"] || 'Observation'}</div>
+                        <div className={`shrink-0 transition-transform ${expandedId === observation.id ? 'rotate-90 text-blue-500' : 'text-slate-600'}`}>
+                           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="m9 18 6-6-6-6"/></svg>
+                        </div>
                       </div>
-                    )}
+
+                      {expandedId === observation.id && (
+                        <div className={`border-t p-6 space-y-8 animate-in slide-in-from-top-4 duration-300 ${isLight ? 'bg-slate-50/50' : 'bg-black/20'}`}>
+                          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+                            {[
+                              { label: 'Reporter', val: observation.fields["Name"] },
+                              { label: 'Role', val: observation.fields["Role / Position"] },
+                              { label: 'Site', val: observation.fields["Site / Location"] },
+                              { label: 'Time', val: new Date(observation.createdTime).toLocaleTimeString() }
+                            ].map(item => (
+                              <div key={item.label}>
+                                <span className="block text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">{item.label}</span>
+                                <span className={`text-xs font-bold ${isLight ? 'text-slate-800' : 'text-slate-100'}`}>{item.val}</span>
+                              </div>
+                            ))}
+                          </div>
+
+                          <div className="space-y-4">
+                            <h4 className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Narrative Description</h4>
+                            <p className={`text-sm p-4 rounded-xl border ${isLight ? 'bg-white border-slate-200' : 'bg-slate-900 border-white/5 text-slate-300'}`}>{observation.fields["Observation"]}</p>
+                          </div>
+
+                          {observation.fields["Open observations"] && observation.fields["Open observations"].length > 0 && (
+                            <div className="space-y-4">
+                               <h4 className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Initial Evidence</h4>
+                               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                  {observation.fields["Open observations"].map((img, i) => (
+                                    <a key={i} href={img.url} target="_blank" rel="noopener noreferrer" className="aspect-square rounded-xl overflow-hidden border border-white/5">
+                                       <img src={img.url} className="w-full h-full object-cover" alt="Observation" />
+                                    </a>
+                                  ))}
+                               </div>
+                            </div>
+                          )}
+
+                          {!observation.fields["Action taken"]?.trim() && (
+                            <div className={`p-4 rounded-2xl border ${isLight ? 'bg-blue-50 border-blue-100' : 'bg-blue-500/5 border-blue-500/20'}`}>
+                               <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-4">Personnel Assignment</h4>
+                               <div className="flex flex-col sm:flex-row gap-3">
+                                  <select 
+                                    value={localAssignee[observation.id] || ""}
+                                    onChange={(e) => setLocalAssignee(prev => ({ ...prev, [observation.id]: e.target.value }))}
+                                    className={`flex-1 p-3 rounded-xl border outline-none text-xs font-bold ${isLight ? 'bg-white border-slate-200' : 'bg-slate-900 border-white/5 text-white'}`}
+                                  >
+                                    <option value="">Unassigned</option>
+                                    {teamMembers.map(member => (
+                                      <option key={member} value={member}>{member}</option>
+                                    ))}
+                                  </select>
+                                  <button 
+                                    onClick={() => handleAssignToMember(observation.id)}
+                                    disabled={reassigningId === observation.id || localAssignee[observation.id] === (observation.fields["Assigned To"] || "")}
+                                    className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+                                  >
+                                    {reassigningId === observation.id ? (
+                                      <>
+                                        <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                        <span>Updating...</span>
+                                      </>
+                                    ) : (localAssignee[observation.id] === "" ? 'Unassign Personnel' : 'Assign Personnel')}
+                                  </button>
+                               </div>
+                            </div>
+                          )}
+
+                          {!observation.fields["Action taken"]?.trim() && (
+                            <div className={`rounded-2xl p-6 border-2 ${isLight ? 'bg-white border-blue-500/20' : 'bg-slate-900 border-blue-500/20'}`}>
+                              <h4 className="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-6">Remediation Control</h4>
+                              <div className="space-y-5">
+                                <textarea 
+                                  rows={3} 
+                                  placeholder="Detail corrective actions taken..." 
+                                  value={actionInputs[observation.id] || ''} 
+                                  onChange={(e) => handleActionInputChange(observation.id, e.target.value)} 
+                                  className={`${baseClasses} ${themeClasses} resize-none min-h-[100px]`} 
+                                />
+                                
+                                <div className="pt-2">
+                                   <ImageGrid 
+                                     images={closingImages[observation.id] || []} 
+                                     onAdd={(e) => handleAddClosingImage(observation.id, e)} 
+                                     onRemove={(imageId) => handleRemoveClosingImage(observation.id, imageId)} 
+                                     onRetry={(imageId) => {
+                                       const img = closingImages[observation.id]?.find(i => i.id === imageId);
+                                       if (img) processClosingImageUpload(observation.id, img);
+                                     }}
+                                     appTheme={appTheme}
+                                   />
+                                </div>
+
+                                {resolveErrors[observation.id] && <p className="text-rose-500 text-[10px] font-bold uppercase">{resolveErrors[observation.id]}</p>}
+                                <button onClick={() => handleResolve(observation.id)} disabled={submittingIds.has(observation.id) || !actionInputs[observation.id]?.trim()} className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-2xl transition-all uppercase tracking-widest text-[11px] shadow-xl disabled:opacity-50">
+                                  {submittingIds.has(observation.id) ? 'Finalizing...' : 'Close & Archive'}
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          {observation.fields["Action taken"]?.trim() && (
+                             <div className={`rounded-2xl p-6 border-2 ${isLight ? 'bg-emerald-50 border-emerald-100' : 'bg-emerald-500/5 border-emerald-500/20'}`}>
+                                <h4 className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-4">Post-Remediation Compliance</h4>
+                                <p className={`text-sm p-4 rounded-xl border ${isLight ? 'bg-white border-emerald-200' : 'bg-black/20 border-white/5 text-slate-200'}`}>{observation.fields["Action taken"]}</p>
+                                
+                                {observation.fields["Closed observations"] && observation.fields["Closed observations"].length > 0 && (
+                                  <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                    {observation.fields["Closed observations"].map((img, i) => (
+                                      <a key={i} href={img.url} target="_blank" rel="noopener noreferrer" className="aspect-square rounded-xl overflow-hidden border border-emerald-500/10">
+                                         <img src={img.url} className="w-full h-full object-cover" alt="Resolution" />
+                                      </a>
+                                    ))}
+                                  </div>
+                                )}
+
+                                <div className="mt-4 flex flex-col">
+                                   <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Authenticated By</span>
+                                   <span className="text-xs font-black text-emerald-500 uppercase tracking-wider">{observation.fields["Closed by"]}</span>
+                                </div>
+                             </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         )}
