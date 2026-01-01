@@ -43,7 +43,7 @@ export const NotificationSystem: React.FC<NotificationSystemProps> = ({ appTheme
           updated[existingIndex] = newToast;
           return updated;
         }
-        return [...prev, newToast];
+        return [newToast, ...prev]; // Newest at top
       });
 
       if (!newToast.progress && !newToast.action) {
@@ -111,7 +111,7 @@ export const NotificationSystem: React.FC<NotificationSystemProps> = ({ appTheme
       `}</style>
 
       {activeAlert && (
-        <div className="pointer-events-auto w-full max-w-sm mt-12 animate-in fade-in zoom-in slide-in-from-top-10 duration-500">
+        <div className="pointer-events-auto w-full max-w-sm mt-24 animate-in fade-in zoom-in slide-in-from-top-10 duration-500">
           <div className={`relative overflow-hidden rounded-[2.5rem] border-4 shadow-2xl ${
             isLight ? 'bg-white border-rose-500' : 'bg-slate-950 border-rose-600'
           }`}>
@@ -141,30 +141,28 @@ export const NotificationSystem: React.FC<NotificationSystemProps> = ({ appTheme
         </div>
       )}
 
-      <div className="absolute bottom-8 right-0 left-0 flex flex-col-reverse items-center gap-3 px-4 sm:items-end">
+      {/* Moved stack from bottom-right to top-right, near the notification bell */}
+      <div className="absolute top-24 right-4 sm:right-6 flex flex-col items-end gap-3 px-4">
         {toasts.map((toast, index) => {
-          const depth = toasts.length - 1 - index;
           return (
             <div 
               key={toast.id}
-              className={`toast-stack-item pointer-events-auto w-full max-w-[320px] rounded-[1.5rem] border shadow-2xl overflow-hidden flex flex-col p-4 ${
-                isLight ? 'bg-white border-slate-200' : 'bg-slate-900/90 border-white/10 backdrop-blur-xl'
-              } ${toast.type === 'critical' ? 'border-rose-500/50 shadow-rose-900/20' : ''} ${toast.type === 'ai' ? 'border-blue-500/50 shadow-blue-900/20 ring-1 ring-blue-500/20' : ''}`}
-              style={{
-                transform: `translateY(${depth * -8}px) scale(${1 - depth * 0.05})`,
-                zIndex: 100 - depth,
-                opacity: 1 - depth * 0.2
-              }}
+              className={`toast-stack-item pointer-events-auto w-full max-w-[320px] rounded-[1.5rem] border shadow-2xl overflow-hidden flex flex-col p-4 animate-in slide-in-from-right-10 fade-in duration-400 ${
+                isLight ? 'bg-white border-slate-200' : 'bg-slate-900/95 border-white/10 backdrop-blur-xl'
+              } ${toast.type === 'critical' ? 'border-rose-500/50 shadow-rose-900/20 shadow-lg' : ''} ${toast.type === 'ai' ? 'border-blue-500/50 shadow-blue-900/20 ring-1 ring-blue-500/20' : ''}`}
             >
               <div className="flex items-center gap-3">
                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
                   toast.type === 'success' ? 'bg-emerald-500/20 text-emerald-500' :
                   toast.type === 'warning' ? 'bg-amber-500/20 text-amber-500' :
+                  toast.type === 'critical' ? 'bg-rose-600 text-white animate-pulse' :
                   toast.type === 'ai' ? 'bg-blue-600 text-white animate-pulse' :
                   'bg-blue-500/20 text-blue-500'
                 }`}>
                    {toast.type === 'ai' ? (
                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 2v8m0 4v8m-10-10h8m4 0h8"/></svg>
+                   ) : toast.type === 'critical' ? (
+                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
                    ) : (
                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
                    )}

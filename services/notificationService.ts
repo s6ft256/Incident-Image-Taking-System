@@ -13,22 +13,38 @@ const playNotificationTone = (isCritical = false) => {
     if (audioContext.state === 'suspended') audioContext.resume();
 
     const now = audioContext.currentTime;
-    const osc = audioContext.createOscillator();
-    const gain = audioContext.createGain();
     
-    osc.type = isCritical ? 'sawtooth' : 'sine';
-    osc.frequency.setValueAtTime(isCritical ? 220 : 880, now);
     if (isCritical) {
-      osc.frequency.exponentialRampToValueAtTime(110, now + 0.5);
+      // Urgent triple-pulse digital alert
+      [0, 0.15, 0.3].forEach(delay => {
+        const osc = audioContext!.createOscillator();
+        const gain = audioContext!.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(440, now + delay);
+        osc.frequency.exponentialRampToValueAtTime(880, now + delay + 0.1);
+        gain.gain.setValueAtTime(0.05, now + delay);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + delay + 0.1);
+        osc.connect(gain);
+        gain.connect(audioContext!.destination);
+        osc.start(now + delay);
+        osc.stop(now + delay + 0.1);
+      });
+    } else {
+      // Professional "Ding-Dong" resonant chime
+      const tones = [880, 660];
+      tones.forEach((freq, i) => {
+        const osc = audioContext!.createOscillator();
+        const gain = audioContext!.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, now + (i * 0.15));
+        gain.gain.setValueAtTime(0.1, now + (i * 0.15));
+        gain.gain.exponentialRampToValueAtTime(0.001, now + (i * 0.15) + 0.5);
+        osc.connect(gain);
+        gain.connect(audioContext!.destination);
+        osc.start(now + (i * 0.15));
+        osc.stop(now + (i * 0.15) + 0.5);
+      });
     }
-    
-    gain.gain.setValueAtTime(0.1, now);
-    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
-    
-    osc.connect(gain);
-    gain.connect(audioContext.destination);
-    osc.start();
-    osc.stop(now + 0.4);
   } catch (err) { console.warn(err); }
 };
 
