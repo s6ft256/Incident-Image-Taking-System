@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { RiskAssessment, HazardRow } from '../types';
 
@@ -67,7 +68,7 @@ export const RiskAssessmentModule: React.FC<RiskAssessmentModuleProps> = ({ appT
         if (row.id === id) {
           const updated = { ...row, ...updates };
           if (updates.likelihood !== undefined || updates.severity !== undefined) {
-            updated.rating = updated.likelihood * updated.severity;
+            updated.rating = updated.likelihood * (updated.severity || 1);
           }
           return updated;
         }
@@ -141,7 +142,6 @@ export const RiskAssessmentModule: React.FC<RiskAssessmentModuleProps> = ({ appT
             <p className="text-[10px] font-black text-blue-500 uppercase tracking-[0.4em] mt-2">Professional EHS Compliance Document</p>
           </div>
 
-          {/* Section 1: Identification */}
           <SectionHeader num="1" title="General Identification" />
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[
@@ -172,14 +172,13 @@ export const RiskAssessmentModule: React.FC<RiskAssessmentModuleProps> = ({ appT
             ))}
           </div>
 
-          {/* Section 2: Scope */}
           <SectionHeader num="2" title="Scope & Description" />
           <div className="space-y-6">
             <div className="flex flex-col gap-1.5">
               <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest px-1">Task or Activity Description</label>
               <textarea 
                 name="scopeDescription"
-                value={form.scopeDescription}
+                value={form.scopeDescription || ''}
                 onChange={handleInputChange}
                 rows={3}
                 className={`w-full p-4 rounded-xl border outline-none transition-all font-bold text-xs resize-none ${isLight ? 'bg-slate-50 border-slate-200 focus:border-blue-500 shadow-inner' : 'bg-black/20 border-white/5 focus:border-blue-500 text-white'}`}
@@ -205,7 +204,6 @@ export const RiskAssessmentModule: React.FC<RiskAssessmentModuleProps> = ({ appT
             </div>
           </div>
 
-          {/* Section 3: Persons at Risk */}
           <SectionHeader num="3" title="Persons at Risk" />
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
             {PERSONS_AT_RISK_OPTIONS.map(opt => (
@@ -223,7 +221,6 @@ export const RiskAssessmentModule: React.FC<RiskAssessmentModuleProps> = ({ appT
             ))}
           </div>
 
-          {/* Section 4: Hazard Identification Table */}
           <SectionHeader num="4" title="Hazard Identification Table" />
           <div className="overflow-x-auto -mx-8 sm:-mx-12 px-8 sm:px-12">
             <div className="min-w-[1200px] space-y-4">
@@ -250,8 +247,8 @@ export const RiskAssessmentModule: React.FC<RiskAssessmentModuleProps> = ({ appT
                   <input value={row.consequences} onChange={e => updateHazardRow(row.id, { consequences: e.target.value })} className={`p-2 rounded-lg border text-[10px] font-bold ${isLight ? 'bg-white border-slate-200' : 'bg-black/20 border-white/5 text-white'}`} />
                   <input value={row.personsAtRisk} onChange={e => updateHazardRow(row.id, { personsAtRisk: e.target.value })} className={`p-2 rounded-lg border text-[10px] font-bold ${isLight ? 'bg-white border-slate-200' : 'bg-black/20 border-white/5 text-white'}`} />
                   <input value={row.existingControls} onChange={e => updateHazardRow(row.id, { existingControls: e.target.value })} className={`p-2 rounded-lg border text-[10px] font-bold ${isLight ? 'bg-white border-slate-200' : 'bg-black/20 border-white/5 text-white'}`} />
-                  <input type="number" min="1" max="5" value={row.likelihood} onChange={e => updateHazardRow(row.id, { likelihood: parseInt(e.target.value) })} className={`p-2 rounded-lg border text-[10px] font-bold text-center ${isLight ? 'bg-white border-slate-200' : 'bg-black/20 border-white/5 text-white'}`} />
-                  <input type="number" min="1" max="5" value={row.severity} onChange={e => updateHazardRow(row.id, { severity: parseInt(e.target.value) })} className={`p-2 rounded-lg border text-[10px] font-bold text-center ${isLight ? 'bg-white border-slate-200' : 'bg-black/20 border-white/5 text-white'}`} />
+                  <input type="number" min="1" max="5" value={row.likelihood} onChange={e => updateHazardRow(row.id, { likelihood: parseInt(e.target.value) || 1 })} className={`p-2 rounded-lg border text-[10px] font-bold text-center ${isLight ? 'bg-white border-slate-200' : 'bg-black/20 border-white/5 text-white'}`} />
+                  <input type="number" min="1" max="5" value={row.severity} onChange={e => updateHazardRow(row.id, { severity: parseInt(e.target.value) || 1 })} className={`p-2 rounded-lg border text-[10px] font-bold text-center ${isLight ? 'bg-white border-slate-200' : 'bg-black/20 border-white/5 text-white'}`} />
                   <div className={`p-2 rounded-lg border text-[10px] font-black text-center ${getRatingColor(row.rating)}`}>{row.rating}</div>
                   <input value={row.additionalControls} onChange={e => updateHazardRow(row.id, { additionalControls: e.target.value })} className={`p-2 rounded-lg border text-[10px] font-bold ${isLight ? 'bg-white border-slate-200' : 'bg-black/20 border-white/5 text-white'}`} />
                   <select value={row.controlType} onChange={e => updateHazardRow(row.id, { controlType: e.target.value })} className={`p-2 rounded-lg border text-[10px] font-bold ${isLight ? 'bg-white border-slate-200' : 'bg-black/20 border-white/5 text-white'}`}>
@@ -259,7 +256,7 @@ export const RiskAssessmentModule: React.FC<RiskAssessmentModuleProps> = ({ appT
                   </select>
                   <input value={row.responsiblePerson} onChange={e => updateHazardRow(row.id, { responsiblePerson: e.target.value })} className={`p-2 rounded-lg border text-[10px] font-bold ${isLight ? 'bg-white border-slate-200' : 'bg-black/20 border-white/5 text-white'}`} />
                   <input type="date" value={row.targetDate} onChange={e => updateHazardRow(row.id, { targetDate: e.target.value })} className={`p-2 rounded-lg border text-[10px] font-bold ${isLight ? 'bg-white border-slate-200' : 'bg-black/20 border-white/5 text-white'}`} />
-                  <input type="number" min="1" max="25" value={row.residualRating} onChange={e => updateHazardRow(row.id, { residualRating: parseInt(e.target.value) })} className={`p-2 rounded-lg border text-[10px] font-black text-center ${getRatingColor(row.residualRating)}`} />
+                  <input type="number" min="1" max="25" value={row.residualRating} onChange={e => updateHazardRow(row.id, { residualRating: parseInt(e.target.value) || 1 })} className={`p-2 rounded-lg border text-[10px] font-black text-center ${getRatingColor(row.residualRating)}`} />
                   <select value={row.status} onChange={e => updateHazardRow(row.id, { status: e.target.value as any })} className={`p-2 rounded-lg border text-[10px] font-bold ${isLight ? 'bg-white border-slate-200' : 'bg-black/20 border-white/5 text-white'}`}>
                     <option value="Open">Open</option>
                     <option value="Closed">Closed</option>
@@ -267,6 +264,7 @@ export const RiskAssessmentModule: React.FC<RiskAssessmentModuleProps> = ({ appT
                 </div>
               ))}
               <button 
+                type="button"
                 onClick={addHazardRow}
                 className="mt-4 w-full py-4 border-2 border-dashed border-blue-500/30 rounded-2xl flex items-center justify-center gap-3 group hover:bg-blue-500/5 transition-all"
               >
@@ -279,7 +277,6 @@ export const RiskAssessmentModule: React.FC<RiskAssessmentModuleProps> = ({ appT
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 mt-16">
-            {/* Section 5 & 6 */}
             <div>
               <SectionHeader num="5" title="Risk Rating Matrix" />
               <div className={`p-6 rounded-[2rem] border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/5'}`}>
@@ -304,7 +301,6 @@ export const RiskAssessmentModule: React.FC<RiskAssessmentModuleProps> = ({ appT
               </div>
             </div>
 
-            {/* Section 7 */}
             <div>
               <SectionHeader num="7" title="Emergency & Contingency" />
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -330,12 +326,12 @@ export const RiskAssessmentModule: React.FC<RiskAssessmentModuleProps> = ({ appT
             </div>
           </div>
 
-          {/* Section 8: PPE */}
           <SectionHeader num="8" title="PPE Requirements" />
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
             {PPE_OPTIONS.map(opt => (
               <button
                 key={opt}
+                type="button"
                 onClick={() => handleCheckboxChange('ppeRequirements', opt)}
                 className={`p-4 rounded-2xl border text-[9px] font-black uppercase tracking-widest transition-all ${
                   form.ppeRequirements?.includes(opt)
@@ -348,20 +344,20 @@ export const RiskAssessmentModule: React.FC<RiskAssessmentModuleProps> = ({ appT
             ))}
           </div>
 
-          {/* Section 9 & 10 */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 mt-12">
             <div>
               <SectionHeader num="9" title="Training & Competency" />
               <div className="space-y-4">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest px-1">Required Certifications</label>
-                  <input name="trainingCertifications" value={form.trainingCertifications} onChange={handleInputChange} className={`w-full p-3 rounded-xl border font-bold text-xs ${isLight ? 'bg-slate-50' : 'bg-black/20 border-white/5 text-white'}`} />
+                  <input name="trainingCertifications" value={form.trainingCertifications || ''} onChange={handleInputChange} className={`w-full p-3 rounded-xl border font-bold text-xs ${isLight ? 'bg-slate-50' : 'bg-black/20 border-white/5 text-white'}`} />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest px-1">Toolbox Talk (TBT) Conducted</label>
-                  <input name="tbtConducted" value={form.tbtConducted} onChange={handleInputChange} className={`w-full p-3 rounded-xl border font-bold text-xs ${isLight ? 'bg-slate-50' : 'bg-black/20 border-white/5 text-white'}`} />
+                  <input name="tbtConducted" value={form.tbtConducted || ''} onChange={handleInputChange} className={`w-full p-3 rounded-xl border font-bold text-xs ${isLight ? 'bg-slate-50' : 'bg-black/20 border-white/5 text-white'}`} />
                 </div>
                 <button 
+                  type="button"
                   onClick={() => setForm(p => ({ ...p, inductionCompleted: !p.inductionCompleted }))}
                   className={`w-full py-4 rounded-xl border text-[9px] font-black uppercase transition-all ${form.inductionCompleted ? 'bg-emerald-600 text-white' : 'bg-white/5 text-slate-500'}`}
                 >
@@ -389,30 +385,29 @@ export const RiskAssessmentModule: React.FC<RiskAssessmentModuleProps> = ({ appT
             </div>
           </div>
 
-          {/* Section 11: Monitoring */}
           <SectionHeader num="11" title="Monitoring & Review" />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="flex flex-col gap-1.5">
               <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest px-1">Review Frequency</label>
-              <input name="monitoringFrequency" value={form.monitoringFrequency} onChange={handleInputChange} placeholder="e.g. Weekly / Incident-based" className={`w-full p-4 rounded-xl border font-bold text-xs ${isLight ? 'bg-slate-50' : 'bg-black/20 border-white/5 text-white'}`} />
+              <input name="monitoringFrequency" value={form.monitoringFrequency || ''} onChange={handleInputChange} placeholder="e.g. Weekly / Incident-based" className={`w-full p-4 rounded-xl border font-bold text-xs ${isLight ? 'bg-slate-50' : 'bg-black/20 border-white/5 text-white'}`} />
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest px-1">Review Triggers</label>
-              <input name="monitoringTriggers" value={form.monitoringTriggers} onChange={handleInputChange} className={`w-full p-4 rounded-xl border font-bold text-xs ${isLight ? 'bg-slate-50' : 'bg-black/20 border-white/5 text-white'}`} />
+              <input name="monitoringTriggers" value={form.monitoringTriggers || ''} onChange={handleInputChange} className={`w-full p-4 rounded-xl border font-bold text-xs ${isLight ? 'bg-slate-50' : 'bg-black/20 border-white/5 text-white'}`} />
             </div>
             <div className="flex flex-col md:col-span-2 gap-1.5">
               <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest px-1">Assessor Review Comments</label>
-              <textarea name="monitoringComments" value={form.monitoringComments} onChange={handleInputChange} rows={3} className={`w-full p-4 rounded-xl border font-bold text-xs resize-none ${isLight ? 'bg-slate-50' : 'bg-black/20 border-white/5 text-white'}`} />
+              <textarea name="monitoringComments" value={form.monitoringComments || ''} onChange={handleInputChange} rows={3} className={`w-full p-4 rounded-xl border font-bold text-xs resize-none ${isLight ? 'bg-slate-50' : 'bg-black/20 border-white/5 text-white'}`} />
             </div>
           </div>
 
-          {/* Section 12: Declaration & Sign-Off */}
           <SectionHeader num="12" title="Declaration & Sign-Off" />
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 items-end border-t border-white/5 pt-10">
             <div className="space-y-4">
                <div className="flex flex-col gap-1.5">
                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest px-1">Assessor Authorization</label>
                  <button 
+                   type="button"
                    onClick={() => setForm(p => ({ ...p, assessorSigned: !p.assessorSigned }))}
                    className={`w-full py-6 rounded-2xl border transition-all flex flex-col items-center justify-center gap-1 ${form.assessorSigned ? 'bg-blue-600 border-blue-400 text-white shadow-xl' : 'bg-white/5 border-white/5 text-slate-600'}`}
                  >
@@ -432,6 +427,7 @@ export const RiskAssessmentModule: React.FC<RiskAssessmentModuleProps> = ({ appT
                <div className="flex flex-col gap-1.5">
                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest px-1">Managerial Approval</label>
                  <button 
+                   type="button"
                    onClick={() => setForm(p => ({ ...p, supervisorSigned: !p.supervisorSigned }))}
                    className={`w-full py-6 rounded-2xl border transition-all flex flex-col items-center justify-center gap-1 ${form.supervisorSigned ? 'bg-emerald-600 border-emerald-400 text-white shadow-xl' : 'bg-white/5 border-white/5 text-slate-600'}`}
                  >
@@ -450,55 +446,56 @@ export const RiskAssessmentModule: React.FC<RiskAssessmentModuleProps> = ({ appT
             <div className="space-y-4">
                <div className="flex flex-col gap-1.5">
                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest px-1">Worker Acknowledgement</label>
-               <div className="space-y-2 max-h-40 overflow-y-auto scrollbar-hide p-2 bg-black/20 rounded-xl">
-                 {(form.workerSignatures || []).map((sig, i) => (
-                    <div key={i} className="flex gap-2">
-                       <input 
-                         placeholder="Worker Name" 
-                         value={sig.name} 
-                         onChange={e => {
-                           const next = [...(form.workerSignatures || [])];
-                           next[i].name = e.target.value;
-                           setForm(p => ({ ...p, workerSignatures: next }));
-                         }}
-                         className={`flex-1 p-2 rounded-lg border text-[10px] font-bold ${isLight ? 'bg-white' : 'bg-slate-900 border-white/5 text-white'}`}
-                       />
-                       <button 
-                         onClick={() => {
-                            const next = [...(form.workerSignatures || [])];
-                            next[i].signed = !next[i].signed;
-                            setForm(p => ({ ...p, workerSignatures: next }));
-                         }}
-                         className={`px-3 rounded-lg text-[8px] font-black uppercase ${sig.signed ? 'bg-blue-600 text-white' : 'bg-white/5 text-slate-500'}`}
-                       >
-                         {sig.signed ? 'Signed' : 'Sign'}
-                       </button>
-                    </div>
-                 ))}
-                 <button onClick={addWorkerSignature} className="w-full py-2 border border-dashed border-slate-700 text-[8px] font-black uppercase text-slate-500 rounded-lg hover:text-white transition-colors">Add Worker</button>
+                 <div className="space-y-2 max-h-40 overflow-y-auto scrollbar-hide p-2 bg-black/20 rounded-xl">
+                   {(form.workerSignatures || []).map((sig, i) => (
+                      <div key={i} className="flex gap-2">
+                         <input 
+                           placeholder="Worker Name" 
+                           value={sig.name} 
+                           onChange={e => {
+                             const next = [...(form.workerSignatures || [])];
+                             next[i].name = e.target.value;
+                             setForm(p => ({ ...p, workerSignatures: next }));
+                           }}
+                           className={`flex-1 p-2 rounded-lg border text-[10px] font-bold ${isLight ? 'bg-white' : 'bg-slate-900 border-white/5 text-white'}`}
+                         />
+                         <button 
+                           type="button"
+                           onClick={() => {
+                              const next = [...(form.workerSignatures || [])];
+                              next[i].signed = !next[i].signed;
+                              setForm(p => ({ ...p, workerSignatures: next }));
+                           }}
+                           className={`px-3 rounded-lg text-[8px] font-black uppercase ${sig.signed ? 'bg-blue-600 text-white' : 'bg-white/5 text-slate-500'}`}
+                         >
+                           {sig.signed ? 'Signed' : 'Sign'}
+                         </button>
+                      </div>
+                   ))}
+                   <button type="button" onClick={addWorkerSignature} className="w-full py-2 border border-dashed border-slate-700 text-[8px] font-black uppercase text-slate-500 rounded-lg hover:text-white transition-colors">Add Worker</button>
+                 </div>
                </div>
-             </div>
+            </div>
           </div>
-        </div>
 
-        {/* Final Statement */}
-        <div className={`mt-16 p-8 rounded-[2rem] border-2 text-center relative overflow-hidden ${isLight ? 'bg-blue-50 border-blue-100 text-blue-900 shadow-xl' : 'bg-blue-500/5 border-blue-500/20 text-blue-300 shadow-2xl shadow-blue-900/10'}`}>
-          <div className="absolute top-0 right-0 p-4 opacity-5">
-             <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
+          <div className={`mt-16 p-8 rounded-[2rem] border-2 text-center relative overflow-hidden ${isLight ? 'bg-blue-50 border-blue-100 text-blue-900 shadow-xl' : 'bg-blue-500/5 border-blue-500/20 text-blue-300 shadow-2xl shadow-blue-900/10'}`}>
+            <div className="absolute top-0 right-0 p-4 opacity-5">
+               <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
+            </div>
+            <p className="text-xs sm:text-sm font-black leading-relaxed max-w-3xl mx-auto italic">
+              “This risk assessment has been reviewed and approved. All identified control measures must be implemented before work commences and continuously monitored throughout the activity.”
+            </p>
           </div>
-          <p className="text-xs sm:text-sm font-black leading-relaxed max-w-3xl mx-auto italic">
-            “This risk assessment has been reviewed and approved. All identified control measures must be implemented before work commences and continuously monitored throughout the activity.”
-          </p>
-        </div>
 
-        {/* Submission Mock */}
-        <div className="mt-12 flex justify-center">
-           <button 
-             className="px-12 py-5 bg-blue-600 text-white rounded-3xl font-black uppercase tracking-[0.4em] text-xs shadow-2xl hover:bg-blue-500 transition-all active:scale-95 border border-blue-400/30"
-             onClick={() => alert("Risk Assessment Matrix Compiled and Queued for Submission.")}
-           >
-             Lock & Publish Assessment
-           </button>
+          <div className="mt-12 flex justify-center">
+             <button 
+               type="button"
+               className="px-12 py-5 bg-blue-600 text-white rounded-3xl font-black uppercase tracking-[0.4em] text-xs shadow-2xl hover:bg-blue-500 transition-all active:scale-95 border border-blue-400/30"
+               onClick={() => alert("Risk Assessment Matrix Compiled and Queued for Submission.")}
+             >
+               Lock & Publish Assessment
+             </button>
+          </div>
         </div>
       </div>
     </div>
