@@ -9,6 +9,9 @@ interface ChecklistsProps {
   onOpenEquipment: () => void;
 }
 
+const CRANE_CARD_IMG = 'https://sanyglobal-img.sany.com.cn/product/goods/20220627/STC300T5-225032.jpg?x-oss-process=image/format,webp';
+const EQUIPMENT_CARD_IMG = 'https://m.media-amazon.com/images/I/71axUXxO12L.jpg';
+
 export const Checklists: React.FC<ChecklistsProps> = ({ appTheme = 'dark', onBack, onOpenInspection, onOpenCrane, onOpenEquipment }) => {
   const isLight = appTheme === 'light';
 
@@ -54,6 +57,11 @@ export const Checklists: React.FC<ChecklistsProps> = ({ appTheme = 'dark', onBac
         <div className={`p-8 rounded-[2.5rem] border shadow-2xl relative overflow-hidden transition-all duration-300 group flex flex-col justify-between ${
           isLight ? 'bg-white border-slate-200' : 'bg-white/[0.03] border-white/10'
         }`}>
+          {/* Card Image Background Overlay */}
+          <div className="absolute inset-0 z-0 opacity-[0.03] group-hover:opacity-[0.08] transition-opacity duration-500">
+             <img src={CRANE_CARD_IMG} className="w-full h-full object-cover" alt="Crane context" />
+          </div>
+
           <div className="flex flex-col gap-6 relative z-10">
             <div className="flex items-center gap-4">
               <div className="w-14 h-14 bg-amber-600 rounded-2xl flex items-center justify-center shadow-xl border border-amber-400/30 group-hover:scale-110 transition-transform">
@@ -88,6 +96,11 @@ export const Checklists: React.FC<ChecklistsProps> = ({ appTheme = 'dark', onBac
         <div className={`p-8 rounded-[2.5rem] border shadow-2xl relative overflow-hidden transition-all duration-300 group flex flex-col justify-between ${
           isLight ? 'bg-white border-slate-200' : 'bg-white/[0.03] border-white/10'
         }`}>
+          {/* Card Image Background - 0% transparency (opacity-100) and 2% blur (approx blur-[2px]) */}
+          <div className="absolute inset-0 z-0 opacity-[0.05] group-hover:opacity-[0.1] transition-all duration-500 blur-[2px]">
+             <img src={EQUIPMENT_CARD_IMG} className="w-full h-full object-cover" alt="Equipment context" />
+          </div>
+
           <div className="flex flex-col gap-6 relative z-10">
             <div className="flex items-center gap-4">
               <div className="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center shadow-xl border border-blue-400/30 group-hover:scale-110 transition-transform">
