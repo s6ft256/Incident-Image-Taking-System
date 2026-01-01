@@ -16,32 +16,45 @@ interface AuthScreenProps {
 const LAST_USER_KEY = 'hse_guardian_last_user';
 
 const AuthCard: React.FC<{ children: React.ReactNode, isLight: boolean }> = ({ children, isLight }) => (
-  <div className={`relative w-full max-w-xs p-6 sm:p-8 rounded-[3rem] border backdrop-blur-sm transition-all duration-300 animate-in fade-in zoom-in-95 slide-in-from-bottom-4 z-20 overflow-hidden ${
+  <div className={`relative w-full max-w-xs p-6 sm:p-8 rounded-[3rem] border backdrop-blur-md transition-all duration-300 animate-in fade-in zoom-in-95 slide-in-from-bottom-4 z-20 overflow-hidden form-container-glow ${
     isLight 
-      ? 'bg-transparent border-red-500/40 shadow-[0_0_30px_rgba(239,68,68,0.1)]' 
-      : 'bg-transparent border-red-600/50 shadow-[0_0_40px_rgba(220,38,38,0.2)] ring-1 ring-red-500/10'
+      ? 'bg-white/80 border-blue-500/20 shadow-[0_0_30px_rgba(59,130,246,0.1)]' 
+      : 'bg-slate-900/60 border-blue-600/30 shadow-[0_0_40px_rgba(59,130,246,0.2)] ring-1 ring-blue-500/10'
   }`}>
-    <div className="absolute inset-0 bg-gradient-to-br from-red-500/5 via-transparent to-blue-500/5 pointer-events-none"></div>
+    <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-transparent to-blue-600/5 pointer-events-none"></div>
     <div className="relative z-10">{children}</div>
   </div>
 );
 
 const CardBackgroundGlow: React.FC = () => (
   <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
-    <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-red-600/10 rounded-full blur-[100px]"></div>
-    <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-600/10 rounded-full blur-[100px]"></div>
+    <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600/10 rounded-full blur-[100px]"></div>
+    <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-500/10 rounded-full blur-[100px]"></div>
   </div>
 );
 
 const VideoBackground: React.FC<{ isLight: boolean }> = ({ isLight }) => (
-  <div className="fixed inset-0 w-full h-full overflow-hidden pointer-events-none z-0 flex items-center justify-center">
-    <div className="relative w-full h-[65vh] overflow-hidden opacity-70">
-      <video autoPlay muted loop playsInline className="absolute top-1/2 left-1/2 min-w-full min-h-full w-auto h-auto -translate-x-1/2 -translate-y-1/2 object-cover">
-        <source src="https://v1.pinimg.com/videos/mc/720p/be/15/5a/be155abccdc19354019151163e21a073.mp4" type="video/mp4" />
-      </video>
-      <div className={`absolute inset-0 bg-gradient-to-b ${isLight ? 'from-white via-transparent to-white' : 'from-slate-950 via-transparent to-slate-950'}`}></div>
-    </div>
-    <div className={`absolute inset-0 bg-gradient-to-br ${isLight ? 'from-white/40 via-blue-50/10 to-white/60' : 'from-slate-950 via-slate-900/20 to-slate-950'}`}></div>
+  <div className="fixed inset-0 w-full h-full overflow-hidden pointer-events-none z-0">
+    <video 
+      autoPlay 
+      muted 
+      loop 
+      playsInline 
+      className="absolute top-0 left-0 w-full h-full object-cover opacity-30 sm:opacity-50 transition-opacity duration-1000"
+    >
+      <source src="https://assets.mixkit.co/videos/preview/mixkit-digital-circuit-board-blue-interface-background-31718-preview.mp4" type="video/mp4" />
+    </video>
+    
+    {/* Dynamic Atmosphere Overlays */}
+    <div className={`absolute inset-0 transition-colors duration-1000 ${
+      isLight ? 'bg-slate-50/70' : 'bg-[#020617]/70'
+    }`}></div>
+    
+    {/* Grid Overlay for Tactical Look */}
+    <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[url('https://grainy-gradients.vercel.app/noise.svg')]"></div>
+    
+    {/* Radial Vignette */}
+    <div className={`absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(2,6,23,0.8)_100%)] ${isLight ? 'opacity-40' : 'opacity-100'}`}></div>
   </div>
 );
 
@@ -63,7 +76,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
   const isLight = appTheme === 'light';
 
   useEffect(() => {
-    // Attempt to load last user for context, but no automatic biometric login
     const lastName = localStorage.getItem(LAST_USER_KEY);
     if (lastName) {
       getProfileByName(lastName).then(p => {
@@ -163,7 +175,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
   };
 
   return (
-    <div className="relative min-h-[85vh] flex items-center justify-center p-6 overflow-hidden">
+    <div className="relative min-h-[90vh] flex items-center justify-center p-6 overflow-hidden">
       <VideoBackground isLight={isLight} />
       
       {mode === 'welcome' ? (
@@ -179,7 +191,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
             </div>
 
             <div className="w-full flex flex-col gap-3">
-              <button onClick={() => setMode('login')} className={`w-full font-black py-5 rounded-2xl transition-all active:scale-[0.98] uppercase tracking-widest text-[11px] border ${isLight ? 'bg-blue-600 text-white border-blue-400 shadow-blue-500/20 shadow-md' : 'bg-white/10 border-white/10 text-white hover:bg-white/20'}`}>Access Protocol</button>
+              <button onClick={() => setMode('login')} className={`w-full font-black py-5 rounded-2xl transition-all active:scale-[0.98] uppercase tracking-widest text-[11px] border ${isLight ? 'bg-blue-600 text-white border-blue-400 shadow-blue-500/20 shadow-md' : 'bg-blue-600/20 border-blue-500/30 text-white hover:bg-blue-600/30'}`}>Access Protocol</button>
               <button onClick={() => setMode('signup')} className={`w-full font-black py-5 rounded-2xl transition-all active:scale-[0.98] uppercase tracking-widest text-[11px] border ${isLight ? 'bg-white border-blue-200 text-slate-900 shadow-sm' : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'}`}>New Identity</button>
             </div>
             <p className={`mt-10 text-[9px] font-bold uppercase tracking-widest ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>Secure Personal Authentication System</p>
@@ -244,7 +256,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
                 </div>
               )}
 
-              <button type="submit" disabled={isProcessing} className={`w-full font-black py-4 rounded-2xl shadow-xl transition-all active:scale-[0.98] uppercase tracking-widest text-[10px] border flex items-center justify-center gap-3 ${isLight ? 'bg-blue-600 text-white border-blue-400' : 'bg-white/10 border-white/10 text-white hover:bg-white/20'}`}>
+              <button type="submit" disabled={isProcessing} className={`w-full font-black py-4 rounded-2xl shadow-xl transition-all active:scale-[0.98] uppercase tracking-widest text-[10px] border flex items-center justify-center gap-3 ${isLight ? 'bg-blue-600 text-white border-blue-400' : 'bg-blue-600/30 border-blue-500/40 text-white hover:bg-blue-600/50'}`}>
                 {isProcessing ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : (mode === 'signup' ? 'Complete Onboarding' : 'Establish Access')}
               </button>
             </form>

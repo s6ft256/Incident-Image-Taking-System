@@ -118,7 +118,7 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
 
   if (submitStatus === 'success' || submitStatus === 'offline-saved') {
     return (
-      <div className={`${isLight ? 'bg-white' : 'bg-white/10'} backdrop-blur-2xl border ${isLight ? 'border-slate-200' : 'border-white/20'} rounded-3xl shadow-2xl p-10 text-center space-y-6 animate-in zoom-in duration-500`}>
+      <div className={`${isLight ? 'bg-white' : 'bg-white/10'} backdrop-blur-2xl border ${isLight ? 'border-slate-200' : 'border-white/20'} rounded-3xl shadow-2xl p-10 text-center space-y-6 animate-in zoom-in duration-500 form-container-glow`}>
         <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto shadow-2xl ${
             submitStatus === 'offline-saved' ? 'bg-amber-500 shadow-amber-500/30' : 'bg-emerald-500 shadow-emerald-500/30'
         }`}>
@@ -156,8 +156,8 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        <div className={`${isLight ? 'bg-white border-slate-200' : 'bg-white/5 border-white/10'} backdrop-blur-xl rounded-[2rem] border p-8 space-y-6 shadow-2xl`}>
-          <h2 className={`text-[10px] font-black ${isLight ? 'text-slate-400 border-slate-100' : 'text-slate-500 border-white/5'} uppercase tracking-widest border-b pb-4`}>Observer Identification</h2>
+        <div className={`${isLight ? 'bg-white border-slate-200' : 'bg-white/5 border-white/10'} backdrop-blur-xl rounded-[2rem] border p-8 space-y-6 shadow-2xl form-container-glow`}>
+          <h2 className={`text-[10px] font-black ${isLight ? 'text-slate-400 border-slate-100' : 'text-slate-50 border-white/5'} uppercase tracking-widest border-b pb-4`}>Observer Identification</h2>
           
           <InputField 
             id="observation" 
@@ -319,12 +319,12 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
           </div>
         </div>
 
-        <div className={`${isLight ? 'bg-white border-slate-200' : 'bg-white/5 border-white/10'} backdrop-blur-xl rounded-[2rem] border p-8 shadow-2xl`}>
+        <div className={`${isLight ? 'bg-white border-slate-200' : 'bg-white/5 border-white/10'} backdrop-blur-xl rounded-[2rem] border p-8 shadow-2xl form-container-glow`}>
           <ImageGrid images={images} onAdd={handleAddImage} onRemove={handleRemoveImage} onRetry={handleRetry} appTheme={appTheme} />
           {images.length < MIN_IMAGES && (
             <div className="mt-4 flex items-center gap-2 text-[10px] font-black text-amber-500 uppercase tracking-widest px-2 animate-pulse">
                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                </svg>
                Min {MIN_IMAGES} evidence photo required
             </div>

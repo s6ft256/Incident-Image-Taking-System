@@ -23,6 +23,11 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [notificationPermission, setNotificationPermission] = useState<string>(Notification.permission);
   
+  // Hold-to-Purge State
+  const [holdProgress, setHoldProgress] = useState(0);
+  const holdTimerRef = useRef<number | null>(null);
+  const progressIntervalRef = useRef<number | null>(null);
+
   const initialProfile = useRef<UserProfileType | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -153,6 +158,33 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
     }
   };
 
+  // Hold-to-Purge Logic
+  const startHold = () => {
+    if (isDeleting) return;
+    setHoldProgress(0);
+    
+    progressIntervalRef.current = window.setInterval(() => {
+      setHoldProgress(prev => {
+        if (prev >= 100) {
+          clearInterval(progressIntervalRef.current!);
+          return 100;
+        }
+        return prev + 5;
+      });
+    }, 100);
+
+    holdTimerRef.current = window.setTimeout(() => {
+      if (navigator.vibrate) navigator.vibrate(200);
+      setShowDeleteConfirm(true);
+    }, 2000);
+  };
+
+  const cancelHold = () => {
+    if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
+    if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+    setHoldProgress(0);
+  };
+
   const handleDeleteIdentity = async () => {
     if (!profile.id) return;
     setIsDeleting(true);
@@ -169,7 +201,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
   };
 
   return (
-    <div className={`backdrop-blur-3xl rounded-[2.5rem] border shadow-2xl overflow-hidden flex flex-col p-6 space-y-6 max-h-[85vh] overflow-y-auto scrollbar-hide ${
+    <div className={`backdrop-blur-3xl rounded-[2.5rem] border shadow-2xl overflow-hidden flex flex-col p-6 space-y-6 max-h-[85vh] overflow-y-auto scrollbar-hide form-container-glow ${
       isLight ? 'bg-white border-slate-200' : 'bg-[#0f172a]/95 border-white/10'
     }`}>
       {/* Header */}
@@ -317,27 +349,50 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
             <span className="text-[10px]">Sign Out</span>
           </button>
 
-          <button 
-            type="button" 
-            onClick={() => setShowDeleteConfirm(true)}
-            className="w-full py-2 text-[8px] font-black uppercase tracking-[0.3em] text-rose-500 opacity-60 hover:opacity-100 transition-opacity"
-          >
-            Purge Identity Record
-          </button>
+          <div className="pt-4 border-t border-white/5 mt-4">
+             <div className="relative group">
+                <button 
+                  onMouseDown={startHold}
+                  onMouseUp={cancelHold}
+                  onMouseLeave={cancelHold}
+                  onTouchStart={startHold}
+                  onTouchEnd={cancelHold}
+                  className={`relative w-full py-5 rounded-[2rem] font-black uppercase tracking-[0.3em] text-[10px] transition-all overflow-hidden border-2 ${
+                    isLight ? 'bg-rose-50 border-rose-200 text-rose-600' : 'bg-rose-950/20 border-rose-500/30 text-rose-500'
+                  }`}
+                >
+                  <div 
+                    className="absolute inset-y-0 left-0 bg-rose-500 opacity-20 transition-all duration-100 ease-linear"
+                    style={{ width: `${holdProgress}%` }}
+                  ></div>
+                  <span className="relative z-10">
+                    {holdProgress > 0 ? `Authorizing: ${holdProgress}%` : 'Hold to Purge Identity'}
+                  </span>
+                </button>
+                <p className="text-[7px] font-black text-slate-500 uppercase tracking-widest text-center mt-3">
+                  Safety Protocol: Long-press 2s to initiate permanent record destruction
+                </p>
+             </div>
+          </div>
         </div>
       </div>
 
       {showDeleteConfirm && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
-           <div className={`w-full max-w-xs p-8 rounded-[2rem] border text-center ${isLight ? 'bg-white border-slate-200 shadow-2xl' : 'bg-slate-900 border-white/10 shadow-black shadow-2xl'}`}>
-              <h4 className={`text-lg font-black uppercase tracking-tight mb-2 ${isLight ? 'text-slate-900' : 'text-white'}`}>Purge Protocol</h4>
-              <p className="text-[10px] text-slate-500 mb-8 uppercase font-bold leading-relaxed">This will permanently delete your personnel profile from the safety grid. Are you sure?</p>
-              <div className="flex flex-col gap-3">
-                 <button onClick={handleDeleteIdentity} disabled={isDeleting} className="w-full py-4 bg-rose-600 text-white font-black rounded-2xl uppercase text-[10px] tracking-widest hover:bg-rose-500 transition-all">
-                   {isDeleting ? 'Purging...' : 'Confirm Purge'}
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/95 backdrop-blur-xl animate-in fade-in duration-300">
+           <div className={`w-full max-w-xs p-10 rounded-[3rem] border-2 text-center shadow-[0_0_50px_rgba(225,29,72,0.4)] ${isLight ? 'bg-white border-rose-200' : 'bg-slate-900 border-rose-500/50'}`}>
+              <div className="w-20 h-20 rounded-full bg-rose-500/10 border-2 border-rose-500 flex items-center justify-center mx-auto mb-8 animate-pulse shadow-[0_0_20px_rgba(225,29,72,0.2)]">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="text-rose-500"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              </div>
+              <h4 className={`text-xl font-black uppercase tracking-tighter mb-4 ${isLight ? 'text-slate-900' : 'text-white'}`}>Purge Protocol</h4>
+              <p className="text-[10px] text-rose-400 mb-10 uppercase font-black leading-relaxed tracking-widest">
+                Identity destruction initiated. This action will permanently disconnect this terminal from the HSE grid.
+              </p>
+              <div className="flex flex-col gap-4">
+                 <button onClick={handleDeleteIdentity} disabled={isDeleting} className="w-full py-5 bg-rose-600 text-white font-black rounded-2xl uppercase text-[11px] tracking-[0.3em] hover:bg-rose-500 transition-all shadow-xl active:scale-95">
+                   {isDeleting ? 'PURGING...' : 'CONFIRM PURGE'}
                  </button>
-                 <button onClick={() => setShowDeleteConfirm(false)} className={`w-full py-4 font-black rounded-2xl uppercase text-[10px] tracking-widest ${isLight ? 'bg-slate-100' : 'bg-white/5 text-white'}`}>
-                   Cancel
+                 <button onClick={() => { setShowDeleteConfirm(false); setHoldProgress(0); }} className={`w-full py-5 font-black rounded-2xl uppercase text-[10px] tracking-widest transition-all ${isLight ? 'bg-slate-100 text-slate-900' : 'bg-white/5 text-white hover:bg-white/10'}`}>
+                   ABORT TRANSMISSION
                  </button>
               </div>
            </div>

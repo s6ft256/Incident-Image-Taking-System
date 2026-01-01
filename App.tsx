@@ -354,6 +354,29 @@ export default function App() {
         .main-system-title {
           transition: all 0.5s ease-in-out;
         }
+        
+        /* Photon Border Protocol - Advanced Neon UI */
+        .form-container-glow {
+          position: relative;
+          z-index: 10;
+          border: 1px solid rgba(59, 130, 246, 0.5) !important;
+          box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.2), 
+                      0 0 25px -5px rgba(59, 130, 246, 0.4), 
+                      0 10px 40px -10px rgba(0, 0, 0, 0.5) !important;
+          transition: box-shadow 0.4s cubic-bezier(0.4, 0, 0.2, 1), 
+                      border-color 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .light-mode .form-container-glow {
+          border: 1px solid rgba(59, 130, 246, 0.3) !important;
+          box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.1), 
+                      0 0 20px -5px rgba(59, 130, 246, 0.25), 
+                      0 5px 20px -5px rgba(0, 0, 0, 0.08) !important;
+        }
+        .form-container-glow:hover, .form-container-glow:focus-within {
+          border-color: rgba(59, 130, 246, 0.8) !important;
+          box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3), 
+                      0 0 35px -2px rgba(59, 130, 246, 0.6) !important;
+        }
       `}</style>
       <NotificationSystem appTheme={appTheme} onViewTask={(id) => { setView('recent'); window.location.hash = `view-report-${id}`; }} />
       <div className={`relative z-10 flex flex-col flex-grow ${view === 'inspection-viewer' ? 'h-auto overflow-visible' : ''}`}>

@@ -76,18 +76,17 @@ export const EquipmentChecklistForm: React.FC<EquipmentChecklistFormProps> = ({ 
 
   return (
     <div className="animate-in slide-in-from-bottom-5 duration-500 pb-20 max-w-4xl mx-auto relative">
-      {/* Thematic Background Image - Opaque and sharp (0% transparency, 0% blur) as requested */}
+      {/* Thematic Background Image */}
       <div className="fixed inset-0 z-0 pointer-events-none">
         <img 
           src={EQUIPMENT_BG} 
           className="w-full h-full object-cover" 
           alt="Heavy Equipment Background" 
         />
-        {/* Transparent overlay for readability */}
         <div className={`absolute inset-0 ${isLight ? 'bg-white/10' : 'bg-black/20'}`}></div>
       </div>
 
-      <div className={`relative z-10 p-6 sm:p-10 rounded-[3rem] border shadow-2xl overflow-hidden backdrop-blur-md ${
+      <div className={`relative z-10 p-6 sm:p-10 rounded-[3rem] border shadow-2xl overflow-hidden backdrop-blur-md form-container-glow ${
         isLight ? 'bg-white/60 border-slate-200/50 shadow-white/10' : 'bg-[#020617]/60 border-white/10 shadow-black/20'
       }`}>
         <div className="flex flex-col sm:flex-row justify-between items-center mb-10 gap-6 border-b border-white/5 pb-8">
