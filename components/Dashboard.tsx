@@ -194,7 +194,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
         <p className={`text-sm sm:text-lg font-black leading-relaxed max-w-4xl mx-auto uppercase tracking-wider ${
           isLight ? 'text-slate-900' : 'text-white'
         }`}>
-          HSE Guardian isn't just software. It's your proactive safety nerve center. A unified system capturing and managing all safety observations and data in real-time.
+          HSEGuardian isn't just software. It's your proactive safety nerve center. A unified system capturing and managing all safety observations and data in real-time.
         </p>
         <div className={`mt-4 pt-4 border-t flex justify-center gap-6 text-[11px] font-black uppercase tracking-[0.3em] text-red-500 ${
           isLight ? 'border-slate-100' : 'border-white/10'

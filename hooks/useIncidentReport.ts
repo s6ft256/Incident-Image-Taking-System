@@ -9,7 +9,6 @@ import { saveOfflineReport } from '../services/offlineStorage';
 import { getAddress } from '../services/weatherService';
 
 export type SubmitStatus = 'idle' | 'success' | 'error' | 'offline-saved';
-export type GPSStatus = 'idle' | 'searching' | 'resolving' | 'validating' | 'success' | 'error';
 
 export const useObservationReport = (baseId: string) => {
   const [formData, setFormData] = useState<ObservationForm>({
@@ -29,7 +28,7 @@ export const useObservationReport = (baseId: string) => {
   const [submitStatus, setSubmitStatus] = useState<SubmitStatus>('idle');
   const [errorMessage, setErrorMessage] = useState('');
   const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const [gpsStatus, setGpsStatus] = useState<GPSStatus>('idle');
+  const [isLocating, setIsLocating] = useState(false);
 
   useEffect(() => {
     const savedProfile = localStorage.getItem(STORAGE_KEYS.PROFILE);
@@ -42,7 +41,7 @@ export const useObservationReport = (baseId: string) => {
           role: profile.role || prev.role
         }));
       } catch (e) {
-        console.error("Failed to load profile", e);
+        console.error("Failed to load profile for pre-fill", e);
       }
     }
 
@@ -62,7 +61,7 @@ export const useObservationReport = (baseId: string) => {
     if (!formData.site.trim()) errors.site = "Site location is required";
     if (!formData.category.trim()) errors.category = "Observation type is required";
     if (!formData.observation.trim()) errors.observation = "Description is required";
-    else if (formData.observation.length < 10) errors.observation = "Min 10 characters required";
+    else if (formData.observation.length < 10) errors.observation = "Please provide more detail (min 10 chars)";
     
     return errors;
   }, [formData]);
@@ -80,45 +79,49 @@ export const useObservationReport = (baseId: string) => {
 
   const fetchCurrentLocation = useCallback(() => {
     if (!navigator.geolocation) {
-      setErrorMessage("GPS hardware not detected.");
+      setErrorMessage("System Error: Geolocation hardware not detected on this terminal.");
       return;
     }
 
-    setGpsStatus('searching');
+    setIsLocating(true);
     setErrorMessage('');
 
-    // Request high accuracy for construction precision
     navigator.geolocation.getCurrentPosition(
       async (position) => {
-        setGpsStatus('resolving');
-        const { latitude, longitude, accuracy } = position.coords;
-        
+        const { latitude, longitude } = position.coords;
         try {
           const streetAddress = await getAddress(latitude, longitude);
-          setGpsStatus('validating');
-          
-          const coords = `${latitude.toFixed(7)}, ${longitude.toFixed(7)}`;
-          const locationStr = `${streetAddress} | Accuracy: ±${Math.round(accuracy)}m | Lat/Lon: ${coords}`;
-          
+          const coords = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+          const locationStr = `${streetAddress} | GPS: ${coords}`;
           setFormData(prev => ({ ...prev, location: locationStr }));
-          setGpsStatus('success');
-          setTimeout(() => setGpsStatus('idle'), 3000);
+          setErrorMessage(''); // Clear errors on success
         } catch (e) {
-          const fallbackStr = `Sector [${latitude.toFixed(6)}, ${longitude.toFixed(6)}] | Acc: ${Math.round(accuracy)}m`;
+          const fallbackStr = `GPS: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
           setFormData(prev => ({ ...prev, location: fallbackStr }));
-          setGpsStatus('success');
+        } finally {
+          setIsLocating(false);
         }
       },
       (error) => {
-        setGpsStatus('error');
-        let msg = "GPS Synchronization Failure.";
-        if (error.code === error.PERMISSION_DENIED) msg = "GPS Access Denied.";
-        if (error.code === error.POSITION_UNAVAILABLE) msg = "Satellite Link Interrupted.";
-        if (error.code === error.TIMEOUT) msg = "Search Time Limit Reached.";
+        let msg = "Geolocation protocol failed.";
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            msg = "GPS Access Denied. Please enable location permissions in your browser or device settings to map this hazard.";
+            break;
+          case error.POSITION_UNAVAILABLE:
+            msg = "Site Signal Failure. Unable to establish a stable satellite link. Please move to an outdoor area with a clear sky view.";
+            break;
+          case error.TIMEOUT:
+            msg = "GPS Sync Timeout. The system could not acquire your precise coordinates in time. Please try again or enter the location manually.";
+            break;
+          default:
+            msg = "Geolocation Error: An unexpected issue occurred with the site mapping protocol.";
+            break;
+        }
         setErrorMessage(msg);
-        setTimeout(() => setGpsStatus('idle'), 4000);
+        setIsLocating(false);
       },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+      { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
     );
   }, []);
 
@@ -126,7 +129,13 @@ export const useObservationReport = (baseId: string) => {
     if (e.target.files) {
       const filesToAdd = Array.from(e.target.files) as File[];
       const remainingSlots = MAX_IMAGES - images.length;
+      
       const limitedFiles = filesToAdd.slice(0, remainingSlots);
+      
+      if (filesToAdd.length > remainingSlots) {
+        setErrorMessage(`Transmission limit reached. Only ${remainingSlots} additional images accepted.`);
+        setTimeout(() => setErrorMessage(''), 3000);
+      }
 
       const newImages: UploadedImage[] = limitedFiles.map(file => ({
         id: crypto.randomUUID(),
@@ -143,31 +152,60 @@ export const useObservationReport = (baseId: string) => {
 
   const handleRemoveImage = useCallback((id: string) => {
     setImages(prev => {
-      const img = prev.find(i => i.id === id);
-      if (img) URL.revokeObjectURL(img.previewUrl);
-      return prev.filter(i => i.id !== id);
+      const imageToRemove = prev.find(img => id === img.id);
+      if (imageToRemove) URL.revokeObjectURL(imageToRemove.previewUrl);
+      return prev.filter(img => img.id !== id);
     });
   }, []);
 
   const processImageUpload = useCallback(async (img: UploadedImage): Promise<string> => {
     const imageId = img.id;
-    setImages(prev => prev.map(i => i.id === imageId ? { ...i, status: 'uploading', progress: 10 } : i));
+    const file = img.file;
+
+    setImages(prev => prev.map(i => 
+      i.id === imageId ? { ...i, status: 'uploading', progress: 10, errorMessage: undefined } : i
+    ));
 
     try {
-      const fileToUpload = await compressImage(img.file);
+      const fileToUpload = await compressImage(file);
       const publicUrl = await uploadImageToStorage(fileToUpload, 'incident_evidence');
-      setImages(prev => prev.map(i => i.id === imageId ? { ...i, status: 'success', progress: 100, serverUrl: publicUrl } : i));
+      
+      setImages(prev => prev.map(i => 
+        i.id === imageId ? { ...i, status: 'success', progress: 100, serverUrl: publicUrl } : i
+      ));
       return publicUrl;
     } catch (error: any) {
-      setImages(prev => prev.map(i => i.id === imageId ? { ...i, status: 'error', progress: 0, errorMessage: error.message } : i));
-      throw error;
+      const friendlyError = error.message || "Connection Error";
+      setImages(prev => prev.map(i => 
+        i.id === imageId ? { ...i, status: 'error', progress: 0, errorMessage: friendlyError } : i
+      ));
+      throw new Error(`Evidence upload failed: ${friendlyError}`);
     }
   }, []);
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    if (Object.keys(validationErrors).length > 0 || images.length < MIN_IMAGES) {
-      setErrorMessage("Mandatory evidence and data required.");
+    setErrorMessage('');
+
+    const allTouched: Record<string, boolean> = {};
+    Object.keys(formData).forEach(key => { allTouched[key] = true; });
+    setTouched(allTouched);
+
+    if (!baseId) { 
+      setErrorMessage("Safety Database Configuration Error: Base ID missing."); 
+      setSubmitStatus('error'); 
+      return; 
+    }
+    
+    if (Object.keys(validationErrors).length > 0) {
+      setErrorMessage("Report Validation Failed. Please check the mandatory fields."); 
+      setSubmitStatus('error'); 
+      return;
+    }
+    
+    if (images.length < MIN_IMAGES) {
+      setErrorMessage(`Evidence Required: At least ${MIN_IMAGES} photo(s) must be captured.`); 
+      setSubmitStatus('error'); 
       return;
     }
 
@@ -177,7 +215,8 @@ export const useObservationReport = (baseId: string) => {
          await saveOfflineReport(formData, images);
          setSubmitStatus('offline-saved');
        } catch (err: any) {
-         setErrorMessage("Local Cache Error");
+         setErrorMessage("Offline Storage Fault: " + err.message);
+         setSubmitStatus('error');
        } finally { setIsSubmitting(false); }
        return;
     }
@@ -193,19 +232,27 @@ export const useObservationReport = (baseId: string) => {
       const newAttachments: { url: string; filename: string }[] = [];
       uploadResults.forEach((res, idx) => {
         if (res.status === 'fulfilled') {
-          newAttachments.push({ url: res.value, filename: pendingOrErrorImages[idx].file.name });
+          newAttachments.push({ 
+            url: (res as PromiseFulfilledResult<string>).value, 
+            filename: pendingOrErrorImages[idx].file.name 
+          });
         }
       });
 
       const totalAttachments = [...existingAttachments, ...newAttachments];
-      if (totalAttachments.length === 0) throw new Error("Evidence Transmission Failure");
+
+      if (totalAttachments.length === 0) {
+        throw new Error("Critical Failure: Evidence upload failed. Please check your network connection.");
+      }
 
       await submitObservationReport(formData, totalAttachments, { baseId });
       setSubmitStatus('success');
     } catch (error: any) {
       setSubmitStatus('error');
-      setErrorMessage(error.message || "Protocol Interrupted");
-    } finally { setIsSubmitting(false); }
+      setErrorMessage(error.message || "Transmission interrupted. Please check your connection and try again.");
+    } finally { 
+      setIsSubmitting(false); 
+    }
   }, [baseId, formData, images, isOnline, processImageUpload, validationErrors]);
 
   return {
@@ -217,7 +264,7 @@ export const useObservationReport = (baseId: string) => {
     submitStatus,
     errorMessage,
     isOnline,
-    gpsStatus,
+    isLocating,
     handleInputChange,
     handleBlur,
     fetchCurrentLocation,
@@ -234,7 +281,14 @@ export const useObservationReport = (baseId: string) => {
       setErrorMessage('');
       setTouched({});
       setFormData({
-        name: '', role: '', site: '', category: '', observation: '', actionTaken: '', assignedTo: '', location: ''
+        name: '',
+        role: '',
+        site: '',
+        category: '',
+        observation: '',
+        actionTaken: '',
+        assignedTo: '',
+        location: ''
       });
       setImages([]);
     }
