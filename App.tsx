@@ -27,6 +27,16 @@ import { getAssignedCriticalObservations, getAllReports } from './services/airta
 
 type ViewState = 'dashboard' | 'create' | 'recent' | 'auth' | 'my-tasks' | 'personnel' | 'checklists' | 'inspection-viewer' | 'risk-assessment' | 'training-management' | 'audit-trail' | 'compliance-tracker' | 'crane-checklist' | 'equipment-checklist';
 
+interface SystemAlert {
+  id: string;
+  type: 'critical-task' | 'escalated-overdue';
+  title: string;
+  description: string;
+  site: string;
+  timestamp: string;
+  originalRecord: FetchedObservation;
+}
+
 export default function App() {
   const isNavigatingRef = useRef(false);
 
@@ -50,7 +60,7 @@ export default function App() {
   const [quote, setQuote] = useState('');
   const [appTheme, setAppTheme] = useState<'dark' | 'light'>('dark');
   const [isInitialized, setIsInitialized] = useState(false);
-  const [criticalTasks, setCriticalTasks] = useState<FetchedObservation[]>([]);
+  const [activeAlerts, setActiveAlerts] = useState<SystemAlert[]>([]);
   const [isBellShaking, setIsBellShaking] = useState(false);
   const [isBadgePinging, setIsBadgePinging] = useState(false);
   const [activeInspectionUrl, setActiveInspectionUrl] = useState('');
@@ -61,8 +71,7 @@ export default function App() {
   const menuRef = useRef<HTMLDivElement>(null);
   const profileCardRef = useRef<HTMLDivElement>(null);
   const notificationsRef = useRef<HTMLDivElement>(null);
-  const lastKnownObservationIds = useRef<Set<string>>(new Set());
-  const escalatedIds = useRef<Set<string>>(new Set());
+  const lastKnownAlertIds = useRef<Set<string>>(new Set());
 
   // Handle Browser Navigation (Swipe Back / Forward)
   useEffect(() => {
@@ -81,7 +90,7 @@ export default function App() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  // Synchronize internal state changes with history, but avoid loops
+  // Synchronize internal state changes with history
   useEffect(() => {
     if (!isInitialized || isNavigatingRef.current) return;
     
@@ -121,63 +130,72 @@ export default function App() {
 
       try {
         const tasks = await getAssignedCriticalObservations(userProfile.name, { baseId });
-        setCriticalTasks(tasks);
+        const allReports = await getAllReports({ baseId });
         
+        const isSafetyLead = AUTHORIZED_ADMIN_ROLES.includes(userProfile.role.toLowerCase()) || 
+                             userProfile.role.toLowerCase().includes('safety');
+        
+        const now = Date.now();
+        const ESCALATION_THRESHOLD = 48 * 60 * 60 * 1000; // 48 Hours
+
+        const alerts: SystemAlert[] = [];
+
+        // 1. Map Critical Assigned Tasks
         tasks.forEach(task => {
-          if (!lastKnownObservationIds.current.has(task.id)) {
-            lastKnownObservationIds.current.add(task.id);
+          alerts.push({
+            id: `crit-${task.id}`,
+            type: 'critical-task',
+            title: task.fields["Observation Type"] || "Hazard Assignment",
+            description: `Immediate corrective action required by you.`,
+            site: task.fields["Site / Location"] || "Site Alpha",
+            timestamp: task.createdTime,
+            originalRecord: task
+          });
+        });
+
+        // 2. Map Escalated Reports (if admin/safety lead)
+        if (isSafetyLead) {
+          allReports.forEach(report => {
+            const isUnresolved = !report.fields["Action taken"] || report.fields["Action taken"].trim().length === 0;
+            const reportAge = now - new Date(report.createdTime).getTime();
             
+            if (isUnresolved && reportAge > ESCALATION_THRESHOLD) {
+              alerts.push({
+                id: `esc-${report.id}`,
+                type: 'escalated-overdue',
+                title: `ESCALATION: ${report.fields["Observation Type"]}`,
+                description: `Remains unresolved after 48 hours. Review required.`,
+                site: report.fields["Site / Location"] || "Site Alpha",
+                timestamp: report.createdTime,
+                originalRecord: report
+              });
+            }
+          });
+        }
+
+        setActiveAlerts(alerts);
+
+        // Notify for NEW alerts only
+        alerts.forEach(alert => {
+          if (!lastKnownAlertIds.current.has(alert.id)) {
+            lastKnownAlertIds.current.add(alert.id);
+            
+            const isEsc = alert.type === 'escalated-overdue';
             sendNotification(
-              "CRITICAL HAZARD ASSIGNED", 
-              `Alert: ${task.fields["Observation Type"]} at ${task.fields["Site / Location"]} requires immediate action.`,
+              isEsc ? "SYSTEM ESCALATION" : "CRITICAL HAZARD ASSIGNED", 
+              alert.title,
               true
             );
 
-            window.dispatchEvent(new CustomEvent('hse-guardian-alert', { detail: task }));
+            if (isEsc) {
+               sendToast(alert.title, "critical", alert.id);
+            }
 
             setIsBellShaking(true);
             setIsBadgePinging(true);
             setTimeout(() => { setIsBellShaking(false); setIsBadgePinging(false); }, 6000);
           }
         });
-
-        const isSafetyLead = AUTHORIZED_ADMIN_ROLES.includes(userProfile.role.toLowerCase()) || 
-                             userProfile.role.toLowerCase().includes('safety');
-        
-        if (isSafetyLead) {
-          const allReports = await getAllReports({ baseId });
-          const now = Date.now();
-          const ESCALATION_THRESHOLD = 48 * 60 * 60 * 1000; // 48 Hours
-
-          allReports.forEach(report => {
-            const isUnresolved = !report.fields["Action taken"] || report.fields["Action taken"].trim().length === 0;
-            const reportAge = now - new Date(report.createdTime).getTime();
-            
-            if (isUnresolved && reportAge > ESCALATION_THRESHOLD && !escalatedIds.current.has(report.id)) {
-              escalatedIds.current.add(report.id);
-              
-              sendNotification(
-                "SYSTEM ESCALATION: OVERDUE HAZARD",
-                `ID ${report.id.slice(-5)}: ${report.fields["Observation Type"]} remains unresolved after 48 hours.`,
-                true
-              );
-
-              sendToast(
-                `Escalated: ${report.fields["Observation Type"]}`,
-                "critical",
-                `esc-${report.id}`,
-                undefined,
-                {
-                  label: "Inspect Report",
-                  onClick: () => {
-                    setView('recent');
-                    window.location.hash = `view-report-${report.id}`;
-                  }
-                }
-              );
-            }
-          });
-        }
 
       } catch (e: any) {
         if (e.message?.includes('fetch') || e.name === 'TypeError') return;
@@ -403,18 +421,18 @@ export default function App() {
                    <button 
                      onClick={() => setShowNotifications(!showNotifications)}
                      className={`relative p-2.5 rounded-xl transition-all flex items-center justify-center 
-                       ${isBellShaking ? 'bell-swing-animate' : (criticalTasks.length > 0 ? 'bell-tasks-active' : '')} 
+                       ${isBellShaking ? 'bell-swing-animate' : (activeAlerts.length > 0 ? 'bell-tasks-active' : '')} 
                        ${appTheme === 'dark' ? 'hover:bg-white/5 text-slate-400 hover:text-white' : 'hover:bg-slate-100 text-slate-500 hover:text-slate-900'}`}
-                     title="Critical Alerts"
+                     title="Safety Alerts"
                    >
                       <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="transition-transform">
                         <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
                         <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
                       </svg>
-                      {criticalTasks.length > 0 && (
+                      {activeAlerts.length > 0 && (
                         <div className="absolute top-1 right-1 flex h-6 w-6 items-center justify-center rounded-full bg-rose-600 text-[11px] font-black text-white ring-2 ring-[#020617] transition-all">
                           <span className="badge-ping-layer" />
-                          {criticalTasks.length}
+                          {activeAlerts.length}
                         </div>
                       )}
                    </button>
@@ -423,11 +441,11 @@ export default function App() {
                      <div className={`absolute top-full right-0 mt-4 w-72 sm:w-80 rounded-[2rem] border shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300 ${appTheme === 'dark' ? 'bg-[#0f172a] border-white/10' : 'bg-white border-slate-200'}`}>
                         <div className={`px-6 py-4 border-b flex items-center justify-between ${appTheme === 'dark' ? 'bg-white/5 border-white/5' : 'bg-slate-50 border-slate-100'}`}>
                            <div className="flex flex-col">
-                             <span className={`text-[10px] font-black uppercase tracking-widest ${appTheme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>Security Alerts</span>
-                             <span className="text-[8px] font-black text-blue-500 uppercase tracking-widest mt-0.5">Critical Queue</span>
+                             <span className={`text-[10px] font-black uppercase tracking-widest ${appTheme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>Safety Alerts</span>
+                             <span className="text-[8px] font-black text-blue-500 uppercase tracking-widest mt-0.5">Unified Queue</span>
                            </div>
                            <span className="bg-rose-600/10 text-rose-500 border border-rose-500/20 text-[8px] font-black px-2.5 py-1 rounded-full uppercase tracking-widest">
-                             {criticalTasks.length} Active
+                             {activeAlerts.length} Active
                            </span>
                         </div>
                         
@@ -436,39 +454,52 @@ export default function App() {
                             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4"><path d="M12 2v10m0 4v4"/></svg>
                           </div>
                           <p className={`text-[9px] font-bold leading-relaxed ${appTheme === 'dark' ? 'text-blue-400' : 'text-blue-600'}`}>
-                            Personnel Alerts: You have {criticalTasks.length} high-risk hazards pending your immediate review.
+                            {activeAlerts.length} high-risk events require your review.
                           </p>
                         </div>
 
                         <div className="max-h-80 overflow-y-auto scrollbar-hide">
-                           {criticalTasks.length === 0 ? (
+                           {activeAlerts.length === 0 ? (
                              <div className="p-12 text-center opacity-30 flex flex-col items-center gap-3">
                                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><path d="M9 12l2 2 4-4" /></svg>
                                 <p className="text-[10px] font-black uppercase tracking-widest">Zero Threats Detected</p>
                              </div>
                            ) : (
-                             criticalTasks.map(task => (
+                             activeAlerts.map(alert => (
                                <div 
-                                 key={task.id} 
-                                 onClick={() => { setView('my-tasks'); setShowNotifications(false); }}
+                                 key={alert.id} 
+                                 onClick={() => { 
+                                    if (alert.type === 'critical-task') setView('my-tasks');
+                                    else { setView('recent'); window.location.hash = `view-report-${alert.originalRecord.id}`; }
+                                    setShowNotifications(false); 
+                                 }}
                                  className={`p-5 border-b cursor-pointer transition-all last:border-0 relative overflow-hidden group ${appTheme === 'dark' ? 'border-white/5 hover:bg-white/5' : 'border-slate-100 hover:bg-slate-50'}`}
                                >
                                  <div className="flex items-start gap-4">
-                                   <div className="w-10 h-10 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-500 shrink-0 group-hover:scale-110 transition-transform">
-                                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                                   <div className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform ${
+                                      alert.type === 'escalated-overdue' 
+                                        ? 'bg-amber-500/10 border-amber-500/20 text-amber-500' 
+                                        : 'bg-rose-500/10 border-rose-500/20 text-rose-500'
+                                   }`}>
+                                      {alert.type === 'escalated-overdue' 
+                                        ? <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                                        : <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                                      }
                                    </div>
                                    <div className="flex-1 min-w-0">
                                       <div className="flex justify-between items-start">
-                                        <p className={`text-[11px] font-black truncate pr-2 ${appTheme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{task.fields["Observation Type"]}</p>
-                                        <span className="text-[8px] font-black text-slate-500 whitespace-nowrap">{getRelativeTime(task.createdTime)}</span>
+                                        <p className={`text-[11px] font-black truncate pr-2 ${appTheme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{alert.title}</p>
+                                        <span className="text-[8px] font-black text-slate-500 whitespace-nowrap">{getRelativeTime(alert.timestamp)}</span>
                                       </div>
                                       <p className="text-[9px] font-bold text-slate-500 truncate mt-1 flex items-center gap-1">
                                         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>
-                                        {task.fields["Site / Location"]}
+                                        {alert.site}
                                       </p>
                                       <div className="mt-2.5 flex items-center gap-2">
-                                        <span className="h-1.5 w-1.5 rounded-full bg-rose-500 animate-pulse"></span>
-                                        <span className="text-[7px] font-black text-rose-500 uppercase tracking-widest">Immediate Response Required</span>
+                                        <span className={`h-1.5 w-1.5 rounded-full animate-pulse ${alert.type === 'escalated-overdue' ? 'bg-amber-500' : 'bg-rose-500'}`}></span>
+                                        <span className={`text-[7px] font-black uppercase tracking-widest ${alert.type === 'escalated-overdue' ? 'text-amber-500' : 'text-rose-500'}`}>
+                                          {alert.type === 'escalated-overdue' ? 'ESCALATED REPORT' : 'TASK ASSIGNED'}
+                                        </span>
                                       </div>
                                    </div>
                                  </div>
@@ -476,13 +507,13 @@ export default function App() {
                              ))
                            )}
                         </div>
-                        {criticalTasks.length > 0 && (
+                        {activeAlerts.length > 0 && (
                           <div className={`p-4 text-center border-t ${appTheme === 'dark' ? 'bg-white/5 border-white/5' : 'bg-slate-50 border-slate-100'}`}>
                             <button 
-                              onClick={() => { setView('my-tasks'); setShowNotifications(false); }}
+                              onClick={() => { setView('recent'); setShowNotifications(false); }}
                               className="w-full py-3 bg-blue-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-blue-500 transition-all shadow-lg border border-blue-400/20"
                             >
-                              Dispatch To All Tasks
+                              Dispatch To Audit Log
                             </button>
                           </div>
                         )}
