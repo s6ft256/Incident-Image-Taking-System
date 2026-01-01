@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { UserProfile } from '../types';
-import { ROLES, SITES } from '../constants';
+import { ROLES, SITES, SYSTEM_LOGO_URL } from '../constants';
 import { registerProfile, getProfileByName } from '../services/profileService';
 import { uploadImageToStorage } from '../services/storageService';
 import { compressImage } from '../utils/imageCompression';
@@ -14,7 +14,6 @@ interface AuthScreenProps {
 }
 
 const LAST_USER_KEY = 'hse_guardian_last_user';
-const SYSTEM_LOGO_URL = 'https://procurement.trojanholding.ae/Styles/Images/TCG.PNG';
 
 const AuthCard: React.FC<{ children: React.ReactNode, isLight: boolean }> = ({ children, isLight }) => (
   <div className={`relative w-full max-w-xs p-6 sm:p-8 rounded-[3rem] border backdrop-blur-sm transition-all duration-300 animate-in fade-in zoom-in-95 slide-in-from-bottom-4 z-20 overflow-hidden ${
@@ -170,20 +169,20 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
       {mode === 'welcome' ? (
         <AuthCard isLight={isLight}>
           <div className="flex flex-col items-center text-center relative z-10">
-            <div className="relative mb-6">
-              <div className="absolute inset-0 bg-blue-500/20 blur-2xl rounded-full"></div>
-              <img src={SYSTEM_LOGO_URL} className="h-24 w-24 relative z-10 drop-shadow-2xl animate-pulse object-contain" alt="System Logo" />
+            <div className="relative mb-8">
+              <div className="absolute inset-0 bg-blue-500/20 blur-3xl rounded-full scale-125"></div>
+              <img src={SYSTEM_LOGO_URL} className="h-40 w-40 relative z-10 drop-shadow-2xl animate-pulse object-contain" alt="System Logo" />
             </div>
-            <div className="space-y-2 mb-8">
+            <div className="space-y-2 mb-10">
               <h2 className={`text-4xl font-black tracking-tighter ${isLight ? 'text-slate-900' : 'text-white'}`}>HSE <span className="text-blue-500">Guardian</span></h2>
-              <div className="flex flex-col items-center"><div className="h-1 w-10 bg-red-600 mt-1 rounded-full shadow-[0_0_15px_rgba(220,38,38,0.8)]"></div></div>
+              <div className="flex flex-col items-center"><div className="h-1.5 w-14 bg-red-600 mt-1 rounded-full shadow-[0_0_15px_rgba(220,38,38,0.8)]"></div></div>
             </div>
 
             <div className="w-full flex flex-col gap-3">
-              <button onClick={() => setMode('login')} className={`w-full font-black py-4 rounded-2xl transition-all active:scale-[0.98] uppercase tracking-widest text-[10px] border ${isLight ? 'bg-blue-600 text-white border-blue-400 shadow-blue-500/20 shadow-md' : 'bg-white/10 border-white/10 text-white hover:bg-white/20'}`}>Access Protocol</button>
-              <button onClick={() => setMode('signup')} className={`w-full font-black py-4 rounded-2xl transition-all active:scale-[0.98] uppercase tracking-widest text-[10px] border ${isLight ? 'bg-white border-blue-200 text-slate-900 shadow-sm' : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'}`}>New Identity</button>
+              <button onClick={() => setMode('login')} className={`w-full font-black py-5 rounded-2xl transition-all active:scale-[0.98] uppercase tracking-widest text-[11px] border ${isLight ? 'bg-blue-600 text-white border-blue-400 shadow-blue-500/20 shadow-md' : 'bg-white/10 border-white/10 text-white hover:bg-white/20'}`}>Access Protocol</button>
+              <button onClick={() => setMode('signup')} className={`w-full font-black py-5 rounded-2xl transition-all active:scale-[0.98] uppercase tracking-widest text-[11px] border ${isLight ? 'bg-white border-blue-200 text-slate-900 shadow-sm' : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'}`}>New Identity</button>
             </div>
-            <p className={`mt-8 text-[8px] font-bold uppercase tracking-widest ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>Secure Personal Authentication System</p>
+            <p className={`mt-10 text-[9px] font-bold uppercase tracking-widest ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>Secure Personal Authentication System</p>
           </div>
           <CardBackgroundGlow />
         </AuthCard>

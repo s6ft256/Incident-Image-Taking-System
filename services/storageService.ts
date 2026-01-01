@@ -10,13 +10,13 @@ const supabase = isValidConfig
 /**
  * Maps technical storage errors to human-readable safety messages.
  */
-const getFriendlyStorageError = (error: any): string => {
+const getFriendlyStorageError = (error: any, bucketName: string): string => {
   const message = error?.message || '';
   if (message.includes('row-level security') || message.includes('policy')) {
     return "Storage access denied. Please contact the safety administrator to verify storage bucket permissions.";
   }
   if (message.includes('bucket not found')) {
-    return `The '${SUPABASE_CONFIG.BUCKET_NAME}' storage container does not exist. Please check system configuration.`;
+    return `The '${bucketName}' storage container does not exist. Please check system configuration.`;
   }
   if (message.includes('Network request failed') || message.includes('fetch')) {
     return "Network instability detected. We are attempting to reconnect to the secure evidence server.";
@@ -26,16 +26,19 @@ const getFriendlyStorageError = (error: any): string => {
 
 /**
  * Uploads a file to Supabase Storage with automatic retry logic.
+ * @param bucketName Optional override for the bucket. Defaults to SUPABASE_CONFIG.BUCKET_NAME.
  */
 export const uploadImageToStorage = async (
   file: File, 
   folder: string = 'uploads', 
-  maxRetries = 3
+  maxRetries = 3,
+  bucketName?: string
 ): Promise<string> => {
   if (!supabase) {
     throw new Error("Safety storage is not configured. Please provide a valid Supabase URL and Key.");
   }
 
+  const bucketToUse = bucketName || SUPABASE_CONFIG.BUCKET_NAME;
   const fileExt = file.name.split('.').pop();
   const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
   const cleanFolder = folder.replace(/^\/+|\/+$/g, '');
@@ -46,7 +49,7 @@ export const uploadImageToStorage = async (
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       const { data, error } = await supabase.storage
-        .from(SUPABASE_CONFIG.BUCKET_NAME)
+        .from(bucketToUse)
         .upload(filePath, file, {
           cacheControl: '3600',
           upsert: false
@@ -59,7 +62,7 @@ export const uploadImageToStorage = async (
                             error.message.includes('not found');
         
         if (isClientError || attempt === maxRetries) {
-          throw new Error(getFriendlyStorageError(error));
+          throw new Error(getFriendlyStorageError(error, bucketToUse));
         }
         
         // Wait before next attempt (exponential backoff)
@@ -68,7 +71,7 @@ export const uploadImageToStorage = async (
       }
 
       const { data: { publicUrl } } = supabase.storage
-        .from(SUPABASE_CONFIG.BUCKET_NAME)
+        .from(bucketToUse)
         .getPublicUrl(filePath);
 
       return publicUrl;

@@ -187,14 +187,20 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
   return (
     <div className="space-y-4 sm:space-y-6 pb-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
       
-      <div className={`px-6 sm:px-12 py-10 rounded-[2.5rem] text-center shadow-2xl border-2 border-blue-500/30 relative overflow-hidden bg-[#020617]`}>
+      <div className={`px-6 sm:px-12 py-10 rounded-[2.5rem] text-center shadow-2xl border-2 relative overflow-hidden transition-colors duration-300 ${
+        isLight ? 'bg-white border-blue-500/10 shadow-blue-500/5' : 'bg-[#020617] border-blue-500/30'
+      }`}>
         <div className="absolute inset-0 bg-blue-600/5 pointer-events-none"></div>
-        <p className="text-sm sm:text-lg font-black leading-relaxed max-w-4xl mx-auto uppercase tracking-wider text-white">
+        <p className={`text-sm sm:text-lg font-black leading-relaxed max-w-4xl mx-auto uppercase tracking-wider ${
+          isLight ? 'text-slate-900' : 'text-white'
+        }`}>
           HSE Guardian isn't just software. It's your proactive safety nerve center. A unified system capturing and managing all safety observations and data in real-time.
         </p>
-        <div className="mt-4 pt-4 border-t border-white/10 flex justify-center gap-6 text-[11px] font-black uppercase tracking-[0.3em] text-red-500">
+        <div className={`mt-4 pt-4 border-t flex justify-center gap-6 text-[11px] font-black uppercase tracking-[0.3em] text-red-500 ${
+          isLight ? 'border-slate-100' : 'border-white/10'
+        }`}>
           <span className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-red-600 animate-pulse"></div> PERFORMANCE MONITOR</span>
-          <span className="opacity-30 text-white">•</span>
+          <span className={`opacity-30 ${isLight ? 'text-slate-300' : 'text-white'}`}>•</span>
           <span className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-red-600 animate-pulse"></div> ANALYTICS LIVE</span>
         </div>
       </div>

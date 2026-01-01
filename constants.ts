@@ -17,7 +17,8 @@ export const AIRTABLE_CONFIG = {
 export const SUPABASE_CONFIG = {
   URL: env.VITE_SUPABASE_URL || 'https://irsjpzbbpqsgrqdhanbz.supabase.co',
   ANON_KEY: env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_fdkJTt-jW25th7SdQ0g9QQ_vAYpY-U2', 
-  BUCKET_NAME: env.VITE_SUPABASE_BUCKET || 'incident-images'
+  BUCKET_NAME: env.VITE_SUPABASE_BUCKET || 'incident-images',
+  TRAINING_BUCKET_NAME: 'training_evidence'
 };
 
 // Application State Keys
@@ -30,7 +31,7 @@ export const STORAGE_KEYS = {
 };
 
 // System Identity
-export const SYSTEM_LOGO_URL = 'https://procurement.trojanholding.ae/Styles/Images/TCG.PNG';
+export const SYSTEM_LOGO_URL = 'https://www.multiply-marketing.com/trojan-wp/wp-content/uploads/2020/08/tgc-logo-300x300.png';
 export const AUTHORIZED_ADMIN_ROLES = ['technician', 'engineer'];
 
 export const ROLES = [

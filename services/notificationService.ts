@@ -58,7 +58,7 @@ export const sendNotification = (title: string, body: string, isCritical: boolea
   try {
     const n = new Notification(title, {
       body,
-      icon: 'https://raw.githubusercontent.com/s6ft256/Incident-Image-Taking-System/main/Tj1.jpeg',
+      icon: 'https://www.multiply-marketing.com/trojan-wp/wp-content/uploads/2020/08/tgc-logo-300x300.png',
       tag: isCritical ? 'critical-alert' : 'standard',
       requireInteraction: isCritical
     });

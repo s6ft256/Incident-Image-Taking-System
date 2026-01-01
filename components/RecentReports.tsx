@@ -446,6 +446,24 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
           </div>
         )}
 
+        {/* Loading Indicator for Initial Data Fetch */}
+        {loading && (
+          <div className="py-20 flex flex-col items-center justify-center gap-5 animate-in fade-in duration-500">
+            <div className="relative w-12 h-12">
+              <div className="absolute inset-0 border-4 border-blue-500/20 rounded-full"></div>
+              <div className="absolute inset-0 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+            </div>
+            <div className="text-center space-y-1">
+              <p className={`text-[10px] font-black uppercase tracking-[0.3em] ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+                Synchronizing Safety Database
+              </p>
+              <p className="text-[8px] font-bold uppercase tracking-widest text-blue-500 animate-pulse">
+                Acquiring Incident Logs...
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Main Reports List */}
         {!loading && !error && (activeTab !== 'closed' || isArchiveUnlocked || isMyTasksMode) && (
           <div className="flex flex-col gap-3">
@@ -536,9 +554,14 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
                                 <button 
                                   onClick={() => handleAssignToMember(report.id)}
                                   disabled={reassigningId === report.id || localAssignee[report.id] === (report.fields["Assigned To"] || "")}
-                                  className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg disabled:opacity-50 transition-all"
+                                  className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg disabled:opacity-50 transition-all flex items-center justify-center gap-2"
                                 >
-                                  {reassigningId === report.id ? 'Updating...' : (localAssignee[report.id] === "" ? 'Unassign Personnel' : 'Assign Personnel')}
+                                  {reassigningId === report.id ? (
+                                    <>
+                                      <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                      <span>Updating...</span>
+                                    </>
+                                  ) : (localAssignee[report.id] === "" ? 'Unassign Personnel' : 'Assign Personnel')}
                                 </button>
                              </div>
                           </div>

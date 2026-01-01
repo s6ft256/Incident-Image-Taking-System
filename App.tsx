@@ -18,15 +18,18 @@ import { RiskAssessmentModule } from './components/RiskAssessmentModule';
 import { TrainingManagement } from './components/TrainingManagement';
 import { AuditLogViewer } from './components/AuditLogViewer';
 import { ComplianceTracker } from './components/ComplianceTracker';
+import { CraneChecklistForm } from './components/CraneChecklistForm';
+import { EquipmentChecklistForm } from './components/EquipmentChecklistForm';
 import { syncOfflineReports } from './services/syncService';
 import { UserProfile as UserProfileType, FetchedObservation } from './types';
 import { requestNotificationPermission, sendNotification, sendToast } from './services/notificationService';
 import { getAssignedCriticalObservations, getAllReports } from './services/airtableService';
 
-type ViewState = 'dashboard' | 'create' | 'recent' | 'auth' | 'my-tasks' | 'personnel' | 'checklists' | 'inspection-viewer' | 'risk-assessment' | 'training-management' | 'audit-trail' | 'compliance-tracker';
+type ViewState = 'dashboard' | 'create' | 'recent' | 'auth' | 'my-tasks' | 'personnel' | 'checklists' | 'inspection-viewer' | 'risk-assessment' | 'training-management' | 'audit-trail' | 'compliance-tracker' | 'crane-checklist' | 'equipment-checklist';
 
 export default function App() {
-  // Fast Path: Load profile immediately to avoid auth screen flash and provide "automatic" entry
+  const isNavigatingRef = useRef(false);
+
   const [userProfile, setUserProfile] = useState<UserProfileType | null>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.PROFILE);
     if (saved) {
@@ -61,27 +64,26 @@ export default function App() {
   const lastKnownObservationIds = useRef<Set<string>>(new Set());
   const escalatedIds = useRef<Set<string>>(new Set());
 
-  // Navigation History Sync: Handle Swipe Back and Browser Back Button
+  // Handle Browser Navigation (Swipe Back / Forward)
   useEffect(() => {
     const handlePopState = (event: PopStateEvent) => {
       if (event.state && event.state.view) {
+        isNavigatingRef.current = true;
         setView(event.state.view);
+        setTimeout(() => { isNavigatingRef.current = false; }, 50);
       }
     };
 
     window.addEventListener('popstate', handlePopState);
-    
-    // Set initial state
-    if (view) {
+    if (view && (!window.history.state || window.history.state.view !== view)) {
       window.history.replaceState({ view }, '');
     }
-
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  // Update history when view changes via app logic
+  // Synchronize internal state changes with history, but avoid loops
   useEffect(() => {
-    if (!isInitialized) return;
+    if (!isInitialized || isNavigatingRef.current) return;
     
     const currentState = window.history.state;
     if (!currentState || currentState.view !== view) {
@@ -191,7 +193,6 @@ export default function App() {
   useEffect(() => {
     setQuote(SAFETY_QUOTES[Math.floor(Math.random() * SAFETY_QUOTES.length)]);
     
-    // Auto-show tutorial for fresh profiles
     if (userProfile && !localStorage.getItem(STORAGE_KEYS.TUTORIAL_SEEN)) {
       setShowTutorial(true);
     }
@@ -296,12 +297,14 @@ export default function App() {
       case 'recent': return <RecentReports baseId={baseId} appTheme={appTheme} onBack={() => setView('dashboard')} />;
       case 'my-tasks': return <RecentReports baseId={baseId} appTheme={appTheme} onBack={() => setView('dashboard')} filterAssignee={userProfile?.name} />;
       case 'personnel': return <PersonnelGrid appTheme={appTheme} onBack={() => setView('dashboard')} />;
-      case 'checklists': return <Checklists appTheme={appTheme} onBack={() => setView('dashboard')} onOpenInspection={handleOpenInspection} />;
+      case 'checklists': return <Checklists appTheme={appTheme} onBack={() => setView('dashboard')} onOpenInspection={handleOpenInspection} onOpenCrane={() => setView('crane-checklist')} onOpenEquipment={() => setView('equipment-checklist')} />;
       case 'inspection-viewer': return <InspectionViewer url={activeInspectionUrl} appTheme={appTheme} onBack={() => setView('checklists')} />;
       case 'risk-assessment': return <RiskAssessmentModule appTheme={appTheme} onBack={() => setView('dashboard')} />;
       case 'training-management': return <TrainingManagement appTheme={appTheme} onBack={() => setView('dashboard')} />;
       case 'compliance-tracker': return <ComplianceTracker appTheme={appTheme} onBack={() => setView('dashboard')} />;
       case 'audit-trail': return <AuditLogViewer appTheme={appTheme} onBack={() => setView('dashboard')} />;
+      case 'crane-checklist': return <CraneChecklistForm appTheme={appTheme} onBack={() => setView('checklists')} />;
+      case 'equipment-checklist': return <EquipmentChecklistForm appTheme={appTheme} onBack={() => setView('checklists')} />;
       default: return <Dashboard baseId={baseId} appTheme={appTheme} onNavigate={(target) => setView(target as any)} />;
     }
   };
@@ -355,23 +358,23 @@ export default function App() {
       <NotificationSystem appTheme={appTheme} onViewTask={(id) => { setView('recent'); window.location.hash = `view-report-${id}`; }} />
       <div className={`relative z-10 flex flex-col flex-grow ${view === 'inspection-viewer' ? 'h-auto overflow-visible' : ''}`}>
         <header className={`sticky top-0 z-40 backdrop-blur-2xl border-b transition-all duration-300 ${appTheme === 'dark' ? 'bg-[#020617]/90 border-white/5 shadow-xl' : 'bg-white border-slate-200 shadow-sm'} ${(view === 'auth' || view === 'inspection-viewer') ? 'hidden' : ''}`}>
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2 flex items-center justify-between gap-4">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
              <div className="flex-1 flex justify-start">
                <div onClick={() => setView('dashboard')} className="group cursor-pointer">
                  <img 
                    src={SYSTEM_LOGO_URL} 
                    alt="Logo" 
-                   className="h-16 sm:h-24 w-auto object-contain drop-shadow-2xl transition-all duration-500 group-hover:scale-110 origin-left" 
+                   className="h-20 sm:h-32 w-auto object-contain drop-shadow-2xl transition-all duration-500 group-hover:scale-110 origin-left" 
                  />
                </div>
              </div>
              <div className="flex flex-[2] flex-col items-center group cursor-pointer" onClick={() => setView('dashboard')}>
-               <h1 className="text-2xl sm:text-4xl font-black tracking-tighter main-system-title">
+               <h1 className="text-3xl sm:text-5xl font-black tracking-tighter main-system-title">
                  <span className={appTheme === 'dark' ? 'text-white' : 'text-slate-900'}>HSE</span> <span className="text-blue-500">Guardian</span>
                </h1>
-               <div className="h-1 w-12 sm:w-20 bg-red-600 mt-1 rounded-full shadow-[0_0_15px_rgba(220,38,38,0.8)] transition-all duration-500 group-hover:w-24 sm:group-hover:w-32 system-title-line"></div>
+               <div className="h-1.5 w-16 sm:w-28 bg-red-600 mt-1 rounded-full shadow-[0_0_15px_rgba(220,38,38,0.8)] transition-all duration-500 group-hover:w-32 sm:group-hover:w-40 system-title-line"></div>
              </div>
-             <div className="flex-1 flex justify-end items-center gap-2 sm:gap-4 relative">
+             <div className="flex-1 flex justify-end items-center gap-2 sm:gap-6 relative">
                {userProfile && (
                  <div ref={notificationsRef} className="relative">
                    <button 
@@ -381,12 +384,12 @@ export default function App() {
                        ${appTheme === 'dark' ? 'hover:bg-white/5 text-slate-400 hover:text-white' : 'hover:bg-slate-100 text-slate-500 hover:text-slate-900'}`}
                      title="Critical Alerts"
                    >
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="transition-transform">
+                      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="transition-transform">
                         <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
                         <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
                       </svg>
                       {criticalTasks.length > 0 && (
-                        <div className="absolute top-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-rose-600 text-[10px] font-black text-white ring-2 ring-[#020617] transition-all">
+                        <div className="absolute top-1 right-1 flex h-6 w-6 items-center justify-center rounded-full bg-rose-600 text-[11px] font-black text-white ring-2 ring-[#020617] transition-all">
                           <span className="badge-ping-layer" />
                           {criticalTasks.length}
                         </div>
@@ -466,8 +469,8 @@ export default function App() {
                )}
                <div ref={profileCardRef} className="relative">
                  <div onClick={() => setShowProfileCard(!showProfileCard)} className="cursor-pointer group">
-                    <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full overflow-hidden border-2 transition-all ${showProfileCard ? 'border-blue-500 ring-4 ring-blue-500/20 scale-105' : 'border-slate-700'}`}>
-                      {userProfile?.profileImageUrl ? <img src={userProfile.profileImageUrl} alt="User" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center bg-blue-600 text-white font-black">{userProfile?.name?.charAt(0)}</div>}
+                    <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full overflow-hidden border-2 transition-all ${showProfileCard ? 'border-blue-500 ring-4 ring-blue-500/20 scale-105' : 'border-slate-700'}`}>
+                      {userProfile?.profileImageUrl ? <img src={userProfile.profileImageUrl} alt="User" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center bg-blue-600 text-white font-black text-xl">{userProfile?.name?.charAt(0)}</div>}
                     </div>
                  </div>
                  {showProfileCard && (

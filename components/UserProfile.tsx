@@ -182,34 +182,34 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
 
       {/* Profile Header */}
       <div className="flex flex-col items-center pt-2">
-        <div className="relative mb-4">
-          <div className={`w-28 h-28 rounded-full flex items-center justify-center border-2 overflow-hidden shadow-2xl transition-all duration-500 ${
+        <div className="relative mb-6">
+          <div className={`w-40 h-40 rounded-full flex items-center justify-center border-2 overflow-hidden shadow-2xl transition-all duration-500 ${
             isLight ? 'bg-slate-100 border-slate-200' : 'bg-slate-800 border-white/10 ring-8 ring-white/5'
           } ${isSecureIdentity ? 'ring-emerald-500/20' : ''}`}>
             {profile.profileImageUrl ? (
               <img src={profile.profileImageUrl} alt="Profile" className="w-full h-full object-cover" />
             ) : (
-              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-slate-600"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+              <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-slate-600"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
             )}
           </div>
           <button 
             type="button" 
             onClick={() => fileInputRef.current?.click()} 
-            className="absolute bottom-1 right-1 bg-blue-600 p-2 rounded-full border-2 border-[#0f172a] text-white shadow-xl hover:scale-110 active:scale-95 transition-all"
+            className="absolute bottom-2 right-2 bg-blue-600 p-3 rounded-full border-2 border-[#0f172a] text-white shadow-xl hover:scale-110 active:scale-95 transition-all"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
           </button>
           <input type="file" ref={fileInputRef} onChange={handleImageChange} accept="image/*" className="hidden" />
         </div>
         <div className="flex items-center gap-2">
-            <h2 className={`text-xl font-black tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>{profile.name || 'HSE Reporter'}</h2>
+            <h2 className={`text-2xl font-black tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>{profile.name || 'HSE Reporter'}</h2>
             {isSecureIdentity && (
-                <div className="bg-emerald-500/20 text-emerald-500 p-1 rounded-md border border-emerald-500/30">
-                    <svg width="10" height="10" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L3 7v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-9-5z"/></svg>
+                <div className="bg-emerald-500/20 text-emerald-500 p-1.5 rounded-md border border-emerald-500/30">
+                    <svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L3 7v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-9-5z"/></svg>
                 </div>
             )}
         </div>
-        <span className={`text-[9px] font-black uppercase tracking-[0.4em] mt-1 ${isSecureIdentity ? 'text-emerald-500' : 'text-blue-500'}`}>Clearance {clearanceLevel}</span>
+        <span className={`text-[10px] font-black uppercase tracking-[0.4em] mt-1 ${isSecureIdentity ? 'text-emerald-500' : 'text-blue-500'}`}>Clearance {clearanceLevel}</span>
       </div>
 
       <div className="space-y-6">

@@ -9,9 +9,17 @@ interface ImageGridProps {
   onAdd: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onRetry: (id: string) => void;
   appTheme?: 'dark' | 'light';
+  hideHeader?: boolean;
 }
 
-export const ImageGrid: React.FC<ImageGridProps> = memo(({ images, onRemove, onAdd, onRetry, appTheme = 'dark' }) => {
+export const ImageGrid: React.FC<ImageGridProps> = memo(({ 
+  images, 
+  onRemove, 
+  onAdd, 
+  onRetry, 
+  appTheme = 'dark',
+  hideHeader = false
+}) => {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const isLimitReached = images.length >= MAX_IMAGES;
   const isLight = appTheme === 'light';
@@ -20,21 +28,23 @@ export const ImageGrid: React.FC<ImageGridProps> = memo(({ images, onRemove, onA
 
   return (
     <div className="space-y-5">
-      <div className={`relative flex items-center justify-center pb-3 border-b ${isLight ? 'border-slate-200' : 'border-slate-700/50'}`}>
-        <label className={`text-lg font-bold tracking-wide text-center flex flex-col items-center ${isLight ? 'text-slate-900' : 'text-white'}`}>
-          <span className="flex items-center gap-2">
-            Incident Evidence
-            <span className={`inline-flex items-center justify-center h-6 px-2 text-xs font-bold rounded-full transition-all duration-300 ${
-              images.length >= MIN_IMAGES 
-                ? (isLight ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' : 'bg-emerald-900/50 text-emerald-400 border border-emerald-800 shadow-[0_0_10px_rgba(16,185,129,0.2)]') 
-                : (isLight ? 'bg-amber-100 text-amber-700 border border-amber-200' : 'bg-amber-900/50 text-amber-400 border border-amber-800')
-            }`}>
-              {images.length}/{MAX_IMAGES}
+      {!hideHeader && (
+        <div className={`relative flex items-center justify-center pb-3 border-b ${isLight ? 'border-slate-200' : 'border-slate-700/50'}`}>
+          <label className={`text-lg font-bold tracking-wide text-center flex flex-col items-center ${isLight ? 'text-slate-900' : 'text-white'}`}>
+            <span className="flex items-center gap-2">
+              Incident Evidence
+              <span className={`inline-flex items-center justify-center h-6 px-2 text-xs font-bold rounded-full transition-all duration-300 ${
+                images.length >= MIN_IMAGES 
+                  ? (isLight ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' : 'bg-emerald-900/50 text-emerald-400 border border-emerald-800 shadow-[0_0_10px_rgba(16,185,129,0.2)]') 
+                  : (isLight ? 'bg-amber-100 text-amber-700 border border-amber-200' : 'bg-amber-900/50 text-amber-400 border border-amber-800')
+              }`}>
+                {images.length}/{MAX_IMAGES}
+              </span>
             </span>
-          </span>
-          <span className={`text-[9px] font-black uppercase tracking-[0.2em] mt-1 ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>Evidence Acquisition Terminal</span>
-        </label>
-      </div>
+            <span className={`text-[9px] font-black uppercase tracking-[0.2em] mt-1 ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>Evidence Acquisition Terminal</span>
+          </label>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         {images.map((img) => (
@@ -81,7 +91,7 @@ export const ImageGrid: React.FC<ImageGridProps> = memo(({ images, onRemove, onA
               {img.status === 'error' && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center p-3 text-center bg-black/85 backdrop-blur-[2px] z-20 animate-in fade-in duration-300">
                    <svg className="w-6 h-6 text-rose-500 mb-2 drop-shadow-lg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                    </svg>
                    <p className="text-[7px] text-white font-black uppercase mb-3 line-clamp-3 leading-tight px-1 drop-shadow-md">
                      {img.errorMessage || "System Transmission Error"}
@@ -159,8 +169,8 @@ export const ImageGrid: React.FC<ImageGridProps> = memo(({ images, onRemove, onA
               <svg xmlns="http://www.w3.org/2000/svg" className={`h-6 w-6 mb-1 ${isLight ? 'text-slate-500' : 'text-slate-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
               </svg>
-              <span className="text-[8px] font-black uppercase tracking-widest text-slate-500">Upload</span>
-              <input type="file" accept="image/*" className="hidden" onChange={onAdd} />
+              <span className="text-[8px] font-black uppercase tracking-widest text-slate-500">Gallery</span>
+              <input type="file" accept="image/*" multiple className="hidden" onChange={onAdd} />
             </label>
           </div>
         )}

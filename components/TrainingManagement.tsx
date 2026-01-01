@@ -1,6 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { TraineeRow } from '../types';
+import { TraineeRow, UploadedImage } from '../types';
 import { getAddress } from '../services/weatherService';
+import { ImageGrid } from './ImageGrid';
+import { compressImage } from '../utils/imageCompression';
+import { uploadImageToStorage } from '../services/storageService';
+import { saveTrainingRoster } from '../services/trainingService';
+import { sendToast } from '../services/notificationService';
 
 interface TrainingManagementProps {
   appTheme: 'dark' | 'light';
@@ -19,6 +24,9 @@ export const TrainingManagement: React.FC<TrainingManagementProps> = ({ appTheme
   const [topicDiscussed, setTopicDiscussed] = useState('');
   const [conductedBy, setConductedBy] = useState('');
   const [conductorSigned, setConductorSigned] = useState(false);
+  const [trainingImages, setTrainingImages] = useState<UploadedImage[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(false);
   
   // Date/Time
   const [now] = useState(new Date());
@@ -65,6 +73,88 @@ export const TrainingManagement: React.FC<TrainingManagementProps> = ({ appTheme
       signTimestamp: !t.isSigned ? new Date().toLocaleTimeString() : undefined 
     } : t));
   };
+
+  const processImageUpload = async (img: UploadedImage) => {
+    const imageId = img.id;
+    setTrainingImages(prev => prev.map(i => i.id === imageId ? { ...i, status: 'uploading', progress: 10 } : i));
+
+    try {
+      const compressed = await compressImage(img.file);
+      const url = await uploadImageToStorage(compressed, 'training_photos');
+      setTrainingImages(prev => prev.map(i => i.id === imageId ? { ...i, status: 'success', progress: 100, serverUrl: url } : i));
+    } catch (err: any) {
+      setTrainingImages(prev => prev.map(i => i.id === imageId ? { ...i, status: 'error', progress: 0, errorMessage: err.message } : i));
+    }
+  };
+
+  const handleAddImage = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      const newImage: UploadedImage = {
+        id: crypto.randomUUID(),
+        file: file,
+        previewUrl: URL.createObjectURL(file),
+        status: 'pending',
+        progress: 0
+      };
+      setTrainingImages(prev => [...prev, newImage]);
+      processImageUpload(newImage);
+      e.target.value = '';
+    }
+  }, []);
+
+  const handleRemoveImage = useCallback((id: string) => {
+    setTrainingImages(prev => {
+      const img = prev.find(i => i.id === id);
+      if (img) URL.revokeObjectURL(img.previewUrl);
+      return prev.filter(i => i.id !== id);
+    });
+  }, []);
+
+  const handleRetryImage = (id: string) => {
+    const img = trainingImages.find(i => i.id === id);
+    if (img) processImageUpload(img);
+  };
+
+  const handleSubmit = async () => {
+    if (!projectName || !topicDiscussed || !conductedBy || !conductorSigned) {
+      sendToast("Mandatory identity and topic fields required.", "warning");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await saveTrainingRoster({
+        projectName,
+        locationText: location,
+        contractor,
+        topicDiscussed,
+        conductedBy,
+        conductorSignature: conductedBy,
+        trainees,
+        images: trainingImages
+      });
+      setIsSubmitted(true);
+      sendToast("Training Roster Finalized & Synced", "success");
+    } catch (err: any) {
+      sendToast("System Sync Error: " + err.message, "critical");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (isSubmitted) {
+    return (
+      <div className="animate-in zoom-in duration-500 max-w-2xl mx-auto py-20 text-center">
+        <div className="w-20 h-20 rounded-full bg-emerald-500/20 border-2 border-emerald-500 flex items-center justify-center mx-auto mb-8 shadow-2xl">
+           <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4"><path d="M20 6L9 17l-5-5"/></svg>
+        </div>
+        <h2 className={`text-4xl font-black mb-4 tracking-tighter ${isLight ? 'text-slate-900' : 'text-white'}`}>Record Authorized</h2>
+        <p className={`text-sm mb-10 ${isLight ? 'text-slate-600' : 'text-slate-400'} uppercase tracking-widest font-bold`}>The Training roster has been serialized and committed to the safety database.</p>
+        <button onClick={onBack} className="px-10 py-5 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-[0.4em] text-xs shadow-xl hover:bg-blue-500 transition-all border border-blue-400/20">Return to Dashboard</button>
+      </div>
+    );
+  }
 
   return (
     <div className="animate-in slide-in-from-right duration-500 pb-24 max-w-5xl mx-auto relative">
@@ -239,10 +329,27 @@ export const TrainingManagement: React.FC<TrainingManagementProps> = ({ appTheme
             </div>
           </div>
 
+          {/* 8: Training photos */}
+          <div className="mb-10 pt-8 border-t border-white/5">
+            <div className="flex flex-col gap-4">
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">8. Training photos (Max 3):</label>
+              <div className={`p-6 rounded-[2rem] border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-black/20 border-white/5'}`}>
+                <ImageGrid 
+                  images={trainingImages} 
+                  onAdd={handleAddImage} 
+                  onRemove={handleRemoveImage} 
+                  onRetry={handleRetryImage} 
+                  appTheme={appTheme} 
+                  hideHeader={true}
+                />
+              </div>
+            </div>
+          </div>
+
           {/* last: Conducted By section */}
           <div className={`mt-16 p-8 rounded-[2rem] border-2 border-white/5 grid grid-cols-1 md:grid-cols-4 gap-8 items-end ${isLight ? 'bg-slate-50' : 'bg-black/20'}`}>
             <div className="md:col-span-1 space-y-2">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">8. Conducted By:</label>
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">9. Conducted By:</label>
               <input 
                 type="text" 
                 value={conductedBy}
@@ -281,15 +388,14 @@ export const TrainingManagement: React.FC<TrainingManagementProps> = ({ appTheme
             </div>
           </div>
 
-          {/* Submission Mock */}
+          {/* Submission Button */}
           <div className="mt-12 flex justify-center">
              <button 
-               className="px-12 py-5 bg-blue-600 text-white rounded-3xl font-black uppercase tracking-[0.4em] text-xs shadow-2xl hover:bg-blue-500 transition-all active:scale-95 border border-blue-400/30"
-               onClick={() => {
-                 alert("EHS Training Roster Serialized and Queued for Submission.");
-               }}
+               className="px-12 py-5 bg-blue-600 text-white rounded-3xl font-black uppercase tracking-[0.4em] text-xs shadow-2xl hover:bg-blue-500 transition-all active:scale-95 border border-blue-400/30 disabled:opacity-50"
+               onClick={handleSubmit}
+               disabled={isSubmitting}
              >
-               Finalize & Submit Roster
+               {isSubmitting ? "Committing Record..." : "Finalize & Submit Roster"}
              </button>
           </div>
         </div>
