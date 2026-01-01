@@ -1,3 +1,4 @@
+
 export interface UserProfile {
   id?: string;
   name: string;
@@ -12,6 +13,22 @@ export interface UserProfile {
   user_agreement_consent?: boolean;
   image_consent?: boolean;
   consent_timestamp?: string;
+}
+
+export interface IncidentForm {
+  title: string;
+  type: string;
+  severity: 'Minor' | 'Moderate' | 'Major' | 'Critical';
+  date: string;
+  time: string;
+  location: string;
+  description: string;
+  involvedParties: string;
+  witnesses: string;
+  immediateAction: string;
+  reporterName: string;
+  reporterRole: string;
+  concernedEmail?: string;
 }
 
 export interface TrainingRecord {

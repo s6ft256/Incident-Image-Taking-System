@@ -66,6 +66,23 @@ export const OBSERVATION_TYPES = [
   'Other'
 ];
 
+export const INCIDENT_TYPES = [
+  'Injury / Illness',
+  'Property Damage',
+  'Environmental Incident',
+  'Security Breach',
+  'Vehicle Accident',
+  'Near Miss (High Potential)',
+  'Other'
+];
+
+export const SEVERITY_LEVELS = [
+  'Minor',
+  'Moderate',
+  'Major',
+  'Critical'
+];
+
 export const SAFETY_QUOTES = [
   "Safety is not a gadget, but a state of mind.",
   "The best safety device is a careful worker.",

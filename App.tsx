@@ -20,12 +20,13 @@ import { AuditLogViewer } from './components/AuditLogViewer';
 import { ComplianceTracker } from './components/ComplianceTracker';
 import { CraneChecklistForm } from './components/CraneChecklistForm';
 import { EquipmentChecklistForm } from './components/EquipmentChecklistForm';
+import { IncidentReportForm } from './components/IncidentReportForm';
 import { syncOfflineReports } from './services/syncService';
 import { UserProfile as UserProfileType, FetchedObservation } from './types';
 import { requestNotificationPermission, sendNotification, sendToast } from './services/notificationService';
 import { getAssignedCriticalObservations, getAllReports } from './services/airtableService';
 
-type ViewState = 'dashboard' | 'create' | 'recent' | 'auth' | 'my-tasks' | 'personnel' | 'checklists' | 'inspection-viewer' | 'risk-assessment' | 'training-management' | 'audit-trail' | 'compliance-tracker' | 'crane-checklist' | 'equipment-checklist';
+type ViewState = 'dashboard' | 'create' | 'recent' | 'auth' | 'my-tasks' | 'personnel' | 'checklists' | 'inspection-viewer' | 'risk-assessment' | 'training-management' | 'audit-trail' | 'compliance-tracker' | 'crane-checklist' | 'equipment-checklist' | 'incident-report';
 
 interface SystemAlert {
   id: string;
@@ -323,6 +324,7 @@ export default function App() {
       case 'audit-trail': return <AuditLogViewer appTheme={appTheme} onBack={() => setView('dashboard')} />;
       case 'crane-checklist': return <CraneChecklistForm appTheme={appTheme} onBack={() => setView('checklists')} />;
       case 'equipment-checklist': return <EquipmentChecklistForm appTheme={appTheme} onBack={() => setView('checklists')} />;
+      case 'incident-report': return <IncidentReportForm appTheme={appTheme} onBack={() => setView('dashboard')} />;
       default: return <Dashboard baseId={baseId} appTheme={appTheme} onNavigate={(target) => setView(target as any)} />;
     }
   };
