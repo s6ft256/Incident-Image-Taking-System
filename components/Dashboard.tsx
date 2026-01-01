@@ -325,24 +325,41 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
              </div>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
-             {activeCategory === 'operations' ? (
-                <>
-                  <TerminalButton onClick={() => onNavigate('incident-report')} icon="alert" label="Incident" color="rose" />
-                  <TerminalButton onClick={() => onNavigate('create')} icon="plus" label="Observation" color="blue" />
-                  <TerminalButton onClick={() => onNavigate('my-tasks')} icon="user" label="My Tasks" color="emerald" count={myTaskCount} />
-                  <TerminalButton onClick={() => onNavigate('recent')} icon="list" label="Evidence" color="slate" />
-                  <TerminalButton onClick={() => onNavigate('checklists')} icon="check" label="Checklists" color="amber" />
-                  <TerminalButton onClick={() => onNavigate('personnel')} icon="users" label="Personnel" color="indigo" />
-                </>
-             ) : (
-                <>
-                  <TerminalButton onClick={() => onNavigate('risk-assessment')} icon="shield" label="Risk RA" color="rose" />
-                  <TerminalButton onClick={() => onNavigate('training-management')} icon="book" label="Training" color="violet" />
-                  <TerminalButton onClick={() => onNavigate('compliance-tracker')} icon="award" label="Compliance" color="cyan" />
-                  <TerminalButton onClick={() => onNavigate('audit-trail')} icon="history" label="Audit Trail" color="zinc" />
-                </>
+          <div className={`relative p-8 rounded-[3rem] border transition-all duration-500 overflow-hidden ${
+            activeCategory === 'operations' 
+              ? (isLight ? 'bg-blue-50/30 border-blue-200 shadow-xl' : 'bg-blue-900/10 border-blue-500/20 shadow-2xl') 
+              : (isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/5')
+          }`}>
+             {activeCategory === 'operations' && (
+               <div className="absolute inset-0 z-0 pointer-events-none opacity-30 animate-in fade-in duration-1000">
+                  <img 
+                    src="https://i.pinimg.com/1200x/d7/c6/a9/d7c6a95b5b86b28ecd15ff4bb2c1b8eb.jpg" 
+                    className="w-full h-full object-cover" 
+                    alt="Terminal Background" 
+                  />
+                  <div className={`absolute inset-0 ${isLight ? 'bg-white/70' : 'bg-[#020617]/70'}`}></div>
+               </div>
              )}
+             
+             <div className="relative z-10 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+                {activeCategory === 'operations' ? (
+                   <>
+                     <TerminalButton onClick={() => onNavigate('incident-report')} icon="alert" label="Incident" color="rose" />
+                     <TerminalButton onClick={() => onNavigate('create')} icon="plus" label="Observation" color="blue" />
+                     <TerminalButton onClick={() => onNavigate('my-tasks')} icon="user" label="My Tasks" color="emerald" count={myTaskCount} />
+                     <TerminalButton onClick={() => onNavigate('recent')} icon="list" label="Evidence" color="slate" />
+                     <TerminalButton onClick={() => onNavigate('checklists')} icon="check" label="Checklists" color="amber" />
+                     <TerminalButton onClick={() => onNavigate('personnel')} icon="users" label="Personnel" color="indigo" />
+                   </>
+                ) : (
+                   <>
+                     <TerminalButton onClick={() => onNavigate('risk-assessment')} icon="shield" label="Risk RA" color="rose" />
+                     <TerminalButton onClick={() => onNavigate('training-management')} icon="book" label="Training" color="violet" />
+                     <TerminalButton onClick={() => onNavigate('compliance-tracker')} icon="award" label="Compliance" color="cyan" />
+                     <TerminalButton onClick={() => onNavigate('audit-trail')} icon="history" label="Audit Trail" color="zinc" />
+                   </>
+                )}
+             </div>
           </div>
       </div>
 
