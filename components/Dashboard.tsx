@@ -327,29 +327,28 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
 
           <div className={`relative p-8 rounded-[3rem] border transition-all duration-500 overflow-hidden ${
             activeCategory === 'operations' 
-              ? (isLight ? 'bg-blue-50/30 border-blue-200 shadow-xl' : 'bg-blue-900/10 border-blue-500/20 shadow-2xl') 
+              ? 'bg-transparent border-blue-500 shadow-[0_0_35px_rgba(59,130,246,0.6)]' 
               : (isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/5')
           }`}>
              {activeCategory === 'operations' && (
-               <div className="absolute inset-0 z-0 pointer-events-none opacity-30 animate-in fade-in duration-1000">
+               <div className="absolute inset-0 z-0 pointer-events-none animate-in fade-in duration-1000">
                   <img 
                     src="https://i.pinimg.com/1200x/d7/c6/a9/d7c6a95b5b86b28ecd15ff4bb2c1b8eb.jpg" 
                     className="w-full h-full object-cover" 
                     alt="Terminal Background" 
                   />
-                  <div className={`absolute inset-0 ${isLight ? 'bg-white/70' : 'bg-[#020617]/70'}`}></div>
                </div>
              )}
              
              <div className="relative z-10 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
                 {activeCategory === 'operations' ? (
                    <>
-                     <TerminalButton onClick={() => onNavigate('incident-report')} icon="alert" label="Incident" color="rose" />
-                     <TerminalButton onClick={() => onNavigate('create')} icon="plus" label="Observation" color="blue" />
-                     <TerminalButton onClick={() => onNavigate('my-tasks')} icon="user" label="My Tasks" color="emerald" count={myTaskCount} />
-                     <TerminalButton onClick={() => onNavigate('recent')} icon="list" label="Evidence" color="slate" />
-                     <TerminalButton onClick={() => onNavigate('checklists')} icon="check" label="Checklists" color="amber" />
-                     <TerminalButton onClick={() => onNavigate('personnel')} icon="users" label="Personnel" color="indigo" />
+                     <TerminalButton onClick={() => onNavigate('incident-report')} icon="alert" label="Incident" color="rose" transparent />
+                     <TerminalButton onClick={() => onNavigate('create')} icon="plus" label="Observation" color="blue" transparent />
+                     <TerminalButton onClick={() => onNavigate('my-tasks')} icon="user" label="My Tasks" color="emerald" count={myTaskCount} transparent />
+                     <TerminalButton onClick={() => onNavigate('recent')} icon="list" label="Evidence" color="slate" transparent />
+                     <TerminalButton onClick={() => onNavigate('checklists')} icon="check" label="Checklists" color="amber" transparent />
+                     <TerminalButton onClick={() => onNavigate('personnel')} icon="users" label="Personnel" color="indigo" transparent />
                    </>
                 ) : (
                    <>
@@ -396,7 +395,7 @@ const KPICard = ({ label, value, icon, color, isLight, trend }: any) => {
   );
 };
 
-const TerminalButton = ({ onClick, icon, label, color, count }: any) => {
+const TerminalButton = ({ onClick, icon, label, color, count, transparent }: any) => {
   const colors: any = {
     blue: 'bg-blue-600 shadow-blue-500/20',
     rose: 'bg-rose-600 shadow-rose-500/20',
@@ -428,7 +427,11 @@ const TerminalButton = ({ onClick, icon, label, color, count }: any) => {
   return (
     <button 
       onClick={onClick}
-      className={`group relative h-32 flex flex-col items-center justify-center p-4 rounded-[2.5rem] border bg-white/[0.03] border-white/10 hover:bg-white/[0.08] hover:border-blue-500/50 transition-all active:scale-95 shadow-lg`}
+      className={`group relative h-32 flex flex-col items-center justify-center p-4 rounded-[2.5rem] border transition-all active:scale-95 shadow-lg ${
+        transparent 
+          ? 'bg-transparent border-blue-500/50 hover:bg-blue-500/10 hover:border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.3)] hover:shadow-[0_0_25px_rgba(59,130,246,0.5)]' 
+          : 'bg-white/[0.03] border-white/10 hover:bg-white/[0.08] hover:border-blue-500/50'
+      }`}
     >
        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-white mb-3 transition-transform group-hover:scale-110 shadow-2xl border border-white/10 ${colors[color]}`}>
           {getIcon(icon)}
@@ -438,8 +441,8 @@ const TerminalButton = ({ onClick, icon, label, color, count }: any) => {
             </div>
           ) : null}
        </div>
-       <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 group-hover:text-white transition-colors">{label}</span>
-       <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-10 transition-opacity">
+       <span className={`text-[10px] font-black uppercase tracking-widest transition-colors ${transparent ? 'text-white drop-shadow-md' : 'text-slate-400 group-hover:text-white'}`}>{label}</span>
+       <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-10 transition-opacity text-white">
           <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m9 18 6-6-6-6"/></svg>
        </div>
     </button>
