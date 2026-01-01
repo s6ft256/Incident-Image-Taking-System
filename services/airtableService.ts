@@ -1,5 +1,5 @@
 
-import { ObservationForm, ObservationRecord, FetchedObservation } from '../types';
+import { ObservationForm, ObservationRecord, FetchedObservation, IncidentForm } from '../types';
 import { AIRTABLE_CONFIG } from '../constants';
 
 interface AirtableConfigOverride {
@@ -146,6 +146,54 @@ export const submitObservationReport = async (
   if (form.location) {
     fields["Location"] = form.location;
   }
+
+  await fetchWithRetry(url, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${API_KEY}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ records: [{ fields }], typecast: true })
+  });
+
+  return true;
+};
+
+/**
+ * Creates an incident record in Airtable by mapping it to the standard observation structure.
+ */
+export const submitIncidentReport = async (
+  form: IncidentForm, 
+  images: AttachmentData[], 
+  configOverride?: AirtableConfigOverride
+): Promise<boolean> => {
+  const BASE_ID = configOverride?.baseId || AIRTABLE_CONFIG.BASE_ID;
+  const API_KEY = configOverride?.apiKey || AIRTABLE_CONFIG.API_KEY;
+  const TABLE_NAME = AIRTABLE_CONFIG.TABLE_NAME;
+
+  if (!BASE_ID || !API_KEY) {
+    throw new Error("Safety Database Configuration is missing. Please set your Base ID.");
+  }
+
+  const url = `https://api.airtable.com/v0/${BASE_ID}/${encodeURIComponent(TABLE_NAME)}`;
+  
+  const evidenceAttachments = images.map(img => ({ 
+    url: img.url, 
+    filename: img.filename 
+  }));
+
+  // Construct a comprehensive narrative for the single observation field
+  const fullNarrative = `[SEVERITY: ${form.severity.toUpperCase()}] ${form.title}\n\nDescription: ${form.description}\n\nInvolved Parties: ${form.involvedParties || 'None'}\nWitnesses: ${form.witnesses || 'None'}\nImmediate Action: ${form.immediateAction || 'None'}\n\nIncident Time: ${form.date} ${form.time}`;
+
+  const fields: any = {
+    "Name": form.reporterName,
+    "Role / Position": form.reporterRole,
+    "Site / Location": form.location.split('|')[0].trim() || 'Site Area',
+    "Observation Type": `INCIDENT: ${form.type}`,
+    "Observation": fullNarrative,
+    "Open observations": evidenceAttachments,
+    "Location": form.location
+  };
 
   await fetchWithRetry(url, {
     method: 'POST',

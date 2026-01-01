@@ -2,12 +2,13 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { InputField } from './InputField';
 import { ImageGrid } from './ImageGrid';
-import { INCIDENT_TYPES, SEVERITY_LEVELS, STORAGE_KEYS, MIN_IMAGES } from '../constants';
+import { INCIDENT_TYPES, SEVERITY_LEVELS, STORAGE_KEYS, MIN_IMAGES, AIRTABLE_CONFIG } from '../constants';
 import { UserProfile, IncidentForm, UploadedImage } from '../types';
 import { getAddress } from '../services/weatherService';
 import { compressImage } from '../utils/imageCompression';
 import { uploadImageToStorage } from '../services/storageService';
 import { getAllProfiles } from '../services/profileService';
+import { submitIncidentReport } from '../services/airtableService';
 import { sendToast, sendNotification } from '../services/notificationService';
 import { GoogleGenAI } from "@google/genai";
 
@@ -219,12 +220,31 @@ Email: ${userEmail || 'Not provided'}
       sendToast("Mandatory fields and evidence required.", "warning");
       return;
     }
+    
     setIsSubmitting(true);
-    await new Promise(r => setTimeout(r, 2000)); 
-    sendNotification("CRITICAL INCIDENT LOGGED", `ID ${Math.random().toString(36).substr(2, 5).toUpperCase()}: ${formData.title} has been serialized and dispatched.`, true);
-    sendToast("Incident Successfully Dispatched", "success");
-    setIsSubmitting(false);
-    onBack();
+    try {
+      const successfulImages = images.filter(img => img.status === 'success' && img.serverUrl);
+      const attachments = successfulImages.map(img => ({
+        url: img.serverUrl!,
+        filename: img.file.name
+      }));
+
+      if (attachments.length === 0 && images.length > 0) {
+        throw new Error("Photographic evidence sync is still in progress. Please wait.");
+      }
+
+      await submitIncidentReport(formData, attachments, { baseId: AIRTABLE_CONFIG.BASE_ID });
+      
+      const reportId = Math.random().toString(36).substr(2, 5).toUpperCase();
+      sendNotification("CRITICAL INCIDENT LOGGED", `ID ${reportId}: ${formData.title} has been serialized and dispatched.`, true);
+      sendToast("Incident Successfully Dispatched", "success");
+      
+      setIsSubmitting(false);
+      onBack();
+    } catch (err: any) {
+      sendToast(err.message || "Failed to dispatch incident log.", "critical");
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -309,7 +329,7 @@ Email: ${userEmail || 'Not provided'}
             <InputField id="immediateAction" label="Immediate Actions Taken" type="textarea" rows={3} value={formData.immediateAction} onChange={handleInputChange} placeholder="What was done to stabilize the site?" />
           </div>
 
-          {/* Section 4: Stakeholder Communication (IMPROVED) */}
+          {/* Section 4: Stakeholder Communication */}
           <div className="space-y-6">
             <h3 className="text-[10px] font-black text-blue-500 uppercase tracking-[0.2em] px-1">4. Stakeholder Communication</h3>
             <div className={`p-6 rounded-[2rem] border ${isLight ? 'bg-blue-50 border-blue-100 shadow-inner' : 'bg-blue-500/5 border-blue-500/20'}`}>
@@ -337,7 +357,7 @@ Email: ${userEmail || 'Not provided'}
                         onKeyDown={handleManualEmailAdd}
                         onFocus={() => setShowDirectory(true)}
                         placeholder={selectedEmails.length === 0 ? "Select or enter emails..." : ""}
-                        className="flex-1 bg-transparent border-none outline-none text-xs min-w-[120px] py-1 px-1 text-white"
+                        className={`flex-1 bg-transparent border-none outline-none text-xs min-w-[120px] py-1 px-1 ${isLight ? 'text-slate-900' : 'text-white'}`}
                       />
                       <button 
                         type="button"
@@ -415,7 +435,7 @@ Email: ${userEmail || 'Not provided'}
           <button 
             type="submit"
             disabled={isSubmitting}
-            className={`w-full py-6 rounded-[2rem] font-black uppercase tracking-[0.4em] text-xs shadow-2xl transition-all active:scale-95 border ${isSubmitting ? 'bg-slate-800 text-slate-500 border-white/5' : 'bg-rose-600 hover:bg-rose-500 text-white border-rose-400/20'}`}
+            className={`w-full py-6 rounded-[2rem] font-black uppercase tracking-[0.4em] text-xs shadow-2xl transition-all active:scale-[0.98] border ${isSubmitting ? 'bg-slate-800 text-slate-500 border-white/5' : 'bg-rose-600 hover:bg-rose-500 text-white border-rose-400/20'}`}
           >
             {isSubmitting ? "Serializing Report..." : "Dispatch Incident Log"}
           </button>
