@@ -178,14 +178,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
         <div className="relative z-10 flex flex-col items-center text-center">
            <div className="flex items-center gap-3 mb-6">
               <div className="h-[2px] w-8 bg-blue-600"></div>
-              <span className="text-[10px] font-black text-blue-500 uppercase tracking-[0.4em]">Intelligence Matrix</span>
+              <span className="text-[10px] font-black text-blue-500 uppercase tracking-[0.4em]">HSEGUARDIAN CORE</span>
               <div className="h-[2px] w-8 bg-blue-600"></div>
            </div>
-           <h2 className={`text-2xl sm:text-4xl font-black tracking-tighter max-w-3xl leading-tight mb-6 ${isLight ? 'text-slate-900' : 'text-white'}`}>
-             Predictive Safety Analysis & <span className="text-blue-500">Live Asset Oversight</span>
+           <h2 className={`text-xl sm:text-2xl font-black tracking-tight max-w-4xl leading-tight mb-6 ${isLight ? 'text-slate-900' : 'text-white'}`}>
+             HSEGUARDIAN ISN'T JUST SOFTWARE. IT'S YOUR PROACTIVE SAFETY NERVE CENTER. A UNIFIED SYSTEM CAPTURING AND MANAGING ALL SAFETY OBSERVATIONS AND DATA IN REAL TIME.
            </h2>
            <p className={`text-sm sm:text-base font-medium max-w-2xl leading-relaxed opacity-60 ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
-             Consolidating real-time telemetry from work sites into a unified command grid. Ensure zero-harm through high-integrity data acquisition and remediation.
+             Consolidating real time telemetry from work sites into a unified command grid. Ensure zero harm through high integrity data acquisition and remediation.
            </p>
         </div>
       </div>
@@ -260,7 +260,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
           }`}>
              <div>
                 <h3 className={`text-xl font-black tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>Compliance Pulse</h3>
-                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mt-1">Real-time Resolution Ratio</p>
+                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mt-1">Real time Resolution Ratio</p>
              </div>
 
              <div className="py-8 flex flex-col items-center">
