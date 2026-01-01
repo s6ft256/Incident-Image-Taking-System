@@ -161,7 +161,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
               <span className="text-[10px] font-mono text-blue-500 font-black">HSE-G-2.5</span>
            </div>
            <div className="flex items-center gap-2">
-              <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Status:</span>
               <span className="text-[9px] font-black text-emerald-500 uppercase px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">Authorized</span>
            </div>
         </div>
@@ -327,7 +326,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
 
           <div className={`relative p-8 rounded-[3rem] border transition-all duration-500 overflow-hidden ${
             activeCategory === 'operations' 
-              ? 'bg-transparent border-blue-500 shadow-[0_0_35px_rgba(59,130,246,0.6)]' 
+              ? 'bg-transparent border-2 border-blue-400 shadow-[0_0_60px_rgba(59,130,246,0.5)]' 
               : (isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/5')
           }`}>
              {activeCategory === 'operations' && (
@@ -427,9 +426,9 @@ const TerminalButton = ({ onClick, icon, label, color, count, transparent }: any
   return (
     <button 
       onClick={onClick}
-      className={`group relative h-32 flex flex-col items-center justify-center p-4 rounded-[2.5rem] border transition-all active:scale-95 shadow-lg ${
+      className={`group relative h-32 flex flex-col items-center justify-center p-4 rounded-[2.5rem] border transition-all active:scale-95 shadow-lg backdrop-blur-sm ${
         transparent 
-          ? 'bg-transparent border-blue-500/50 hover:bg-blue-500/10 hover:border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.3)] hover:shadow-[0_0_25px_rgba(59,130,246,0.5)]' 
+          ? 'bg-transparent border-2 border-blue-400/60 shadow-[0_0_20px_rgba(59,130,246,0.4)] hover:bg-blue-500/10 hover:border-blue-400 hover:shadow-[0_0_30px_rgba(59,130,246,0.7)]' 
           : 'bg-white/[0.03] border-white/10 hover:bg-white/[0.08] hover:border-blue-500/50'
       }`}
     >
