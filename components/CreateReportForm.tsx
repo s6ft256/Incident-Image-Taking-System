@@ -31,7 +31,7 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
     submitStatus,
     errorMessage,
     isOnline,
-    isLocating,
+    gpsStatus,
     handleInputChange,
     handleBlur,
     fetchCurrentLocation,
@@ -296,23 +296,32 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
                 <button 
                   type="button"
                   onClick={fetchCurrentLocation}
-                  disabled={isLocating}
+                  disabled={gpsStatus !== 'idle' && gpsStatus !== 'success' && gpsStatus !== 'error'}
                   className={`mt-6 p-4 rounded-xl border transition-all flex items-center justify-center gap-2 group ${
                     isLight 
                       ? 'bg-blue-50 border-blue-200 text-blue-600 hover:bg-blue-100' 
-                      : 'bg-blue-600/10 border-blue-500/30 text-blue-400 hover:bg-blue-600/20'
-                  }`}
-                  title="Get Current Coordinates"
+                      : 'bg-blue-600/10 border-blue-500/30 text-blue-400 hover:bg-blue-600/20 shadow-[0_0_20px_rgba(59,130,246,0.1)]'
+                  } ${gpsStatus === 'success' ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-400' : ''}`}
+                  title="Acquire Precise GPS Signal"
                 >
-                  {isLocating ? (
-                    <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                  {gpsStatus === 'idle' || gpsStatus === 'success' || gpsStatus === 'error' ? (
+                    <>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="group-hover:scale-110 transition-transform">
+                        <path d="M12 2c3.31 0 6 2.69 6 6 0 5.25-6 13-6 13S6 13.25 6 8c0-3.31 2.69-6 6-6z"/>
+                        <circle cx="12" cy="8" r="2"/>
+                      </svg>
+                      <span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">
+                        {gpsStatus === 'success' ? 'LOCKED' : 'GPS'}
+                      </span>
+                    </>
                   ) : (
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="group-hover:scale-110 transition-transform">
-                      <path d="M12 2c3.31 0 6 2.69 6 6 0 5.25-6 13-6 13S6 13.25 6 8c0-3.31 2.69-6 6-6z"/>
-                      <circle cx="12" cy="8" r="2"/>
-                    </svg>
+                    <>
+                      <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                      <span className="text-[9px] font-black uppercase tracking-widest">
+                        {gpsStatus === 'searching' ? 'SYNCING...' : gpsStatus === 'resolving' ? 'MAPPING...' : 'VALIDATING...'}
+                      </span>
+                    </>
                   )}
-                  <span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">GPS</span>
                 </button>
               </div>
             </div>
@@ -324,7 +333,7 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
           {images.length < MIN_IMAGES && (
             <div className="mt-4 flex items-center gap-2 text-[10px] font-black text-amber-500 uppercase tracking-widest px-2 animate-pulse">
                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                </svg>
                Min {MIN_IMAGES} evidence photo required
             </div>

@@ -8,48 +8,58 @@ export interface WeatherData {
   windSpeed: number;
   humidity: number;
   preciseLocation?: string;
+  accuracy?: number;
 }
 
 /**
- * Reverse geocodes coordinates to a human-readable address.
- * Focuses on extracting Street/Road level details.
+ * Enhanced reverse geocoding to extract granular site data.
  */
 export const getAddress = async (lat: number, lon: number): Promise<string> => {
   try {
-    const geoUrl = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`;
+    const geoUrl = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&addressdetails=1`;
     const geoRes = await fetch(geoUrl, {
-      headers: { 'Accept-Language': 'en', 'User-Agent': 'HSE-Guardian-App' }
+      headers: { 'Accept-Language': 'en', 'User-Agent': 'Incident-Image-Taking-System-V3' }
     });
-    const geoJson = await geoRes.json();
     
-    if (!geoJson.address) return "Site Coordinates Only";
+    if (!geoRes.ok) throw new Error("Resolution Server Timeout");
+    
+    const geoJson = await geoRes.json();
+    if (!geoJson.address) return "Unmapped Zone";
 
-    const addr = geoJson.address;
-    // Construct a specific street-level address
-    const street = addr.road || addr.construction || addr.industrial || addr.pedestrian || addr.path || "";
-    const suburb = addr.suburb || addr.neighbourhood || addr.village || "";
-    const city = addr.city || addr.town || addr.state || "";
+    const a = geoJson.address;
+    
+    // Prioritize high-granularity fields for construction/industrial sites
+    const pointOfInt = a.amenity || a.building || a.industrial || a.construction || "";
+    const street = a.road || a.pedestrian || a.path || a.suburb || "";
+    const cityArea = a.city_district || a.neighbourhood || a.suburb || "";
+    const city = a.city || a.town || a.village || a.state || "";
 
-    const parts = [street, suburb, city].filter(p => p.length > 0);
-    return parts.join(', ') || "Exact Site Location";
+    const parts = [pointOfInt, street, cityArea, city]
+      .filter(p => p.length > 0)
+      .map(p => p.trim());
+
+    // Fallback logic for remote sites
+    if (parts.length === 0) return `Remote Sector [${lat.toFixed(4)}, ${lon.toFixed(4)}]`;
+    
+    return parts.join(', ');
   } catch (e) {
-    return "GPS Verified Area";
+    console.error("GPS Reverse Geocoding Fault:", e);
+    return "Satellite Verified Area";
   }
 };
 
 /**
- * Fetches current weather using Open-Meteo (No API key required)
- * and reverse geocoding using Nominatim.
+ * High-precision weather and location acquisition.
  */
 export const getLocalWeather = async (): Promise<WeatherData> => {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
-      reject(new Error("Browser does not support Geolocation."));
+      reject(new Error("Hardware Incompatible: GPS missing."));
       return;
     }
 
     navigator.geolocation.getCurrentPosition(async (position) => {
-      const { latitude, longitude } = position.coords;
+      const { latitude, longitude, accuracy } = position.coords;
 
       try {
         const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,is_day,weather_code,wind_speed_10m&timezone=auto`;
@@ -67,15 +77,16 @@ export const getLocalWeather = async (): Promise<WeatherData> => {
           preciseLocation: fullAddr,
           isDay: current.is_day === 1,
           windSpeed: current.wind_speed_10m,
-          humidity: current.relative_humidity_2m
+          humidity: current.relative_humidity_2m,
+          accuracy: Math.round(accuracy)
         });
       } catch (err) {
-        reject(new Error("Satellite Link Error. Check connection."));
+        reject(new Error("Database Link Error."));
       }
     }, (err) => {
-      let msg = "GPS Access Denied.";
-      if (err.code === err.TIMEOUT) msg = "GPS Search Timed Out.";
-      if (err.code === err.POSITION_UNAVAILABLE) msg = "GPS Signal Lost.";
+      let msg = "GPS Signal Locked.";
+      if (err.code === err.TIMEOUT) msg = "Satellite Sync Timeout.";
+      if (err.code === err.POSITION_UNAVAILABLE) msg = "Blind Spot Detected.";
       reject(new Error(msg));
     }, { 
       enableHighAccuracy: true, 
@@ -98,10 +109,10 @@ const getWeatherDescription = (code: number): string => {
 };
 
 export const getWeatherSafetyTip = (data: WeatherData): string => {
-  if (data.temp > 35) return "CRITICAL HEAT: Implement mandatory hydration breaks.";
-  if (data.temp < 5) return "COLD RISK: Ensure thermal PPE and monitor for fatigue.";
-  if (data.conditionCode >= 51 && data.conditionCode <= 67) return "SLIP HAZARD: Wet surfaces detected. Exercise caution on scaffolding.";
-  if (data.conditionCode >= 95) return "LIGHTNING RISK: Stop all outdoor high-altitude work immediately.";
-  if (data.windSpeed > 30) return "WIND ALERT: High-altitude crane operations restricted.";
-  return "Standard site conditions. Maintain situational awareness.";
+  if (data.temp > 35) return "CRITICAL HEAT: Hydration protocol active.";
+  if (data.temp < 5) return "COLD ALERT: PPE Level 2 Thermal required.";
+  if (data.conditionCode >= 51 && data.conditionCode <= 67) return "SLIP HAZARD: Wet surface mitigation required.";
+  if (data.conditionCode >= 95) return "LIGHTNING: Cease all external operations.";
+  if (data.windSpeed > 30) return "WIND ALERT: Suspended loads restricted.";
+  return "Operational environment within safe parameters.";
 };
