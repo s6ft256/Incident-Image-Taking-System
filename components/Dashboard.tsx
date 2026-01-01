@@ -331,27 +331,28 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
                     ? "https://i.pinimg.com/1200x/d7/c6/a9/d7c6a95b5b86b28ecd15ff4bb2c1b8eb.jpg" 
                     : "https://i.pinimg.com/736x/30/62/41/306241b5dae6934889cc99ee5f2a67a9.jpg"
                   } 
-                  className="w-full h-full object-cover" 
+                  className={`w-full h-full object-cover transition-all duration-700 ${!isLight ? 'blur-2xl scale-110 opacity-30' : 'opacity-20'}`} 
                   alt="Terminal Background" 
                 />
+                {!isLight && <div className="absolute inset-0 bg-[#020617]/40 backdrop-blur-2xl"></div>}
              </div>
              
              <div className="relative z-10 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
                 {activeCategory === 'operations' ? (
                    <>
-                     <TerminalButton onClick={() => onNavigate('incident-report')} icon="alert" label="Incident" color="rose" transparent />
-                     <TerminalButton onClick={() => onNavigate('create')} icon="plus" label="Observation" color="blue" transparent />
-                     <TerminalButton onClick={() => onNavigate('my-tasks')} icon="user" label="My Tasks" color="emerald" count={myTaskCount} transparent />
-                     <TerminalButton onClick={() => onNavigate('recent')} icon="list" label="Evidence" color="slate" transparent />
-                     <TerminalButton onClick={() => onNavigate('checklists')} icon="check" label="Checklists" color="amber" transparent />
-                     <TerminalButton onClick={() => onNavigate('personnel')} icon="users" label="Personnel" color="indigo" transparent />
+                     <TerminalButton onClick={() => onNavigate('incident-report')} icon="alert" label="Incident" color="rose" transparent isLight={isLight} />
+                     <TerminalButton onClick={() => onNavigate('create')} icon="plus" label="Observation" color="blue" transparent isLight={isLight} />
+                     <TerminalButton onClick={() => onNavigate('my-tasks')} icon="user" label="My Tasks" color="emerald" count={myTaskCount} transparent isLight={isLight} />
+                     <TerminalButton onClick={() => onNavigate('recent')} icon="list" label="Evidence" color="slate" transparent isLight={isLight} />
+                     <TerminalButton onClick={() => onNavigate('checklists')} icon="check" label="Checklists" color="amber" transparent isLight={isLight} />
+                     <TerminalButton onClick={() => onNavigate('personnel')} icon="users" label="Personnel" color="indigo" transparent isLight={isLight} />
                    </>
                 ) : (
                    <>
-                     <TerminalButton onClick={() => onNavigate('risk-assessment')} icon="shield" label="Risk RA" color="rose" transparent />
-                     <TerminalButton onClick={() => onNavigate('training-management')} icon="book" label="Training" color="violet" transparent />
-                     <TerminalButton onClick={() => onNavigate('compliance-tracker')} icon="award" label="Compliance" color="cyan" transparent />
-                     <TerminalButton onClick={() => onNavigate('audit-trail')} icon="history" label="Audit Trail" color="zinc" transparent />
+                     <TerminalButton onClick={() => onNavigate('risk-assessment')} icon="shield" label="Risk RA" color="rose" transparent isLight={isLight} />
+                     <TerminalButton onClick={() => onNavigate('training-management')} icon="book" label="Training" color="violet" transparent isLight={isLight} />
+                     <TerminalButton onClick={() => onNavigate('compliance-tracker')} icon="award" label="Compliance" color="cyan" transparent isLight={isLight} />
+                     <TerminalButton onClick={() => onNavigate('audit-trail')} icon="history" label="Audit Trail" color="zinc" transparent isLight={isLight} />
                    </>
                 )}
              </div>
@@ -391,7 +392,7 @@ const KPICard = ({ label, value, icon, color, isLight, trend }: any) => {
   );
 };
 
-const TerminalButton = ({ onClick, icon, label, color, count, transparent }: any) => {
+const TerminalButton = ({ onClick, icon, label, color, count, transparent, isLight }: any) => {
   const colors: any = {
     blue: 'bg-blue-600 shadow-blue-500/20',
     rose: 'bg-rose-600 shadow-rose-500/20',
@@ -423,7 +424,9 @@ const TerminalButton = ({ onClick, icon, label, color, count, transparent }: any
   return (
     <button 
       onClick={onClick}
-      className={`group relative h-32 flex flex-col items-center justify-center p-4 rounded-[2.5rem] border transition-all active:scale-95 shadow-xl backdrop-blur-sm ${
+      className={`group relative h-32 flex flex-col items-center justify-center p-4 rounded-[2.5rem] border transition-all active:scale-95 shadow-xl ${
+        isLight ? 'backdrop-blur-sm' : 'backdrop-blur-2xl'
+      } ${
         transparent 
           ? 'bg-transparent border-2 border-blue-400/60 shadow-[0_0_20px_rgba(59,130,246,0.4),0_10px_20px_rgba(0,0,0,0.4)] hover:bg-blue-500/10 hover:border-blue-400 hover:shadow-[0_0_30px_rgba(59,130,246,0.7),0_15px_30px_rgba(0,0,0,0.5)]' 
           : 'bg-white/[0.03] border-white/10 hover:bg-white/[0.08] hover:border-blue-500/50'

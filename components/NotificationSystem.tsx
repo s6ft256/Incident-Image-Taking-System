@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { FetchedObservation } from '../types';
 
 interface Toast {
@@ -7,6 +7,7 @@ interface Toast {
   message: string;
   type: 'info' | 'success' | 'warning' | 'critical' | 'ai';
   progress?: number;
+  timestamp: number;
   action?: {
     label: string;
     onClick: () => void;
@@ -22,30 +23,52 @@ export const NotificationSystem: React.FC<NotificationSystemProps> = ({ appTheme
   const [activeAlert, setActiveAlert] = useState<FetchedObservation | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const isLight = appTheme === 'light';
+  
+  // Track recently shown messages to prevent duplication
+  const recentMessagesRef = useRef<Map<string, number>>(new Map());
 
   useEffect(() => {
-    const handleAlert = (e: any) => setActiveAlert(e.detail);
+    const handleAlert = (e: any) => {
+      // Prevent duplicate high-level alerts for the same record ID
+      if (activeAlert?.id === e.detail.id) return;
+      setActiveAlert(e.detail);
+    };
     
     const handleToast = (e: any) => {
+      const message = e.detail.message;
+      const type = e.detail.type || 'info';
+      const id = e.detail.id || `toast-${message.replace(/\s+/g, '-').toLowerCase()}`;
+      
+      const now = Date.now();
+      
+      // Deduplication: If exact same message/type sent within last 3 seconds, ignore
+      const lastSeen = recentMessagesRef.current.get(id);
+      if (lastSeen && now - lastSeen < 3000 && !e.detail.progress) {
+        return;
+      }
+      recentMessagesRef.current.set(id, now);
+
       const newToast: Toast = {
-        id: e.detail.id || crypto.randomUUID(),
-        message: e.detail.message,
-        type: e.detail.type || 'info',
+        id,
+        message,
+        type,
         progress: e.detail.progress,
-        action: e.detail.action
+        action: e.detail.action,
+        timestamp: now
       };
 
       setToasts(prev => {
-        // If ID exists, update it instead of adding new
         const existingIndex = prev.findIndex(t => t.id === newToast.id);
         if (existingIndex !== -1) {
           const updated = [...prev];
           updated[existingIndex] = newToast;
           return updated;
         }
-        return [newToast, ...prev]; // Newest at top
+        // Keep only top 3 toasts to prevent screen clutter
+        return [newToast, ...prev].slice(0, 3);
       });
 
+      // Auto-remove standard toasts
       if (!newToast.progress && !newToast.action) {
         setTimeout(() => {
           setToasts(prev => prev.filter(t => t.id !== newToast.id));
@@ -60,9 +83,8 @@ export const NotificationSystem: React.FC<NotificationSystemProps> = ({ appTheme
       window.removeEventListener('hse-guardian-alert', handleAlert);
       window.removeEventListener('app-toast', handleToast);
     };
-  }, []);
+  }, [activeAlert]);
 
-  // Sync global state for the heading glow
   useEffect(() => {
     if (activeAlert) {
       document.body.classList.add('critical-glow-active');
@@ -100,14 +122,6 @@ export const NotificationSystem: React.FC<NotificationSystemProps> = ({ appTheme
         .toast-stack-item {
           transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
-        .critical-glow-active .main-system-title {
-           text-shadow: 0 0 8px rgba(225, 29, 72, 0.9), 0 0 16px rgba(225, 29, 72, 0.6);
-           color: #f43f5e !important;
-        }
-        .critical-glow-active .system-title-line {
-           background-color: #ff0000 !important;
-           animation: pulse-red-line 1.2s ease-in-out infinite;
-        }
       `}</style>
 
       {activeAlert && (
@@ -141,58 +155,51 @@ export const NotificationSystem: React.FC<NotificationSystemProps> = ({ appTheme
         </div>
       )}
 
-      {/* Moved stack from bottom-right to top-right, near the notification bell */}
       <div className="absolute top-24 right-4 sm:right-6 flex flex-col items-end gap-3 px-4">
-        {toasts.map((toast, index) => {
-          return (
-            <div 
-              key={toast.id}
-              className={`toast-stack-item pointer-events-auto w-full max-w-[320px] rounded-[1.5rem] border shadow-2xl overflow-hidden flex flex-col p-4 animate-in slide-in-from-right-10 fade-in duration-400 ${
-                isLight ? 'bg-white border-slate-200' : 'bg-slate-900/95 border-white/10 backdrop-blur-xl'
-              } ${toast.type === 'critical' ? 'border-rose-500/50 shadow-rose-900/20 shadow-lg' : ''} ${toast.type === 'ai' ? 'border-blue-500/50 shadow-blue-900/20 ring-1 ring-blue-500/20' : ''}`}
-            >
-              <div className="flex items-center gap-3">
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                  toast.type === 'success' ? 'bg-emerald-500/20 text-emerald-500' :
-                  toast.type === 'warning' ? 'bg-amber-500/20 text-amber-500' :
-                  toast.type === 'critical' ? 'bg-rose-600 text-white animate-pulse' :
-                  toast.type === 'ai' ? 'bg-blue-600 text-white animate-pulse' :
-                  'bg-blue-500/20 text-blue-500'
-                }`}>
-                   {toast.type === 'ai' ? (
-                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 2v8m0 4v8m-10-10h8m4 0h8"/></svg>
-                   ) : toast.type === 'critical' ? (
-                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-                   ) : (
-                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
-                   )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className={`text-[10px] font-black uppercase tracking-widest truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                    {toast.message}
-                  </p>
-                  {toast.progress !== undefined && (
-                    <div className="mt-2 w-full bg-white/10 rounded-full h-1 overflow-hidden">
-                       <div className="bg-blue-500 h-full transition-all duration-300" style={{ width: `${toast.progress}%` }} />
-                    </div>
-                  )}
-                </div>
-                <button onClick={() => removeToast(toast.id)} className="text-slate-500 hover:text-white">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M18 6L6 18M6 6l12 12"/></svg>
-                </button>
+        {toasts.map((toast) => (
+          <div 
+            key={toast.id}
+            className={`toast-stack-item pointer-events-auto w-full max-w-[320px] rounded-[1.5rem] border shadow-2xl overflow-hidden flex flex-col p-4 animate-in slide-in-from-right-10 fade-in duration-400 ${
+              isLight ? 'bg-white border-slate-200 shadow-slate-200/50' : 'bg-slate-900/95 border-white/10 backdrop-blur-xl'
+            } ${toast.type === 'critical' ? 'border-rose-500/50 shadow-rose-900/20 shadow-lg' : ''}`}
+          >
+            <div className="flex items-center gap-3">
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                toast.type === 'success' ? 'bg-emerald-500/20 text-emerald-500' :
+                toast.type === 'warning' ? 'bg-amber-500/20 text-amber-500' :
+                toast.type === 'critical' ? 'bg-rose-600 text-white animate-pulse' :
+                'bg-blue-500/20 text-blue-500'
+              }`}>
+                 {toast.type === 'critical' ? (
+                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                 ) : (
+                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
+                 )}
               </div>
-              
-              {toast.action && (
-                <button 
-                  onClick={() => { toast.action?.onClick(); removeToast(toast.id); }}
-                  className="mt-3 w-full py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-[9px] font-black uppercase tracking-widest text-blue-400 transition-all"
-                >
-                  {toast.action.label}
-                </button>
-              )}
+              <div className="flex-1 min-w-0">
+                <p className={`text-[10px] font-black uppercase tracking-widest truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                  {toast.message}
+                </p>
+                {toast.progress !== undefined && (
+                  <div className="mt-2 w-full bg-white/10 rounded-full h-1 overflow-hidden">
+                     <div className="bg-blue-500 h-full transition-all duration-300" style={{ width: `${toast.progress}%` }} />
+                  </div>
+                )}
+              </div>
+              <button onClick={() => removeToast(toast.id)} className="text-slate-500 hover:text-rose-500 transition-colors">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M18 6L6 18M6 6l12 12"/></svg>
+              </button>
             </div>
-          );
-        })}
+            {toast.action && (
+              <button 
+                onClick={() => { toast.action?.onClick(); removeToast(toast.id); }}
+                className="mt-3 w-full py-2 bg-blue-600/10 hover:bg-blue-600/20 rounded-xl text-[9px] font-black uppercase tracking-widest text-blue-500 transition-all border border-blue-500/20"
+              >
+                {toast.action.label}
+              </button>
+            )}
+          </div>
+        ))}
       </div>
     </div>
   );
