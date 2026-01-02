@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useMemo } from 'react';
 import { getAllReports } from '../services/airtableService';
 import { FetchedObservation, UserProfile } from '../types';
@@ -113,16 +112,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
   }, [reports]);
 
   const siteStats = useMemo(() => {
-    const data = weeklyReports.reduce((acc, curr) => {
+    // FIX: Explicitly type the accumulator for the reduce function to prevent TypeScript from inferring it as 'unknown'.
+    const data = weeklyReports.reduce<Record<string, { count: number, severityScore: number }>>((acc, curr) => {
       const site = curr.fields["Site / Location"] || 'Other';
       const type = curr.fields["Observation Type"] || 'Other';
       const severity = SEVERITY_MAP[type] || 1;
       
-      if (!acc[site]) acc[site] = { count: 0, severityScore: 0 };
+      if (!acc[site]) {
+        acc[site] = { count: 0, severityScore: 0 };
+      }
       acc[site].count += 1;
       acc[site].severityScore += severity;
       return acc;
-    }, {} as Record<string, { count: number, severityScore: number }>);
+    }, {});
 
     return Object.entries(data)
       .map(([name, s]) => ({ name, count: s.count, criticality: s.severityScore }))

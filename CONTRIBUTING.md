@@ -7,7 +7,7 @@ Thank you for your interest in improving the Incident Image Taking System. As a 
 
 1.  **Fork & Clone**: Create a personal branch from `main`.
 2.  **Environment**: Copy `.env.example` to `.env` and configure your testing keys.
-3.  **Security**: Ensure all authentication and OAuth flows are tested in a secure context (HTTPS or localhost).
+3.  **Security**: Ensure all biometric and OAuth flows are tested in a secure context (HTTPS or localhost).
 4.  **Testing**: Verify that image compression is functional and offline sync handles IndexedDB transactions correctly.
 5.  **Pull Requests**: Provide clear descriptions of changes and ensure the GitHub Actions build passes.
 

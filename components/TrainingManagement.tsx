@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { TraineeRow, UploadedImage } from '../types';
 import { getAddress } from '../services/weatherService';

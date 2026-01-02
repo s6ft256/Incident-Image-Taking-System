@@ -59,11 +59,6 @@ export const submitObservationReport = async (form: ObservationForm, images: Att
     "Site / Location": form.site,
     "Observation Type": form.category,
     "Observation": form.observation,
-    "Action taken": form.actionTaken || '',
-    "Assigned To": form.assignedTo || '',
-    "Location": form.location || form.site || '',
-    "Root Cause": form.rootCause || '',
-    "Corrective Action Plan": form.correctiveActionPlan || '',
     "Open observations": images.map(img => ({ url: img.url, filename: img.filename }))
   };
   await fetchWithRetry(url, { method: 'POST', headers: { 'Authorization': `Bearer ${API_KEY}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ records: [{ fields }], typecast: true }) });
@@ -86,12 +81,6 @@ export const submitIncidentReport = async (form: IncidentForm, images: Attachmen
     "Severity": severityMap[form.severity] || 1,
     "Category": form.type,
     "Reporter ID": form.reporterName,
-    "Reporter Role": form.reporterRole || '',
-    "Reporter Email": form.concernedEmail || '',
-    "Persons Involved": form.involvedParties || '',
-    "Equipment Involved": form.equipmentInvolved || '',
-    "Witnesses": form.witnesses || '',
-    "Immediate Action": form.immediateAction || '',
     "Attachments": images.map(img => ({ url: img.url, filename: img.filename }))
   };
   await fetchWithRetry(url, { method: 'POST', headers: { 'Authorization': `Bearer ${API_KEY}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ records: [{ fields }], typecast: true }) });

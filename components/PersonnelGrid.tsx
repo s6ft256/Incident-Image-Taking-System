@@ -34,7 +34,7 @@ const CONTRIBUTORS = [
     name: "Syed Irshad",
     role: "HSE Engineer",
     email: "irshad.syed@npc.ae",
-    image: "https://ui-avatars.com/api/?name=Syed+Irshad&background=0066FF&color=fff&bold=true"
+    image: "https://www.gulftalent.com/images1/candidates/03d/283/photo_115x115_03d28360a45f84aadc9fdf13b77f54d4"
   },
   {
     name: "Usman Zahid Qureshi",
@@ -56,15 +56,11 @@ const ContributorRecognition: React.FC<{ isLight: boolean }> = ({ isLight }) => 
             'bg-amber-500/20'
           }`}></div>
           <div className={`w-28 h-28 sm:w-32 sm:h-32 rounded-full overflow-hidden relative z-10 shadow-[0_20px_50px_-12px_rgba(0,0,0,0.5)] transition-all duration-700 group-hover:scale-110 border-2 ${isLight ? 'border-white bg-slate-100' : 'border-white/10 bg-slate-800'}`}>
-            <img
-              src={contributor.image}
-              alt={contributor.name}
+            <img 
+              src={contributor.image} 
+              alt={contributor.name} 
               className="w-full h-full object-cover grayscale-[0.3] group-hover:grayscale-0 transition-all duration-700"
-              loading="lazy"
-              crossOrigin="anonymous"
-              referrerPolicy="no-referrer"
               onError={(e) => {
-                (e.target as HTMLImageElement).onerror = null;
                 (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(contributor.name)}&background=0066FF&color=fff&bold=true`;
               }}
             />
@@ -159,24 +155,17 @@ export const PersonnelGrid: React.FC<PersonnelGridProps> = ({ appTheme = 'dark',
   }, [personnel]);
 
   const filteredPersonnel = useMemo(() => {
-    const q = searchTerm.trim().toLowerCase();
     return personnel.filter(p => {
-      const name = (p.name || '').toLowerCase();
-      const site = (p.site || '').toLowerCase();
-      const email = (p.email || '').toLowerCase();
-      const matchesSearch = q === '' || name.includes(q) || site.includes(q) || email.includes(q);
-      const matchesRole = filterRole === 'All Roles' || (p.role || '') === filterRole;
+      const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                            (p.site || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            (p.email || '').toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesRole = filterRole === 'All Roles' || p.role === filterRole;
       return matchesSearch && matchesRole;
     });
   }, [personnel, searchTerm, filterRole]);
 
-  const getClearance = (role?: string) => {
-    if (!role) return 'Level 1';
-    try {
-      return AUTHORIZED_ADMIN_ROLES.includes(role.toLowerCase()) ? 'Level 2' : 'Level 1';
-    } catch {
-      return 'Level 1';
-    }
+  const getClearance = (role: string) => {
+    return AUTHORIZED_ADMIN_ROLES.includes(role.toLowerCase()) ? 'Level 2' : 'Level 1';
   };
 
   const handleEmailClick = (e: React.MouseEvent, email?: string) => {
@@ -271,7 +260,7 @@ export const PersonnelGrid: React.FC<PersonnelGridProps> = ({ appTheme = 'dark',
               
               return (
                 <div 
-                  key={person.email ?? person.name ?? idx} 
+                  key={idx} 
                   onClick={() => setSelectedUser(selectedUser === person.name ? null : person.name)}
                   className={`flex flex-col sm:flex-row sm:items-center gap-4 p-4 sm:p-5 rounded-[2rem] border transition-all duration-300 cursor-pointer group hover:translate-x-1 ${
                     selectedUser === person.name 
@@ -284,18 +273,7 @@ export const PersonnelGrid: React.FC<PersonnelGridProps> = ({ appTheme = 'dark',
                       isLight ? 'border-white bg-slate-100 shadow-slate-200/50' : 'border-white/10 bg-black/40 shadow-black'
                     }`}>
                       {person.profileImageUrl ? (
-                        <img
-                          src={person.profileImageUrl}
-                          alt={person.name}
-                          className="w-full h-full object-cover"
-                          loading="lazy"
-                          crossOrigin="anonymous"
-                          referrerPolicy="no-referrer"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).onerror = null;
-                            (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(person.name)}&background=0066FF&color=fff&bold=true`;
-                          }}
-                        />
+                        <img src={person.profileImageUrl} alt={person.name} className="w-full h-full object-cover" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-blue-500 font-black text-2xl">
                           {person.name.charAt(0)}

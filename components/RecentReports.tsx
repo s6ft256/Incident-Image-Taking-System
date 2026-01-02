@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { FetchedObservation, UploadedImage, UserProfile, FetchedIncident } from '../types';
 import { getAllReports, updateObservationAction, assignObservation, getAllIncidents } from '../services/airtableService';
@@ -388,25 +387,25 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
 
         {!isMyTasksMode && (
           <div className={`flex p-1 mb-8 rounded-2xl border transition-colors overflow-x-auto scrollbar-hide max-w-2xl ${isLight ? 'bg-slate-100 border-slate-200 shadow-inner' : 'bg-slate-800 border-slate-700'}`}>
-              <button onClick={() => { setActiveTab('open'); setExpandedId(null); setSelectedIds(new Set<string>()); }} className={`flex-1 min-w-[100px] py-3 text-[10px] uppercase tracking-widest font-black rounded-xl transition-all duration-200 flex items-center justify-center gap-3 ${activeTab === 'open' ? 'bg-blue-600 text-white shadow-lg' : `${isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-400 hover:text-white hover:bg-slate-700/50'}`}`}>
+              <button onClick={() => { setActiveTab('open'); setExpandedId(null); setSelectedIds(new Set<string>()); window.scrollTo(0, 0); }} className={`flex-1 min-w-[100px] py-3 text-[10px] uppercase tracking-widest font-black rounded-xl transition-all duration-200 flex items-center justify-center gap-3 ${activeTab === 'open' ? 'bg-blue-600 text-white shadow-lg' : `${isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-400 hover:text-white hover:bg-slate-700/50'}`}`}>
                   Open
                   <span className={`px-2 py-0.5 rounded-full text-[9px] ${activeTab === 'open' ? 'bg-white/20 text-white' : (isLight ? 'bg-slate-200 text-slate-600' : 'bg-white/5 text-slate-400')}`}>
                     {tabCounts.open}
                   </span>
               </button>
-              <button onClick={() => { setActiveTab('assigned'); setExpandedId(null); setSelectedIds(new Set<string>()); }} className={`flex-1 min-w-[100px] py-3 text-[10px] uppercase tracking-widest font-black rounded-xl transition-all duration-200 flex items-center justify-center gap-3 ${activeTab === 'assigned' ? 'bg-amber-600 text-white shadow-lg' : `${isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-400 hover:text-white hover:bg-slate-700/50'}`}`}>
+              <button onClick={() => { setActiveTab('assigned'); setExpandedId(null); setSelectedIds(new Set<string>()); window.scrollTo(0, 0); }} className={`flex-1 min-w-[100px] py-3 text-[10px] uppercase tracking-widest font-black rounded-xl transition-all duration-200 flex items-center justify-center gap-3 ${activeTab === 'assigned' ? 'bg-amber-600 text-white shadow-lg' : `${isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-400 hover:text-white hover:bg-slate-700/50'}`}`}>
                   Assigned
                   <span className={`px-2 py-0.5 rounded-full text-[9px] ${activeTab === 'assigned' ? 'bg-white/20 text-white' : (isLight ? 'bg-slate-200 text-slate-600' : 'bg-white/5 text-slate-400')}`}>
                     {tabCounts.assigned}
                   </span>
               </button>
-              <button onClick={() => { setActiveTab('incidents'); setExpandedId(null); setSelectedIds(new Set<string>()); }} className={`flex-1 min-w-[100px] py-3 text-[10px] uppercase tracking-widest font-black rounded-xl transition-all duration-200 flex items-center justify-center gap-3 ${activeTab === 'incidents' ? 'bg-rose-600 text-white shadow-lg' : `${isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-400 hover:text-white hover:bg-slate-700/50'}`}`}>
+              <button onClick={() => { setActiveTab('incidents'); setExpandedId(null); setSelectedIds(new Set<string>()); window.scrollTo(0, 0); }} className={`flex-1 min-w-[100px] py-3 text-[10px] uppercase tracking-widest font-black rounded-xl transition-all duration-200 flex items-center justify-center gap-3 ${activeTab === 'incidents' ? 'bg-rose-600 text-white shadow-lg' : `${isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-400 hover:text-white hover:bg-slate-700/50'}`}`}>
                   Incidents
                   <span className={`px-2 py-0.5 rounded-full text-[9px] ${activeTab === 'incidents' ? 'bg-white/20 text-white' : (isLight ? 'bg-slate-200 text-slate-600' : 'bg-white/5 text-slate-400')}`}>
                     {tabCounts.incidents}
                   </span>
               </button>
-              <button onClick={() => { setActiveTab('closed'); setExpandedId(null); setSelectedIds(new Set<string>()); }} className={`flex-1 min-w-[100px] py-3 text-[10px] uppercase tracking-widest font-black rounded-xl transition-all duration-200 flex items-center justify-center gap-3 ${activeTab === 'closed' ? 'bg-emerald-600 text-white shadow-lg' : `${isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-400 hover:text-white hover:bg-slate-700/50'}`}`}>
+              <button onClick={() => { setActiveTab('closed'); setExpandedId(null); setSelectedIds(new Set<string>()); window.scrollTo(0, 0); }} className={`flex-1 min-w-[100px] py-3 text-[10px] uppercase tracking-widest font-black rounded-xl transition-all duration-200 flex items-center justify-center gap-3 ${activeTab === 'closed' ? 'bg-emerald-600 text-white shadow-lg' : `${isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-400 hover:text-white hover:bg-slate-700/50'}`}`}>
                   Archive
                   <span className={`px-2 py-0.5 rounded-full text-[9px] ${activeTab === 'closed' ? 'bg-white/20 text-white' : (isLight ? 'bg-slate-200 text-slate-600' : 'bg-white/5 text-slate-400')}`}>
                     {tabCounts.closed}

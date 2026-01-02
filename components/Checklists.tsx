@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { getAllCraneChecklists, getAllEquipmentChecklists } from '../services/airtableService';
 import { FetchedCraneChecklist, FetchedEquipmentChecklist } from '../types';
@@ -81,7 +80,7 @@ export const Checklists: React.FC<ChecklistsProps> = ({ appTheme = 'dark', onBac
     return <span className="opacity-10 text-[8px]">VOID</span>;
   };
 
-  const RecordCard = ({ record, type }: { record: any, type: 'crane' | 'equipment' }) => {
+  const RecordCard: React.FC<{ record: any, type: 'crane' | 'equipment' }> = ({ record, type }) => {
     const isGrounded = record.fields["Status"] === "Grounded";
     return (
       <div 
@@ -162,6 +161,7 @@ export const Checklists: React.FC<ChecklistsProps> = ({ appTheme = 'dark', onBac
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {(activeTab === 'crane-history' ? craneHistory : equipmentHistory).map(rec => (
+                // FIX: Added key prop to the component call, which is a standard React requirement for lists.
                 <RecordCard key={rec.id} record={rec} type={activeTab === 'crane-history' ? 'crane' : 'equipment'} />
               ))}
             </div>
