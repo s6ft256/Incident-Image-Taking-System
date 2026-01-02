@@ -52,7 +52,6 @@ export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ appTheme
 
   useEffect(() => {
     const initForm = async () => {
-      // 1. Get current user profile
       const savedProfile = localStorage.getItem(STORAGE_KEYS.PROFILE);
       if (savedProfile) {
         try {
@@ -66,7 +65,6 @@ export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ appTheme
         } catch (e) {}
       }
 
-      // 2. Fetch all personnel for the directory
       try {
         const users = await getAllProfiles();
         setPersonnel(users.filter(u => u.email));
@@ -158,7 +156,6 @@ export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ appTheme
     }
   };
 
-  // Recipient Management
   const toggleRecipient = (email: string) => {
     setSelectedEmails(prev => 
       prev.includes(email) ? prev.filter(e => e !== email) : [...prev, email]
@@ -177,15 +174,8 @@ export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ appTheme
     }
   };
 
-  const sendEmailAlert = () => {
-    const allRecipients = [...selectedEmails];
-    if (emailInput.includes('@')) allRecipients.push(emailInput);
-
-    if (allRecipients.length === 0) {
-      sendToast("No stakeholders selected for notification.", "warning");
-      return;
-    }
-
+  // Reusable Alert Function
+  const executeEmailDispatch = (recipients: string[]) => {
     const subject = `HSE ALERT: ${formData.severity.toUpperCase()} INCIDENT - ${formData.title || 'Untitled Report'}`;
     const body = `
 SAFETY INCIDENT REPORT
@@ -211,9 +201,8 @@ Email: ${userEmail || 'Not provided'}
 -- This is an automated safety alert generated from HSE Guardian --
     `.trim();
 
-    const mailtoUrl = `mailto:${allRecipients.join(',')}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    const mailtoUrl = `mailto:${recipients.join(',')}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     window.location.href = mailtoUrl;
-    sendToast(`Email client triggered for ${allRecipients.length} recipients`, "info");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -235,12 +224,19 @@ Email: ${userEmail || 'Not provided'}
         throw new Error("Photographic evidence sync is still in progress. Please wait.");
       }
 
+      // 1. Submit to Safety Database
       await submitIncidentReport(formData, attachments, { baseId: AIRTABLE_CONFIG.BASE_ID });
       
       const reportId = Math.random().toString(36).substr(2, 5).toUpperCase();
       sendNotification("CRITICAL INCIDENT LOGGED", `ID ${reportId}: ${formData.title} has been serialized and dispatched.`, true);
       sendToast("Incident Successfully Dispatched", "success");
       
+      // 2. Automated Stakeholder Notification (Triggered automatically if selection exists)
+      if (selectedEmails.length > 0) {
+        sendToast(`Stakeholder Alert Triggered: Notifying ${selectedEmails.length} recipients...`, "info");
+        executeEmailDispatch(selectedEmails);
+      }
+
       setIsSubmitting(false);
       onBack();
     } catch (err: any) {
@@ -337,16 +333,23 @@ Email: ${userEmail || 'Not provided'}
 
           {/* Section 4: Stakeholder Communication */}
           <div className="space-y-6">
-            <h3 className="text-[10px] font-black text-blue-500 uppercase tracking-[0.2em] px-1">4. Stakeholder Communication</h3>
+            <div className="flex justify-between items-center px-1">
+              <h3 className="text-[10px] font-black text-blue-500 uppercase tracking-[0.2em]">4. Stakeholder Communication</h3>
+              {selectedEmails.length > 0 && (
+                <span className="bg-emerald-500/10 text-emerald-500 text-[7px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest animate-pulse border border-emerald-500/20">
+                  Auto-Notify Enabled
+                </span>
+              )}
+            </div>
             <div className={`p-6 rounded-[2rem] border ${isLight ? 'bg-blue-50 border-blue-100 shadow-inner' : 'bg-blue-500/5 border-blue-500/20'}`}>
               <div className="space-y-4">
                 <div className="flex justify-between items-center px-1">
-                   <label className={`text-[10px] font-black uppercase tracking-widest ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Concerned Stakeholders (Optional)</label>
+                   <label className={`text-[10px] font-black uppercase tracking-widest ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Concerned Stakeholders</label>
                    <span className="text-[8px] font-black text-blue-500 uppercase">{selectedEmails.length} selected</span>
                 </div>
 
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <div className="flex-1 relative" ref={directoryRef}>
+                <div className="flex flex-col gap-3">
+                  <div className="relative" ref={directoryRef}>
                     <div className={`flex flex-wrap gap-2 p-2 min-h-[52px] rounded-xl border transition-all ${isLight ? 'bg-white border-slate-200 focus-within:border-blue-500' : 'bg-black/40 border-white/5 focus-within:border-blue-500'}`}>
                       {selectedEmails.map(email => (
                         <span key={email} className="flex items-center gap-1.5 px-2 py-1 bg-blue-600 text-white rounded-lg text-[9px] font-black uppercase group animate-in zoom-in">
@@ -362,7 +365,7 @@ Email: ${userEmail || 'Not provided'}
                         onChange={(e) => { setEmailInput(e.target.value); if(!showDirectory) setShowDirectory(true); }}
                         onKeyDown={handleManualEmailAdd}
                         onFocus={() => setShowDirectory(true)}
-                        placeholder={selectedEmails.length === 0 ? "Select or enter emails..." : ""}
+                        placeholder={selectedEmails.length === 0 ? "Select or enter emails..." : "Add more..."}
                         className={`flex-1 bg-transparent border-none outline-none text-xs min-w-[120px] py-1 px-1 ${isLight ? 'text-slate-900' : 'text-white'}`}
                       />
                       <button 
@@ -374,7 +377,6 @@ Email: ${userEmail || 'Not provided'}
                       </button>
                     </div>
 
-                    {/* Searchable Directory Dropdown */}
                     {showDirectory && (
                       <div className={`absolute bottom-full left-0 right-0 mb-2 max-h-60 overflow-y-auto rounded-2xl border shadow-2xl z-[100] animate-in slide-in-from-bottom-2 ${isLight ? 'bg-white border-slate-200' : 'bg-slate-900 border-white/10'}`}>
                         <div className="p-3 border-b border-white/5">
@@ -401,17 +403,9 @@ Email: ${userEmail || 'Not provided'}
                       </div>
                     )}
                   </div>
-                  <button 
-                    type="button"
-                    onClick={sendEmailAlert}
-                    className="sm:w-48 h-[52px] rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-black text-[9px] uppercase tracking-widest transition-all shadow-lg border border-blue-400/20 flex items-center justify-center gap-2 shrink-0"
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
-                    Dispatch Alert
-                  </button>
                 </div>
                 <p className="text-[7px] font-black uppercase tracking-widest text-slate-500 px-1">
-                  Sender Identity: {userEmail || 'Anonymous Terminal'}
+                   {selectedEmails.length > 0 ? "Notifications will be triggered automatically upon report submission." : "No stakeholders will be notified via email."}
                 </p>
               </div>
             </div>
@@ -443,7 +437,7 @@ Email: ${userEmail || 'Not provided'}
             disabled={isSubmitting}
             className={`w-full py-6 rounded-[2rem] font-black uppercase tracking-[0.4em] text-xs shadow-2xl transition-all active:scale-[0.98] border ${isSubmitting ? 'bg-slate-800 text-slate-500 border-white/5' : 'bg-rose-600 hover:bg-rose-500 text-white border-rose-400/20'}`}
           >
-            {isSubmitting ? "Serializing Report..." : "Dispatch Incident Log"}
+            {isSubmitting ? "Serializing Report..." : (selectedEmails.length > 0 ? "Dispatch & Notify Stakeholders" : "Dispatch Incident Log")}
           </button>
         </form>
       </div>
