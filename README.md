@@ -43,3 +43,31 @@ The project includes a GitHub Actions workflow (`.github/workflows/main.yml`) th
 
 ## Developed by
 @Elius - Senior Safety Systems Architect
+
+## Deploying to Vercel
+
+This project is pre-configured for Vercel. Basic steps:
+
+1. Create a new project in the Vercel dashboard and link your GitHub repository.
+2. In Vercel project Settings -> Environment Variables, add the following keys (set values from your provider):
+	- `VITE_AIRTABLE_BASE_ID`
+	- `VITE_AIRTABLE_API_KEY`
+	- `VITE_SUPABASE_URL`
+	- `VITE_SUPABASE_ANON_KEY`
+	- `VITE_SUPABASE_BUCKET`
+	- `AIRTABLE_CLIENT_ID`
+	- `AIRTABLE_CLIENT_SECRET`
+	- `REDIRECT_URI` (set to `https://<your-vercel-domain>/callback`)
+	- Optional: `VITE_AUTH_VIDEO_BG` to override the auth screen video URL
+
+Build settings:
+
+- Framework Preset: `Other` (or `Static`)
+- Build Command: `npm run vercel-build`
+- Output Directory: `dist`
+
+Notes:
+- The OAuth callback endpoint is implemented as a serverless function at `api/callback.js` and routed via `vercel.json`.
+- The SPA fallback route is configured in `vercel.json` to serve `index.html` for client-side routing.
+- Use the `vercel` CLI or dashboard to trigger deployments; pushing to `main` will auto-deploy when linked.
+

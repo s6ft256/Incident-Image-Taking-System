@@ -8,6 +8,7 @@
     "start": "node server.js",
     "dev": "vite",
     "build": "vite build",
+    "vercel-build": "npm run build",
     "deploy": "npm run build && echo 'Deployment ready. Push to main to trigger GitHub Actions.'",
     "git-sync": "git add . && git commit -m 'System Update: Performance and Security Enhancements' && git push origin HEAD"
   },
