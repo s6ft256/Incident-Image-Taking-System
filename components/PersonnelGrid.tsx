@@ -26,7 +26,7 @@ const CONTRIBUTORS = [
   },
   {
     name: "Amal Jagadi",
-    role: "Infrastructure Safety Architecture & HSE Engineering",
+    role: "HSE Engineer",
     email: "amal.j@npc.ae",
     image: "https://media.licdn.com/dms/image/v2/D4E03AQHdfMf-x-xIAw/profile-displayphoto-shrink_800_800/profile-displayphoto-shrink_800_800/0/1718245749525?e=1769040000&v=beta&t=8gLCEUfwzTiaXwmRZ5d-Uky_jlPS43t5iTo1u8YPGok"
   },
