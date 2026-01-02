@@ -159,17 +159,24 @@ export const PersonnelGrid: React.FC<PersonnelGridProps> = ({ appTheme = 'dark',
   }, [personnel]);
 
   const filteredPersonnel = useMemo(() => {
+    const q = searchTerm.trim().toLowerCase();
     return personnel.filter(p => {
-      const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                            (p.site || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-                            (p.email || '').toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesRole = filterRole === 'All Roles' || p.role === filterRole;
+      const name = (p.name || '').toLowerCase();
+      const site = (p.site || '').toLowerCase();
+      const email = (p.email || '').toLowerCase();
+      const matchesSearch = q === '' || name.includes(q) || site.includes(q) || email.includes(q);
+      const matchesRole = filterRole === 'All Roles' || (p.role || '') === filterRole;
       return matchesSearch && matchesRole;
     });
   }, [personnel, searchTerm, filterRole]);
 
-  const getClearance = (role: string) => {
-    return AUTHORIZED_ADMIN_ROLES.includes(role.toLowerCase()) ? 'Level 2' : 'Level 1';
+  const getClearance = (role?: string) => {
+    if (!role) return 'Level 1';
+    try {
+      return AUTHORIZED_ADMIN_ROLES.includes(role.toLowerCase()) ? 'Level 2' : 'Level 1';
+    } catch {
+      return 'Level 1';
+    }
   };
 
   const handleEmailClick = (e: React.MouseEvent, email?: string) => {
@@ -264,7 +271,7 @@ export const PersonnelGrid: React.FC<PersonnelGridProps> = ({ appTheme = 'dark',
               
               return (
                 <div 
-                  key={idx} 
+                  key={person.email ?? person.name ?? idx} 
                   onClick={() => setSelectedUser(selectedUser === person.name ? null : person.name)}
                   className={`flex flex-col sm:flex-row sm:items-center gap-4 p-4 sm:p-5 rounded-[2rem] border transition-all duration-300 cursor-pointer group hover:translate-x-1 ${
                     selectedUser === person.name 
