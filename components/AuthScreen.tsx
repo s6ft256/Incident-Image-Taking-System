@@ -32,29 +32,6 @@ const CardBackgroundGlow: React.FC = () => (
   </div>
 );
 
-const SpecialThanks: React.FC<{ isLight: boolean }> = ({ isLight }) => (
-  <div className="fixed bottom-12 left-12 z-50 flex items-center gap-8 animate-in fade-in slide-in-from-left-12 duration-1000 group pointer-events-none sm:pointer-events-auto">
-    <div className="relative shrink-0">
-      <div className="absolute inset-0 bg-blue-500/20 blur-[60px] rounded-full animate-pulse scale-150"></div>
-      <div className="w-44 h-44 rounded-full overflow-hidden relative z-10 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.6)] bg-slate-800 transition-all duration-700 group-hover:scale-110">
-        <img 
-          src="https://media.licdn.com/dms/image/v2/C4D03AQG_2PVLqp894g/profile-displayphoto-shrink_800_800/profile-displayphoto-shrink_800_800/0/1655174534836?e=1769040000&v=beta&t=-wzSqxQyq6atEh__m2j3sIBAtRnWtwYJRwwRtKEsQt4" 
-          alt="Ahmed Abbas" 
-          className="w-full h-full object-cover grayscale-[0.3] group-hover:grayscale-0 transition-all duration-700"
-          onError={(e) => {
-            (e.target as HTMLImageElement).src = 'https://ui-avatars.com/api/?name=Ahmed+Abbas&background=0066FF&color=fff&bold=true';
-          }}
-        />
-      </div>
-    </div>
-    <div className="flex flex-col gap-1 drop-shadow-[0_2px_10px_rgba(0,0,0,0.5)]">
-      <span className="text-[8px] font-black text-blue-500 uppercase tracking-[0.5em] leading-none mb-1">Contributor</span>
-      <h4 className={`text-xl font-black uppercase tracking-tighter leading-none ${isLight ? 'text-slate-900' : 'text-white'}`}>Ahmed Abbas</h4>
-      <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest mt-1 italic max-w-[140px] leading-tight opacity-90">System Integrity Architecture</p>
-    </div>
-  </div>
-);
-
 const AuthBackground: React.FC<{ isLight: boolean }> = ({ isLight }) => (
   <div className={`fixed inset-0 z-[-1] transition-colors duration-1000 ${
     isLight ? 'bg-slate-50' : 'bg-[#020617]'
@@ -184,7 +161,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
   return (
     <div className="relative min-h-[95vh] flex items-center justify-center p-6 overflow-hidden">
       <AuthBackground isLight={isLight} />
-      <SpecialThanks isLight={isLight} />
       
       {mode === 'welcome' ? (
         <AuthCard isLight={isLight}>

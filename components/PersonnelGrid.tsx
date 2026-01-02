@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { UserProfile, FetchedObservation } from '../types';
 import { getAllProfiles } from '../services/profileService';
@@ -17,6 +16,42 @@ interface PersonnelStats {
   reportsCreated: number;
   reportsClosed: number;
 }
+
+const ContributorRecognition: React.FC<{ isLight: boolean }> = ({ isLight }) => (
+  <div className="w-full flex items-center gap-8 py-10 px-4 animate-in fade-in slide-in-from-top-4 duration-1000 group">
+    <div className="relative shrink-0">
+      <div className="absolute inset-0 bg-blue-500/20 blur-[60px] rounded-full animate-pulse scale-150"></div>
+      <div className="w-44 h-44 rounded-full overflow-hidden relative z-10 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.6)] bg-slate-800 transition-all duration-700 group-hover:scale-110">
+        <img 
+          src="https://media.licdn.com/dms/image/v2/C4D03AQG_2PVLqp894g/profile-displayphoto-shrink_800_800/profile-displayphoto-shrink_800_800/0/1655174534836?e=1769040000&v=beta&t=-wzSqxQyq6atEh__m2j3sIBAtRnWtwYJRwwRtKEsQt4" 
+          alt="Ahmed Abbas" 
+          className="w-full h-full object-cover grayscale-[0.3] group-hover:grayscale-0 transition-all duration-700"
+          onError={(e) => {
+            (e.target as HTMLImageElement).src = 'https://ui-avatars.com/api/?name=Ahmed+Abbas&background=0066FF&color=fff&bold=true';
+          }}
+        />
+      </div>
+    </div>
+    <div className="flex flex-col gap-3">
+      <div className="space-y-1">
+        <span className="text-[10px] font-black text-blue-500 uppercase tracking-[0.5em] leading-none">Contributor Recognition</span>
+        <h4 className={`text-3xl font-black uppercase tracking-tighter leading-none ${isLight ? 'text-slate-900' : 'text-white'}`}>Ahmed Abbas</h4>
+        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest italic max-w-[200px] leading-tight opacity-90">System Integrity Architecture & Safety Governance Lead</p>
+      </div>
+      <div className="pt-2">
+        <a 
+          href="mailto:ahmed.abbas@trojanconstruction.group" 
+          className={`inline-flex items-center gap-3 px-6 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all active:scale-95 shadow-xl border ${
+            isLight ? 'bg-blue-600 text-white border-blue-400 hover:bg-blue-500' : 'bg-blue-600/20 text-blue-400 border-blue-500/30 hover:bg-blue-600/30'
+          }`}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+          Establish Contact
+        </a>
+      </div>
+    </div>
+  </div>
+);
 
 export const PersonnelGrid: React.FC<PersonnelGridProps> = ({ appTheme = 'dark', onBack }) => {
   const [personnel, setPersonnel] = useState<UserProfile[]>([]);
@@ -55,16 +90,10 @@ export const PersonnelGrid: React.FC<PersonnelGridProps> = ({ appTheme = 'dark',
       const closedBy = reports.filter(r => r.fields["Closed by"] === p.name).length;
       const assigned = reports.filter(r => r.fields["Assigned To"] === p.name).length;
       
-      // Automatic Rating Logic (Engagement Points):
-      // - Creating an observation: 10 pts
-      // - Closing an observation: 20 pts
-      // - Being assigned (accountability): 5 pts
       const engagementScore = (created * 10) + (closedBy * 20) + (assigned * 5);
-      
       const closureEfficiency = assigned > 0 ? (closedBy / assigned) : (closedBy > 0 ? 1 : 0);
       const percentage = Math.round(closureEfficiency * 100);
       
-      // Strategic Rating Scale (1-5 Stars)
       let rating = 1;
       if (engagementScore > 100 || (engagementScore > 50 && percentage > 90)) rating = 5;
       else if (engagementScore > 50 || (engagementScore > 25 && percentage > 70)) rating = 4;
@@ -148,8 +177,11 @@ export const PersonnelGrid: React.FC<PersonnelGridProps> = ({ appTheme = 'dark',
         </div>
       </div>
 
+      {/* Contributor Recognition on Top */}
+      <ContributorRecognition isLight={isLight} />
+
       {/* Search & Filter Bar */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-6">
+      <div className="flex flex-col sm:flex-row gap-3 mb-6 mt-6">
         <div className="flex-grow relative group">
           <input 
             type="text" 
@@ -200,7 +232,6 @@ export const PersonnelGrid: React.FC<PersonnelGridProps> = ({ appTheme = 'dark',
                       : (isLight ? 'bg-white border-slate-200 hover:border-slate-300 shadow-sm' : 'bg-white/[0.03] border-white/5 hover:bg-white/[0.06] hover:border-white/20')
                   }`}
                 >
-                  {/* Avatar Column */}
                   <div className="flex items-center gap-4 min-w-0 flex-1">
                     <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl overflow-hidden border-2 shadow-xl shrink-0 transition-transform group-hover:scale-105 ${
                       isLight ? 'border-white bg-slate-100 shadow-slate-200/50' : 'border-white/10 bg-black/40 shadow-black'
@@ -214,7 +245,6 @@ export const PersonnelGrid: React.FC<PersonnelGridProps> = ({ appTheme = 'dark',
                       )}
                     </div>
                     
-                    {/* Primary Info */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-3">
                         <h3 className={`text-base font-black truncate leading-tight tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>{person.name}</h3>
@@ -236,7 +266,6 @@ export const PersonnelGrid: React.FC<PersonnelGridProps> = ({ appTheme = 'dark',
                     </div>
                   </div>
 
-                  {/* Automatic Rating Column - Detailed Performance */}
                   <div className="hidden sm:flex flex-1 flex-col justify-center min-w-[140px] px-6 border-l border-white/5">
                      <div className="flex items-center justify-between mb-2">
                         <span className="text-[7px] font-black text-slate-500 uppercase tracking-[0.2em]">Safety Engagement</span>
@@ -260,13 +289,11 @@ export const PersonnelGrid: React.FC<PersonnelGridProps> = ({ appTheme = 'dark',
                      </div>
                   </div>
 
-                  {/* Deployment site - Desktop */}
                   <div className="hidden sm:flex flex-col items-end justify-center min-w-[120px] px-4">
                      <span className="text-[7px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1">Assigned Zone</span>
                      <span className={`text-[11px] font-black tracking-tight ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>{person.site || 'Global Dispatch'}</span>
                   </div>
 
-                  {/* Action Column */}
                   <div className="flex items-center justify-between sm:justify-end gap-3 mt-2 sm:mt-0 pt-3 sm:pt-0 border-t sm:border-t-0 border-white/5">
                      <div className="flex sm:hidden flex-col flex-1">
                         <div className="flex items-center gap-2 mb-1">
