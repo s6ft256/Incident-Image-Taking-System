@@ -100,6 +100,7 @@ export const getAllProfiles = async (): Promise<UserProfile[]> => {
 export const updateProfile = async (id: string, updates: Partial<UserProfile>): Promise<void> => {
   const dbUpdates: any = {};
   if (updates.name !== undefined) dbUpdates.name = updates.name;
+  if (updates.role !== undefined) dbUpdates.role = updates.role;
   if (updates.site !== undefined) dbUpdates.site = updates.site;
   if (updates.email !== undefined) dbUpdates.email = updates.email;
   if (updates.password !== undefined) dbUpdates.password = updates.password;
