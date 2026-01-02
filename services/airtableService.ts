@@ -18,7 +18,7 @@ const handleAirtableError = (response: Response, errorData: any): string => {
   if (response.status === 429) return "NETWORK CONGESTION: Please wait for automatic retry.";
   if (response.status === 422) {
     console.error("Airtable 422 Detail:", errorData);
-    return `DATABASE MISMATCH: System Error: "${detail}". ACTION: Verify that your Airtable columns match exactly (Case Sensitive) and 'Image' is an Attachment type.`;
+    return `DATABASE MISMATCH: System Error: "${detail}". ACTION: Verify that your Airtable columns match exactly: 'Project Name', 'Location', 'Contractor', 'Topic', 'Conducted By', 'Date', 'Trainee Count', 'Image' (Attachment).`;
   }
   return detail || response.statusText || "CONNECTION INTERRUPTED.";
 };
@@ -87,6 +87,31 @@ export const submitIncidentReport = async (form: IncidentForm, images: Attachmen
   return true;
 };
 
+export const submitTrainingRoster = async (data: any, images: AttachmentData[]): Promise<boolean> => {
+  const BASE_ID = AIRTABLE_CONFIG.BASE_ID;
+  const API_KEY = AIRTABLE_CONFIG.API_KEY;
+  const TABLE_NAME = "Training Roster";
+  const url = `https://api.airtable.com/v0/${BASE_ID}/${encodeURIComponent(TABLE_NAME)}`;
+  
+  const fields: any = {
+    "Project Name": data.projectName || "Unspecified Project",
+    "Location": data.locationText || "GPS Not Available",
+    "Contractor": data.contractor || "N/A",
+    "Topic": data.topicDiscussed || "Safety Induction",
+    "Conducted By": data.conductedBy || "Authorized Personnel",
+    "Date": new Date().toISOString().split('T')[0],
+    "Trainee Count": data.trainees?.filter((t: any) => t.name.trim() !== '').length || 0,
+    "Image": images.map(img => ({ url: img.url, filename: img.filename }))
+  };
+
+  await fetchWithRetry(url, { 
+    method: 'POST', 
+    headers: { 'Authorization': `Bearer ${API_KEY}`, 'Content-Type': 'application/json' }, 
+    body: JSON.stringify({ records: [{ fields }], typecast: true }) 
+  });
+  return true;
+};
+
 export const submitCraneChecklist = async (craneType: string, metadata: any, checks: Record<string, string>, remarks: Record<string, string>, checklistImages: AttachmentData[] = []): Promise<boolean> => {
   const BASE_ID = AIRTABLE_CONFIG.BASE_ID;
   const API_KEY = AIRTABLE_CONFIG.API_KEY;
@@ -125,7 +150,6 @@ export const submitEquipmentChecklist = async (equipmentType: string, metadata: 
     .map(([key]) => key.split('-')[0])
     .join(', ');
 
-  // Payload normalization to prevent 422 Mismatch
   const fields: any = {
     "Inspection Date": metadata.date || new Date().toISOString().split('T')[0],
     "Inspector Name": metadata.inspector || "Authorized User",
@@ -142,14 +166,7 @@ export const submitEquipmentChecklist = async (equipmentType: string, metadata: 
     }))
   };
 
-  await fetchWithRetry(url, { 
-    method: 'POST', 
-    headers: { 
-      'Authorization': `Bearer ${API_KEY}`, 
-      'Content-Type': 'application/json' 
-    }, 
-    body: JSON.stringify({ records: [{ fields }], typecast: true }) 
-  });
+  await fetchWithRetry(url, { method: 'POST', headers: { 'Authorization': `Bearer ${API_KEY}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ records: [{ fields }], typecast: true }) });
   return true;
 };
 
