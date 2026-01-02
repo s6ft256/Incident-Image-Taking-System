@@ -20,7 +20,7 @@ interface PersonnelStats {
 const CONTRIBUTORS = [
   {
     name: "Ahmed Abbas",
-    role: "System Integrity Architecture & Safety Governance Lead",
+    role: "HSSE Manager",
     email: "ahmed.abbas@trojanconstruction.group",
     image: "https://media.licdn.com/dms/image/v2/C4D03AQG_2PVLqp894g/profile-displayphoto-shrink_800_800/profile-displayphoto-shrink_800_800/0/1655174534836?e=1769040000&v=beta&t=-wzSqxQyq6atEh__m2j3sIBAtRnWtwYJRwwRtKEsQt4"
   },
@@ -29,6 +29,18 @@ const CONTRIBUTORS = [
     role: "Infrastructure Safety Architecture & HSE Engineering",
     email: "amal.j@npc.ae",
     image: "https://media.licdn.com/dms/image/v2/D4E03AQHdfMf-x-xIAw/profile-displayphoto-shrink_800_800/profile-displayphoto-shrink_800_800/0/1718245749525?e=1769040000&v=beta&t=8gLCEUfwzTiaXwmRZ5d-Uky_jlPS43t5iTo1u8YPGok"
+  },
+  {
+    name: "Syed Irshad",
+    role: "HSE Engineer",
+    email: "irshad.syed@npc.ae",
+    image: "https://www.gulftalent.com/images1/candidates/03d/283/photo_115x115_03d28360a45f84aadc9fdf13b77f54d4"
+  },
+  {
+    name: "Usman Zahid Qureshi",
+    role: "Safety Manager",
+    email: "usman.q@npc.ae",
+    image: "blob:https://outlook.office365.com/eb788767-5af6-4a65-a156-284c6f8e82b4"
   }
 ];
 
@@ -37,7 +49,12 @@ const ContributorRecognition: React.FC<{ isLight: boolean }> = ({ isLight }) => 
     {CONTRIBUTORS.map((contributor, idx) => (
       <div key={idx} className="flex flex-col sm:flex-row items-center gap-8 animate-in fade-in slide-in-from-top-4 duration-1000 group">
         <div className="relative shrink-0">
-          <div className={`absolute inset-0 blur-[60px] rounded-full animate-pulse scale-150 ${idx === 0 ? 'bg-blue-500/20' : 'bg-cyan-500/20'}`}></div>
+          <div className={`absolute inset-0 blur-[60px] rounded-full animate-pulse scale-150 ${
+            idx % 4 === 0 ? 'bg-blue-500/20' : 
+            idx % 4 === 1 ? 'bg-cyan-500/20' : 
+            idx % 4 === 2 ? 'bg-emerald-500/20' :
+            'bg-amber-500/20'
+          }`}></div>
           <div className={`w-36 h-36 sm:w-44 sm:h-44 rounded-full overflow-hidden relative z-10 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.6)] transition-all duration-700 group-hover:scale-110 border-2 ${isLight ? 'border-white bg-slate-100' : 'border-white/10 bg-slate-800'}`}>
             <img 
               src={contributor.image} 
