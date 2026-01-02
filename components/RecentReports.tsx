@@ -353,7 +353,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
   };
 
   return (
-    <div className="animate-in slide-in-from-right duration-300 pb-24 min-h-[80vh] relative">
+    <div className="animate-in slide-in-from-right duration-300 pb-24 min-h-[80vh] relative max-w-7xl mx-auto">
       {assignmentSuccess && (
         <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[100] bg-emerald-600 text-white px-6 py-3 rounded-2xl shadow-2xl text-xs font-black uppercase tracking-widest animate-in slide-in-from-top-4">
            {assignmentSuccess}
@@ -361,7 +361,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
       )}
 
       {!isMyTasksMode && (activeTab === 'open' || activeTab === 'assigned' || activeTab === 'incidents') && (
-        <div className="absolute inset-0 z-0 pointer-events-none opacity-10 sm:opacity-20">
+        <div className="absolute inset-0 z-0 pointer-events-none opacity-5 sm:opacity-10 lg:opacity-20">
           <img 
             src={activeTab === 'open' ? OPEN_TAB_BG : activeTab === 'assigned' ? ASSIGNED_TAB_BG : INCIDENT_TAB_BG} 
             className="w-full h-full object-cover rounded-[3rem]" 
@@ -371,13 +371,13 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
         </div>
       )}
 
-      <div className="relative z-10">
-        <div className="flex items-center mb-6">
-          <button onClick={onBack} className={`mr-4 transition-colors ${isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-400 hover:text-white'}`}>
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+      <div className="relative z-10 px-2 lg:px-0">
+        <div className="flex items-center mb-8">
+          <button onClick={onBack} className={`mr-4 transition-all p-2 rounded-xl hover:bg-white/5 ${isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-400 hover:text-white'}`}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
           </button>
           <div className="flex flex-col">
-              <h2 className={`text-xl font-black tracking-tight leading-none ${isLight ? 'text-slate-900' : 'text-white'}`}>
+              <h2 className={`text-2xl font-black tracking-tight leading-none ${isLight ? 'text-slate-900' : 'text-white'}`}>
                   {isMyTasksMode ? 'My Tasks' : 'Observation Log'}
               </h2>
               <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest mt-1">
@@ -387,81 +387,81 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
         </div>
 
         {!isMyTasksMode && (
-          <div className={`flex p-1 mb-6 rounded-xl border transition-colors overflow-x-auto scrollbar-hide ${isLight ? 'bg-slate-100 border-slate-200 shadow-inner' : 'bg-slate-800 border-slate-700'}`}>
-              <button onClick={() => { setActiveTab('open'); setExpandedId(null); setSelectedIds(new Set<string>()); }} className={`flex-1 min-w-[80px] py-2 text-[10px] uppercase tracking-widest font-black rounded-lg transition-all duration-200 flex items-center justify-center gap-2 ${activeTab === 'open' ? 'bg-blue-600 text-white shadow-lg' : `${isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-400 hover:text-white hover:bg-slate-700/50'}`}`}>
+          <div className={`flex p-1 mb-8 rounded-2xl border transition-colors overflow-x-auto scrollbar-hide max-w-2xl ${isLight ? 'bg-slate-100 border-slate-200 shadow-inner' : 'bg-slate-800 border-slate-700'}`}>
+              <button onClick={() => { setActiveTab('open'); setExpandedId(null); setSelectedIds(new Set<string>()); }} className={`flex-1 min-w-[100px] py-3 text-[10px] uppercase tracking-widest font-black rounded-xl transition-all duration-200 flex items-center justify-center gap-3 ${activeTab === 'open' ? 'bg-blue-600 text-white shadow-lg' : `${isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-400 hover:text-white hover:bg-slate-700/50'}`}`}>
                   Open
-                  <span className={`px-1.5 py-0.5 rounded-full text-[9px] ${activeTab === 'open' ? 'bg-white/20 text-white' : (isLight ? 'bg-slate-200 text-slate-600' : 'bg-white/5 text-slate-400')}`}>
+                  <span className={`px-2 py-0.5 rounded-full text-[9px] ${activeTab === 'open' ? 'bg-white/20 text-white' : (isLight ? 'bg-slate-200 text-slate-600' : 'bg-white/5 text-slate-400')}`}>
                     {tabCounts.open}
                   </span>
               </button>
-              <button onClick={() => { setActiveTab('assigned'); setExpandedId(null); setSelectedIds(new Set<string>()); }} className={`flex-1 min-w-[80px] py-2 text-[10px] uppercase tracking-widest font-black rounded-lg transition-all duration-200 flex items-center justify-center gap-2 ${activeTab === 'assigned' ? 'bg-amber-600 text-white shadow-lg' : `${isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-400 hover:text-white hover:bg-slate-700/50'}`}`}>
+              <button onClick={() => { setActiveTab('assigned'); setExpandedId(null); setSelectedIds(new Set<string>()); }} className={`flex-1 min-w-[100px] py-3 text-[10px] uppercase tracking-widest font-black rounded-xl transition-all duration-200 flex items-center justify-center gap-3 ${activeTab === 'assigned' ? 'bg-amber-600 text-white shadow-lg' : `${isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-400 hover:text-white hover:bg-slate-700/50'}`}`}>
                   Assigned
-                  <span className={`px-1.5 py-0.5 rounded-full text-[9px] ${activeTab === 'assigned' ? 'bg-white/20 text-white' : (isLight ? 'bg-slate-200 text-slate-600' : 'bg-white/5 text-slate-400')}`}>
+                  <span className={`px-2 py-0.5 rounded-full text-[9px] ${activeTab === 'assigned' ? 'bg-white/20 text-white' : (isLight ? 'bg-slate-200 text-slate-600' : 'bg-white/5 text-slate-400')}`}>
                     {tabCounts.assigned}
                   </span>
               </button>
-              <button onClick={() => { setActiveTab('incidents'); setExpandedId(null); setSelectedIds(new Set<string>()); }} className={`flex-1 min-w-[80px] py-2 text-[10px] uppercase tracking-widest font-black rounded-lg transition-all duration-200 flex items-center justify-center gap-2 ${activeTab === 'incidents' ? 'bg-rose-600 text-white shadow-lg' : `${isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-400 hover:text-white hover:bg-slate-700/50'}`}`}>
+              <button onClick={() => { setActiveTab('incidents'); setExpandedId(null); setSelectedIds(new Set<string>()); }} className={`flex-1 min-w-[100px] py-3 text-[10px] uppercase tracking-widest font-black rounded-xl transition-all duration-200 flex items-center justify-center gap-3 ${activeTab === 'incidents' ? 'bg-rose-600 text-white shadow-lg' : `${isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-400 hover:text-white hover:bg-slate-700/50'}`}`}>
                   Incidents
-                  <span className={`px-1.5 py-0.5 rounded-full text-[9px] ${activeTab === 'incidents' ? 'bg-white/20 text-white' : (isLight ? 'bg-slate-200 text-slate-600' : 'bg-white/5 text-slate-400')}`}>
+                  <span className={`px-2 py-0.5 rounded-full text-[9px] ${activeTab === 'incidents' ? 'bg-white/20 text-white' : (isLight ? 'bg-slate-200 text-slate-600' : 'bg-white/5 text-slate-400')}`}>
                     {tabCounts.incidents}
                   </span>
               </button>
-              <button onClick={() => { setActiveTab('closed'); setExpandedId(null); setSelectedIds(new Set<string>()); }} className={`flex-1 min-w-[80px] py-2 text-[10px] uppercase tracking-widest font-black rounded-lg transition-all duration-200 flex items-center justify-center gap-2 ${activeTab === 'closed' ? 'bg-emerald-600 text-white shadow-lg' : `${isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-400 hover:text-white hover:bg-slate-700/50'}`}`}>
+              <button onClick={() => { setActiveTab('closed'); setExpandedId(null); setSelectedIds(new Set<string>()); }} className={`flex-1 min-w-[100px] py-3 text-[10px] uppercase tracking-widest font-black rounded-xl transition-all duration-200 flex items-center justify-center gap-3 ${activeTab === 'closed' ? 'bg-emerald-600 text-white shadow-lg' : `${isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-400 hover:text-white hover:bg-slate-700/50'}`}`}>
                   Archive
-                  <span className={`px-1.5 py-0.5 rounded-full text-[9px] ${activeTab === 'closed' ? 'bg-white/20 text-white' : (isLight ? 'bg-slate-200 text-slate-600' : 'bg-white/5 text-slate-400')}`}>
+                  <span className={`px-2 py-0.5 rounded-full text-[9px] ${activeTab === 'closed' ? 'bg-white/20 text-white' : (isLight ? 'bg-slate-200 text-slate-600' : 'bg-white/5 text-slate-400')}`}>
                     {tabCounts.closed}
                   </span>
-                  {!isArchiveUnlocked && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>}
+                  {!isArchiveUnlocked && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>}
               </button>
           </div>
         )}
 
         {/* Search Bar */}
-        <div className="flex flex-col sm:flex-row gap-3 mb-6">
+        <div className="flex flex-col sm:flex-row gap-4 mb-8">
           <div className="flex-grow relative group">
             <input 
               type="text" 
-              placeholder={`Search in ${activeTab}...`} 
+              placeholder={`Search records in ${activeTab}...`} 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className={`w-full p-4 rounded-2xl border outline-none transition-all pl-12 text-sm font-medium ${
-                isLight ? 'bg-white border-slate-200 focus:border-blue-500 shadow-sm' : 'bg-white/5 border-white/10 focus:border-blue-500 text-white'
+              className={`w-full p-4.5 rounded-2xl border outline-none transition-all pl-14 text-sm font-bold ${
+                isLight ? 'bg-white border-slate-200 focus:border-blue-500 shadow-sm' : 'bg-white/5 border-white/10 focus:border-blue-500 text-white shadow-2xl shadow-black/20'
               }`}
             />
-            <svg className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors ${isLight ? 'text-slate-400 group-focus-within:text-blue-500' : 'text-slate-500 group-focus-within:text-blue-500'}`} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            <svg className={`absolute left-5 top-1/2 -translate-y-1/2 transition-colors ${isLight ? 'text-slate-400 group-focus-within:text-blue-500' : 'text-slate-500 group-focus-within:text-blue-500'}`} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
           </div>
         </div>
 
         {/* Admin Lock Screen for Archive */}
         {activeTab === 'closed' && !isArchiveUnlocked && !isMyTasksMode && (
-          <div className="flex flex-col items-center justify-center py-12 px-6 animate-in fade-in zoom-in duration-500">
-             <div className={`w-20 h-20 rounded-full flex items-center justify-center mb-6 border-4 ${isLight ? 'bg-slate-100 border-slate-200 text-slate-400' : 'bg-slate-800 border-slate-700 text-slate-500'}`}>
-                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+          <div className="flex flex-col items-center justify-center py-20 px-6 animate-in fade-in zoom-in duration-500">
+             <div className={`w-24 h-24 rounded-full flex items-center justify-center mb-8 border-4 ${isLight ? 'bg-slate-100 border-slate-200 text-slate-400' : 'bg-slate-800 border-slate-700 text-slate-500'}`}>
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
                 </svg>
              </div>
-             <h3 className={`text-lg font-black tracking-tight mb-8 ${isLight ? 'text-slate-900' : 'text-white'}`}>Admin Terminal</h3>
+             <h3 className={`text-2xl font-black tracking-tight mb-8 ${isLight ? 'text-slate-900' : 'text-white'}`}>Admin Terminal Lockdown</h3>
 
-             <form onSubmit={handleUnlockArchive} className="w-full max-w-xs space-y-4">
-                <div className="space-y-1.5">
+             <form onSubmit={handleUnlockArchive} className="w-full max-w-sm space-y-5">
+                <div className="space-y-2">
                    <input 
                       type="password"
                       placeholder="••••••••"
                       value={accessKey}
                       onChange={(e) => setAccessKey(e.target.value)}
-                      className={`w-full p-4 rounded-2xl border outline-none transition-all text-center tracking-[0.5em] ${isLight ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white focus:border-blue-500'} ${unlockError ? 'border-rose-500 ring-2 ring-rose-500/20' : ''}`}
+                      className={`w-full p-5 rounded-2xl border outline-none transition-all text-center tracking-[0.5em] text-lg font-black ${isLight ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700 text-white focus:border-blue-500'} ${unlockError ? 'border-rose-500 ring-4 ring-rose-500/20' : ''}`}
                    />
                 </div>
                 
                 {lockoutMessage && (
-                  <div className="bg-rose-500/10 border border-rose-500/20 p-3 rounded-xl animate-in shake">
-                     <p className="text-rose-500 text-[10px] font-black uppercase text-center">{lockoutMessage}</p>
+                  <div className="bg-rose-500/10 border border-rose-500/20 p-4 rounded-2xl animate-in shake">
+                     <p className="text-rose-500 text-[10px] font-black uppercase text-center tracking-widest">{lockoutMessage}</p>
                   </div>
                 )}
 
                 <button 
                   type="submit" 
-                  className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-2xl uppercase tracking-widest text-[11px] shadow-xl transition-all active:scale-95"
+                  className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-5 rounded-2xl uppercase tracking-[0.3em] text-[12px] shadow-2xl transition-all active:scale-95"
                 >
                   Establish Secure Link
                 </button>
@@ -470,23 +470,23 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
         )}
 
         {loading && (
-          <div className="py-20 flex flex-col items-center justify-center gap-5 animate-in fade-in duration-500">
-            <div className="relative w-12 h-12">
+          <div className="py-24 flex flex-col items-center justify-center gap-6 animate-in fade-in duration-500">
+            <div className="relative w-16 h-16">
               <div className="absolute inset-0 border-4 border-blue-500/20 rounded-full"></div>
               <div className="absolute inset-0 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
             </div>
-            <p className={`text-[10px] font-black uppercase tracking-[0.3em] ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>Synchronizing Safety Database...</p>
+            <p className={`text-[11px] font-black uppercase tracking-[0.4em] ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>Accessing Core Safety Roster...</p>
           </div>
         )}
 
         {!loading && !error && (activeTab !== 'closed' || isArchiveUnlocked || isMyTasksMode) && (
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-4">
             {tabFilteredReports.length === 0 ? (
-              <div className="py-20 text-center opacity-30">
-                 <svg className="w-12 h-12 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
+              <div className="py-32 text-center opacity-30 border-2 border-dashed border-white/5 rounded-[3rem]">
+                 <svg className="w-16 h-16 mx-auto mb-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                  </svg>
-                 <p className="text-[10px] font-black uppercase tracking-[0.3em]">No records detected in this queue</p>
+                 <p className="text-xs font-black uppercase tracking-[0.4em]">Grid Monitoring Active: No records found</p>
               </div>
             ) : (
               tabFilteredReports.map((report) => {
@@ -495,80 +495,82 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
                 if (isIncident) {
                   const incident = report as FetchedIncident;
                   return (
-                    <div key={incident.id} className={`rounded-xl overflow-hidden transition-all duration-300 border flex flex-col ${expandedId === incident.id ? `${isLight ? 'bg-white border-rose-500 ring-2 ring-rose-500/10' : 'bg-slate-800 border-rose-500/50 shadow-2xl'}` : `${isLight ? 'bg-white/90 border-slate-200' : 'bg-slate-800/80 border-slate-700 hover:border-slate-600'}`}`}>
-                      <div onClick={() => handleRowClick(incident.id)} className="flex items-center gap-3 p-4 cursor-pointer">
-                        <div className={`w-24 text-[9px] font-black tracking-tighter shrink-0 ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>{new Date(incident.fields["Incident Date"]).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
-                        <div className={`flex-1 text-sm font-black truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>{incident.fields["Title"]}</div>
-                        <div className={`px-2 py-1 rounded-md text-[8px] font-black uppercase tracking-widest ${getSeverityStyles(incident.fields["Severity"])}`}>
+                    <div key={incident.id} id={`incident-${incident.id}`} className={`rounded-[2rem] overflow-hidden transition-all duration-400 border flex flex-col group ${expandedId === incident.id ? `${isLight ? 'bg-white border-rose-500 ring-2 ring-rose-500/10 shadow-2xl' : 'bg-slate-900 border-rose-500/50 shadow-[0_20px_60px_rgba(0,0,0,0.6)]'}` : `${isLight ? 'bg-white/90 border-slate-200 hover:border-slate-300' : 'bg-white/[0.02] border-white/5 hover:border-white/20'}`}`}>
+                      <div onClick={() => handleRowClick(incident.id)} className="flex items-center gap-5 p-5 sm:p-6 cursor-pointer">
+                        <div className={`w-32 text-[10px] font-black tracking-widest shrink-0 ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>
+                           {new Date(incident.fields["Incident Date"]).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        </div>
+                        <div className={`flex-1 text-sm sm:text-base font-black truncate tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>{incident.fields["Title"]}</div>
+                        <div className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest shadow-lg ${getSeverityStyles(incident.fields["Severity"])}`}>
                           SEV: {incident.fields["Severity"]}
                         </div>
-                        <div className={`shrink-0 transition-transform ${expandedId === incident.id ? 'rotate-90 text-rose-500' : 'text-slate-600'}`}>
-                           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="m9 18 6-6-6-6"/></svg>
+                        <div className={`shrink-0 p-2 rounded-xl transition-all ${expandedId === incident.id ? 'rotate-90 bg-rose-500 text-white' : 'bg-white/5 text-slate-500 group-hover:text-white'}`}>
+                           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="m9 18 6-6-6-6"/></svg>
                         </div>
                       </div>
 
                       {expandedId === incident.id && (
-                        <div className={`border-t p-6 sm:p-8 space-y-10 animate-in slide-in-from-top-4 duration-300 ${isLight ? 'bg-rose-50/10' : 'bg-rose-500/[0.03]'}`}>
-                           {/* section: core identification */}
-                           <div className="space-y-4">
-                              <h4 className="text-[10px] font-black text-rose-500 uppercase tracking-widest border-l-4 border-rose-500 pl-3">I. Incident Identification</h4>
-                              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                        <div className={`border-t p-8 sm:p-12 space-y-12 animate-in slide-in-from-top-4 duration-500 ${isLight ? 'bg-rose-50/20' : 'bg-rose-500/[0.03]'}`}>
+                           {/* Identification Grid */}
+                           <div className="space-y-6">
+                              <h4 className="text-[11px] font-black text-rose-500 uppercase tracking-[0.3em] border-l-4 border-rose-500 pl-4">I. Record Identification</h4>
+                              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8">
                                 {[
                                   { label: 'Reporter ID', val: incident.fields["Reporter ID"] },
                                   { label: 'Department', val: incident.fields["Department"] },
                                   { label: 'Category', val: incident.fields["Category"] },
-                                  { label: 'Status', val: incident.fields["Status"], color: 'text-rose-500' },
-                                  { label: 'Incident Date', val: new Date(incident.fields["Incident Date"]).toLocaleString() },
-                                  { label: 'Location', val: incident.fields["Location"] },
+                                  { label: 'Operational Status', val: incident.fields["Status"], color: 'text-rose-500' },
+                                  { label: 'Incident Timestamp', val: new Date(incident.fields["Incident Date"]).toLocaleString() },
+                                  { label: 'Site Asset', val: incident.fields["Location"] },
                                 ].map(item => (
                                   <div key={item.label}>
-                                    <span className="block text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">{item.label}</span>
-                                    <span className={`text-[11px] font-bold uppercase ${item.color || (isLight ? 'text-slate-800' : 'text-slate-100')}`}>{item.val}</span>
+                                    <span className="block text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1.5">{item.label}</span>
+                                    <span className={`text-[12px] font-bold uppercase tracking-tight ${item.color || (isLight ? 'text-slate-800' : 'text-slate-100')}`}>{item.val}</span>
                                   </div>
                                 ))}
                               </div>
                            </div>
 
-                           {/* section: description */}
-                           <div className="space-y-4">
-                              <h4 className="text-[10px] font-black text-rose-500 uppercase tracking-widest border-l-4 border-rose-500 pl-3">II. Comprehensive Narrative</h4>
-                              <div className={`text-sm p-5 rounded-2xl border leading-relaxed ${isLight ? 'bg-white border-slate-200 text-slate-700 shadow-sm' : 'bg-slate-900 border-white/5 text-slate-300 shadow-inner'}`}>
+                           {/* Comprehensive Narrative */}
+                           <div className="space-y-6">
+                              <h4 className="text-[11px] font-black text-rose-500 uppercase tracking-[0.3em] border-l-4 border-rose-500 pl-4">II. Narrative Chronology</h4>
+                              <div className={`text-[15px] p-8 rounded-[2.5rem] border leading-relaxed text-justify shadow-inner ${isLight ? 'bg-white border-slate-200 text-slate-700' : 'bg-black/40 border-white/5 text-slate-300'}`}>
                                 {incident.fields["Description"]}
                               </div>
                            </div>
 
-                           {/* section: involved parties */}
-                           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                              <div className="space-y-3">
-                                <h4 className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Persons Involved</h4>
-                                <div className={`text-xs p-4 rounded-xl border min-h-[60px] ${isLight ? 'bg-white/50 border-slate-200' : 'bg-black/20 border-white/5 text-slate-400'}`}>
-                                  {incident.fields["Persons Involved"] || 'Record Null'}
+                           {/* Stakeholders and Assets */}
+                           <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
+                              <div className="space-y-4">
+                                <h4 className="text-[11px] font-black text-blue-500 uppercase tracking-widest">Personnel Manifest</h4>
+                                <div className={`text-xs p-6 rounded-3xl border min-h-[100px] leading-relaxed font-bold ${isLight ? 'bg-white/50 border-slate-200 text-slate-600' : 'bg-black/20 border-white/5 text-slate-400'}`}>
+                                  {incident.fields["Persons Involved"] || 'RECORD_NULL'}
                                 </div>
                               </div>
-                              <div className="space-y-3">
-                                <h4 className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Equipment Involved</h4>
-                                <div className={`text-xs p-4 rounded-xl border min-h-[60px] ${isLight ? 'bg-white/50 border-slate-200' : 'bg-black/20 border-white/5 text-slate-400'}`}>
-                                  {incident.fields["Equipment Involved"] || 'Record Null'}
+                              <div className="space-y-4">
+                                <h4 className="text-[11px] font-black text-blue-500 uppercase tracking-widest">Asset Registry</h4>
+                                <div className={`text-xs p-6 rounded-3xl border min-h-[100px] leading-relaxed font-bold ${isLight ? 'bg-white/50 border-slate-200 text-slate-600' : 'bg-black/20 border-white/5 text-slate-400'}`}>
+                                  {incident.fields["Equipment Involved"] || 'RECORD_NULL'}
                                 </div>
                               </div>
-                              <div className="space-y-3">
-                                <h4 className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Witness Registry</h4>
-                                <div className={`text-xs p-4 rounded-xl border min-h-[60px] ${isLight ? 'bg-white/50 border-slate-200' : 'bg-black/20 border-white/5 text-slate-400'}`}>
-                                  {incident.fields["Witnesses"] || 'Record Null'}
+                              <div className="space-y-4">
+                                <h4 className="text-[11px] font-black text-blue-500 uppercase tracking-widest">Witness Registry</h4>
+                                <div className={`text-xs p-6 rounded-3xl border min-h-[100px] leading-relaxed font-bold ${isLight ? 'bg-white/50 border-slate-200 text-slate-600' : 'bg-black/20 border-white/5 text-slate-400'}`}>
+                                  {incident.fields["Witnesses"] || 'RECORD_NULL'}
                                 </div>
                               </div>
                            </div>
 
-                           {/* section: evidence */}
+                           {/* Evidence Acquisition */}
                            {incident.fields["Attachments"] && incident.fields["Attachments"].length > 0 && (
-                            <div className="space-y-4">
-                               <h4 className="text-[10px] font-black text-rose-500 uppercase tracking-widest border-l-4 border-rose-500 pl-3">III. Photographic Evidence</h4>
-                               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                            <div className="space-y-6">
+                               <h4 className="text-[11px] font-black text-rose-500 uppercase tracking-[0.3em] border-l-4 border-rose-500 pl-4">III. High-Integrity Evidence</h4>
+                               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
                                   {incident.fields["Attachments"].map((img, i) => (
-                                    <a key={i} href={img.url} target="_blank" rel="noopener noreferrer" className="group/img aspect-square rounded-2xl overflow-hidden border-2 border-white/5 shadow-lg relative">
-                                       <img src={img.url} className="w-full h-full object-cover transition-transform duration-500 group-hover/img:scale-110" alt="Incident Evidence" />
-                                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center">
-                                          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+                                    <a key={i} href={img.url} target="_blank" rel="noopener noreferrer" className="group/img aspect-square rounded-[2rem] overflow-hidden border-2 border-white/5 shadow-2xl relative transition-all active:scale-95">
+                                       <img src={img.url} className="w-full h-full object-cover transition-transform duration-700 group-hover/img:scale-110" alt="Incident Evidence" />
+                                       <div className="absolute inset-0 bg-black/50 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
+                                          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
                                        </div>
                                     </a>
                                   ))}
@@ -576,27 +578,27 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
                             </div>
                            )}
 
-                           {/* section: technical metadata */}
-                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-white/5">
-                              <div className={`p-4 rounded-2xl border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-black/40 border-white/5'}`}>
-                                <h4 className="text-[9px] font-black text-blue-500 uppercase tracking-[0.2em] mb-3 flex items-center gap-2">
-                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>
-                                  Geospatial Telemetry
+                           {/* Technical Metadata Chain */}
+                           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pt-10 border-t border-white/5">
+                              <div className={`p-6 rounded-[2rem] border transition-all ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-black/40 border-white/5 hover:bg-black/60'}`}>
+                                <h4 className="text-[10px] font-black text-blue-500 uppercase tracking-[0.3em] mb-4 flex items-center gap-3">
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>
+                                  GPS Telemetry Record
                                 </h4>
-                                <p className="text-[10px] font-mono text-slate-500 break-all">{incident.fields["Geolocation"] || 'LAT_LONG_NULL'}</p>
+                                <p className="text-[11px] font-mono text-slate-500 break-all leading-relaxed">{incident.fields["Geolocation"] || 'COORD_NULL'}</p>
                               </div>
-                              <div className={`p-4 rounded-2xl border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-black/40 border-white/5'}`}>
-                                <h4 className="text-[9px] font-black text-blue-500 uppercase tracking-[0.2em] mb-3 flex items-center gap-2">
-                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 2v20m10-10H2" /></svg>
-                                  System Structured Metadata
+                              <div className={`p-6 rounded-[2rem] border transition-all ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-black/40 border-white/5 hover:bg-black/60'}`}>
+                                <h4 className="text-[10px] font-black text-blue-500 uppercase tracking-[0.3em] mb-4 flex items-center gap-3">
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 2v20m10-10H2" /></svg>
+                                  System Audit Metadata
                                 </h4>
-                                <p className="text-[9px] font-mono text-slate-500 truncate">{incident.fields["Metadata"] || 'METADATA_NULL'}</p>
+                                <p className="text-[10px] font-mono text-slate-500 break-all leading-relaxed line-clamp-2">{incident.fields["Metadata"] || 'METADATA_NULL'}</p>
                               </div>
                            </div>
 
-                           <div className="flex justify-between items-center opacity-30 pt-4">
-                              <span className="text-[8px] font-black uppercase tracking-widest">Registry ID: {incident.id}</span>
-                              <span className="text-[8px] font-black uppercase tracking-widest">Entry: {new Date(incident.createdTime).toLocaleString()}</span>
+                           <div className="flex flex-col sm:flex-row justify-between items-center opacity-30 pt-4 gap-4">
+                              <span className="text-[9px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full border border-current">REGISTRY ID: {incident.id}</span>
+                              <span className="text-[9px] font-black uppercase tracking-widest">Entry Handshake: {new Date(incident.createdTime).toUTCString()}</span>
                            </div>
                         </div>
                       )}
@@ -606,44 +608,53 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
 
                 const observation = report as FetchedObservation;
                 return (
-                  <div key={observation.id} id={`report-${observation.id}`} className={`rounded-xl overflow-hidden transition-all duration-300 border flex ${expandedId === observation.id ? `${isLight ? 'bg-white border-blue-500 ring-2 ring-blue-500/10' : 'bg-slate-800 border-blue-500/50 shadow-2xl'}` : `${isLight ? 'bg-white/90 border-slate-200 backdrop-blur-md' : 'bg-slate-800/80 border-slate-700 hover:border-slate-600 backdrop-blur-sm'}`}`}>
+                  <div key={observation.id} id={`report-${observation.id}`} className={`rounded-[2rem] overflow-hidden transition-all duration-400 border flex ${expandedId === observation.id ? `${isLight ? 'bg-white border-blue-500 ring-2 ring-blue-500/10 shadow-2xl' : 'bg-[#0f172a] border-blue-500/50 shadow-[0_20px_60px_rgba(0,0,0,0.6)]'}` : `${isLight ? 'bg-white/90 border-slate-200 hover:border-slate-300' : 'bg-white/[0.02] border-white/5 hover:border-white/20'}`}`}>
                     <div className="flex-1 flex flex-col">
-                      <div onClick={() => handleRowClick(observation.id)} className="flex items-center gap-3 p-4 cursor-pointer">
-                        <div className={`w-24 text-[10px] font-black tracking-tighter shrink-0 ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>{new Date(observation.createdTime).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
-                        <div className={`flex-1 text-sm font-black truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>{observation.fields["Observation Type"] || 'Observation'}</div>
-                        <div className={`shrink-0 transition-transform ${expandedId === observation.id ? 'rotate-90 text-blue-500' : 'text-slate-600'}`}>
-                           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="m9 18 6-6-6-6"/></svg>
+                      <div onClick={() => handleRowClick(observation.id)} className="flex items-center gap-5 p-5 sm:p-6 cursor-pointer">
+                        <div className={`w-32 text-[10px] font-black tracking-widest shrink-0 ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>
+                           {new Date(observation.createdTime).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        </div>
+                        <div className={`flex-1 text-sm sm:text-base font-black truncate tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                          {observation.fields["Observation Type"] || 'General Observation'}
+                        </div>
+                        <div className={`shrink-0 p-2 rounded-xl transition-all ${expandedId === observation.id ? 'rotate-90 bg-blue-600 text-white' : 'bg-white/5 text-slate-500'}`}>
+                           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="m9 18 6-6-6-6"/></svg>
                         </div>
                       </div>
 
                       {expandedId === observation.id && (
-                        <div className={`border-t p-6 space-y-8 animate-in slide-in-from-top-4 duration-300 ${isLight ? 'bg-slate-50/50' : 'bg-black/20'}`}>
-                          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+                        <div className={`border-t p-8 sm:p-12 space-y-10 animate-in slide-in-from-top-4 duration-500 ${isLight ? 'bg-slate-50/50' : 'bg-black/20'}`}>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-10">
                             {[
-                              { label: 'Reporter', val: observation.fields["Name"] },
-                              { label: 'Role', val: observation.fields["Role / Position"] },
-                              { label: 'Site', val: observation.fields["Site / Location"] },
-                              { label: 'Time', val: new Date(observation.createdTime).toLocaleTimeString() }
+                              { label: 'Reporter Name', val: observation.fields["Name"] },
+                              { label: 'Personnel Role', val: observation.fields["Role / Position"] },
+                              { label: 'Site / Location', val: observation.fields["Site / Location"] },
+                              { label: 'Deployment Time', val: new Date(observation.createdTime).toLocaleTimeString() }
                             ].map(item => (
                               <div key={item.label}>
-                                <span className="block text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">{item.label}</span>
-                                <span className={`text-xs font-bold ${isLight ? 'text-slate-800' : 'text-slate-100'}`}>{item.val}</span>
+                                <span className="block text-[8px] font-black text-slate-500 uppercase tracking-widest mb-2">{item.label}</span>
+                                <span className={`text-[12px] font-bold uppercase tracking-tight ${isLight ? 'text-slate-800' : 'text-slate-100'}`}>{item.val}</span>
                               </div>
                             ))}
                           </div>
 
-                          <div className="space-y-4">
-                            <h4 className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Narrative Description</h4>
-                            <p className={`text-sm p-4 rounded-xl border ${isLight ? 'bg-white border-slate-200' : 'bg-slate-900 border-white/5 text-slate-300'}`}>{observation.fields["Observation"]}</p>
+                          <div className="space-y-6">
+                            <h4 className="text-[11px] font-black text-blue-500 uppercase tracking-[0.3em] border-l-4 border-blue-500 pl-4">IV. Detailed Narrative</h4>
+                            <p className={`text-[15px] p-8 rounded-[2.5rem] border leading-relaxed text-justify shadow-inner ${isLight ? 'bg-white border-slate-200 text-slate-700' : 'bg-slate-900 border-white/5 text-slate-300'}`}>
+                              {observation.fields["Observation"]}
+                            </p>
                           </div>
 
                           {observation.fields["Open observations"] && observation.fields["Open observations"].length > 0 && (
-                            <div className="space-y-4">
-                               <h4 className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Initial Evidence</h4>
-                               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                            <div className="space-y-6">
+                               <h4 className="text-[11px] font-black text-blue-500 uppercase tracking-[0.3em] border-l-4 border-blue-500 pl-4">V. Site Telemetry (Photos)</h4>
+                               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6">
                                   {observation.fields["Open observations"].map((img, i) => (
-                                    <a key={i} href={img.url} target="_blank" rel="noopener noreferrer" className="aspect-square rounded-xl overflow-hidden border border-white/5">
-                                       <img src={img.url} className="w-full h-full object-cover" alt="Observation" />
+                                    <a key={i} href={img.url} target="_blank" rel="noopener noreferrer" className="group/img aspect-square rounded-[2rem] overflow-hidden border-2 border-white/5 shadow-xl relative transition-all active:scale-95">
+                                       <img src={img.url} className="w-full h-full object-cover transition-transform duration-700 group-hover/img:scale-110" alt="Observation" />
+                                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
+                                          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+                                       </div>
                                     </a>
                                   ))}
                                </div>
@@ -651,86 +662,107 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
                           )}
 
                           {!observation.fields["Action taken"]?.trim() && (
-                            <div className={`p-4 rounded-2xl border ${isLight ? 'bg-blue-50 border-blue-100' : 'bg-blue-500/5 border-blue-500/20'}`}>
-                               <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-4">Personnel Assignment</h4>
-                               <div className="flex flex-col sm:flex-row gap-3">
-                                  <select 
-                                    value={localAssignee[observation.id] || ""}
-                                    onChange={(e) => setLocalAssignee(prev => ({ ...prev, [observation.id]: e.target.value }))}
-                                    className={`flex-1 p-3 rounded-xl border outline-none text-xs font-bold ${isLight ? 'bg-white border-slate-200' : 'bg-slate-900 border-white/5 text-white'}`}
-                                  >
-                                    <option value="">Unassigned</option>
-                                    {teamMembers.map(member => (
-                                      <option key={member} value={member}>{member}</option>
-                                    ))}
-                                  </select>
+                            <div className={`p-8 rounded-[2.5rem] border-2 shadow-xl ${isLight ? 'bg-blue-50/50 border-blue-100' : 'bg-blue-500/[0.03] border-blue-500/20'}`}>
+                               <h4 className="text-[11px] font-black text-blue-600 uppercase tracking-[0.3em] mb-8 flex items-center gap-3">
+                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                                 Personnel Accountability
+                               </h4>
+                               <div className="flex flex-col lg:flex-row gap-6">
+                                  <div className="flex-1">
+                                    <label className="block text-[8px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1">Assign to Lead Investigator</label>
+                                    <select 
+                                      value={localAssignee[observation.id] || ""}
+                                      onChange={(e) => setLocalAssignee(prev => ({ ...prev, [observation.id]: e.target.value }))}
+                                      className={`w-full p-4.5 rounded-[1.2rem] border outline-none text-sm font-black transition-all ${isLight ? 'bg-white border-slate-200 shadow-sm focus:border-blue-500' : 'bg-slate-900 border-white/5 text-white focus:border-blue-500 focus:bg-black'}`}
+                                    >
+                                      <option value="">Select Assignee (Default: Unassigned)</option>
+                                      {teamMembers.map(member => (
+                                        <option key={member} value={member}>{member}</option>
+                                      ))}
+                                    </select>
+                                  </div>
                                   <button 
                                     onClick={() => handleAssignToMember(observation.id)}
                                     disabled={reassigningId === observation.id || localAssignee[observation.id] === (observation.fields["Assigned To"] || "")}
-                                    className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+                                    className="px-10 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-[1.2rem] text-[11px] font-black uppercase tracking-[0.2em] shadow-xl disabled:opacity-30 transition-all flex items-center justify-center gap-3 active:scale-95"
                                   >
                                     {reassigningId === observation.id ? (
-                                      <>
-                                        <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                                        <span>Updating...</span>
-                                      </>
-                                    ) : (localAssignee[observation.id] === "" ? 'Unassign Personnel' : 'Assign Personnel')}
+                                      <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /><span>Syncing...</span></>
+                                    ) : 'Establish Assignment'}
                                   </button>
                                </div>
                             </div>
                           )}
 
                           {!observation.fields["Action taken"]?.trim() && (
-                            <div className={`rounded-2xl p-6 border-2 ${isLight ? 'bg-white border-blue-500/20' : 'bg-slate-900 border-blue-500/20'}`}>
-                              <h4 className="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-6">Remediation Control</h4>
-                              <div className="space-y-5">
-                                <textarea 
-                                  rows={3} 
-                                  placeholder="Detail corrective actions taken..." 
-                                  value={actionInputs[observation.id] || ''} 
-                                  onChange={(e) => handleActionInputChange(observation.id, e.target.value)} 
-                                  className={`${baseClasses} ${themeClasses} resize-none min-h-[100px]`} 
-                                />
+                            <div className={`rounded-[2.5rem] p-10 border-2 shadow-2xl transition-all ${isLight ? 'bg-white border-blue-500/20' : 'bg-slate-900 border-blue-500/20 hover:border-blue-500/40'}`}>
+                              <h4 className="text-[11px] font-black text-blue-500 uppercase tracking-[0.3em] mb-10 flex items-center gap-3">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
+                                Remediation Matrix
+                              </h4>
+                              <div className="space-y-8">
+                                <div className="flex flex-col gap-2">
+                                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest px-1">Remediation Chronology *</label>
+                                  <textarea 
+                                    rows={4} 
+                                    placeholder="Detail all corrective actions implemented to stabilize the hazard..." 
+                                    value={actionInputs[observation.id] || ''} 
+                                    onChange={(e) => handleActionInputChange(observation.id, e.target.value)} 
+                                    className={`${baseClasses} ${themeClasses} resize-none min-h-[140px] p-6 leading-relaxed`} 
+                                  />
+                                </div>
                                 
                                 <div className="pt-2">
-                                   <ImageGrid 
-                                     images={closingImages[observation.id] || []} 
-                                     onAdd={(e) => handleAddClosingImage(observation.id, e)} 
-                                     onRemove={(imageId) => handleRemoveClosingImage(observation.id, imageId)} 
-                                     onRetry={(imageId) => {
-                                       const img = closingImages[observation.id]?.find(i => i.id === imageId);
-                                       if (img) processClosingImageUpload(observation.id, img);
-                                     }}
-                                     appTheme={appTheme}
-                                   />
+                                   <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest px-1 mb-4 block">Closure Evidence (Post-Remediation)</label>
+                                   <div className={`p-8 rounded-[2rem] border-2 border-dashed ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-black/20 border-white/10'}`}>
+                                     <ImageGrid 
+                                       images={closingImages[observation.id] || []} 
+                                       onAdd={(e) => handleAddClosingImage(observation.id, e)} 
+                                       onRemove={(imageId) => handleRemoveClosingImage(observation.id, imageId)} 
+                                       onRetry={(imageId) => {
+                                         const img = closingImages[observation.id]?.find(i => i.id === imageId);
+                                         if (img) processClosingImageUpload(observation.id, img);
+                                       }}
+                                       appTheme={appTheme}
+                                       hideHeader={true}
+                                     />
+                                   </div>
                                 </div>
 
-                                {resolveErrors[observation.id] && <p className="text-rose-500 text-[10px] font-bold uppercase">{resolveErrors[observation.id]}</p>}
-                                <button onClick={() => handleResolve(observation.id)} disabled={submittingIds.has(observation.id) || !actionInputs[observation.id]?.trim()} className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-2xl transition-all uppercase tracking-widest text-[11px] shadow-xl disabled:opacity-50">
-                                  {submittingIds.has(observation.id) ? 'Finalizing...' : 'Close & Archive'}
+                                {resolveErrors[observation.id] && <p className="text-rose-500 text-[10px] font-black uppercase tracking-widest animate-in shake">{resolveErrors[observation.id]}</p>}
+                                <button onClick={() => handleResolve(observation.id)} disabled={submittingIds.has(observation.id) || !actionInputs[observation.id]?.trim()} className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-6 rounded-[2rem] transition-all uppercase tracking-[0.4em] text-[12px] shadow-2xl disabled:opacity-40 active:scale-95 border border-blue-400/30">
+                                  {submittingIds.has(observation.id) ? 'SERIALIZING...' : 'AUTHORIZE CLOSURE & ARCHIVE'}
                                 </button>
                               </div>
                             </div>
                           )}
 
                           {observation.fields["Action taken"]?.trim() && (
-                             <div className={`rounded-2xl p-6 border-2 ${isLight ? 'bg-emerald-50 border-emerald-100' : 'bg-emerald-500/5 border-emerald-500/20'}`}>
-                                <h4 className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-4">Post-Remediation Compliance</h4>
-                                <p className={`text-sm p-4 rounded-xl border ${isLight ? 'bg-white border-emerald-200' : 'bg-black/20 border-white/5 text-slate-200'}`}>{observation.fields["Action taken"]}</p>
+                             <div className={`rounded-[2.5rem] p-10 border-2 shadow-2xl ${isLight ? 'bg-emerald-50 border-emerald-100' : 'bg-emerald-500/5 border-emerald-500/20'}`}>
+                                <h4 className="text-[11px] font-black text-emerald-500 uppercase tracking-[0.3em] mb-8 flex items-center gap-3">
+                                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M20 6L9 17l-5-5"/></svg>
+                                  Post-Remediation Verification
+                                </h4>
+                                <div className={`text-[15px] p-8 rounded-[2.5rem] border leading-relaxed text-justify shadow-inner mb-8 ${isLight ? 'bg-white border-emerald-100 text-slate-700' : 'bg-black/30 border-white/5 text-slate-200'}`}>
+                                  {observation.fields["Action taken"]}
+                                </div>
                                 
                                 {observation.fields["Closed observations"] && observation.fields["Closed observations"].length > 0 && (
-                                  <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6 mb-8">
                                     {observation.fields["Closed observations"].map((img, i) => (
-                                      <a key={i} href={img.url} target="_blank" rel="noopener noreferrer" className="aspect-square rounded-xl overflow-hidden border border-emerald-500/10">
-                                         <img src={img.url} className="w-full h-full object-cover" alt="Resolution" />
+                                      <a key={i} href={img.url} target="_blank" rel="noopener noreferrer" className="aspect-square rounded-[2rem] overflow-hidden border-2 border-emerald-500/20 shadow-xl group/img relative transition-all active:scale-95">
+                                         <img src={img.url} className="w-full h-full object-cover transition-transform duration-700 group-hover/img:scale-110" alt="Resolution" />
+                                         <div className="absolute inset-0 bg-emerald-900/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
+                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+                                         </div>
                                       </a>
                                     ))}
                                   </div>
                                 )}
 
-                                <div className="mt-4 flex flex-col">
-                                   <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Authenticated By</span>
-                                   <span className="text-xs font-black text-emerald-500 uppercase tracking-wider">{observation.fields["Closed by"]}</span>
+                                <div className="flex flex-col border-t border-white/5 pt-6">
+                                   <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5">Digitally Authenticated By</span>
+                                   <span className="text-sm font-black text-emerald-500 uppercase tracking-[0.2em]">{observation.fields["Closed by"]}</span>
                                 </div>
                              </div>
                           )}

@@ -1,7 +1,12 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { InputField } from './InputField';
 import { sendToast } from '../services/notificationService';
+import { submitEquipmentChecklist } from '../services/airtableService';
+import { uploadImageToStorage } from '../services/storageService';
+import { compressImage } from '../utils/imageCompression';
+import { STORAGE_KEYS } from '../constants';
+import { UserProfile } from '../types';
 
 interface EquipmentChecklistFormProps {
   appTheme: 'dark' | 'light';
@@ -30,11 +35,29 @@ export const EquipmentChecklistForm: React.FC<EquipmentChecklistFormProps> = ({ 
   const today = new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' });
   
   const [selectedAsset, setSelectedAsset] = useState('');
-  const [metadata, setMetadata] = useState({ make: '', plate: '', inspector: '' });
+  const [metadata, setMetadata] = useState({ 
+    make: '', 
+    plate: '', 
+    inspector: '', 
+    date: new Date().toISOString().split('T')[0] 
+  });
   const [checks, setChecks] = useState<Record<string, CheckStatus>>({});
   const [remarks, setRemarks] = useState<Record<string, string>>({});
+  const [defectImages, setDefectImages] = useState<Array<{ url: string; filename: string }>>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  const [activeDefectItem, setActiveDefectItem] = useState<{ item: string; shift: 'D' | 'N' } | null>(null);
   const [activeCommentKey, setActiveCommentKey] = useState<string | null>(null);
+
+  useEffect(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.PROFILE);
+    if (saved) {
+      try {
+        const profile: UserProfile = JSON.parse(saved);
+        setMetadata(prev => ({ ...prev, inspector: profile.name }));
+      } catch (e) {}
+    }
+  }, []);
 
   const toggleCheck = (item: string, shift: 'D' | 'N') => {
     const key = `${item}-${shift}`;
@@ -44,54 +67,67 @@ export const EquipmentChecklistForm: React.FC<EquipmentChecklistFormProps> = ({ 
       if (current === 'ok') next = 'fail';
       else if (current === 'fail') next = 'na';
       else if (current === 'na') next = 'none';
+      
+      if (next === 'fail') {
+        setActiveDefectItem({ item, shift });
+      }
+      
       return { ...prev, [key]: next };
     });
   };
 
-  const getStatusColor = (status: CheckStatus) => {
-    if (status === 'ok') return 'bg-emerald-500 text-white shadow-emerald-500/40';
-    if (status === 'fail') return 'bg-rose-500 text-white shadow-rose-500/40';
-    if (status === 'na') return 'bg-slate-400 text-white';
-    return isLight ? 'bg-white/60 text-slate-400' : 'bg-white/5 text-slate-600';
-  };
-
-  const getStatusLabel = (status: CheckStatus) => {
-    if (status === 'ok') return '✓';
-    if (status === 'fail') return '✗';
-    if (status === 'na') return '—';
-    return '';
+  const handleDefectUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !activeDefectItem) return;
+    sendToast("Uploading defect image...", "info");
+    try {
+      const compressed = await compressImage(file);
+      const url = await uploadImageToStorage(compressed, 'checklists/equipment');
+      setDefectImages(prev => [...prev, { url, filename: `${activeDefectItem.item}_${Date.now()}.jpg` }]);
+      sendToast("Evidence captured.", "success");
+      setActiveDefectItem(null);
+    } catch (err: any) {
+      sendToast("Upload fault: " + err.message, "critical");
+    }
   };
 
   const handleSync = async () => {
-    if (!selectedAsset || !metadata.plate) {
-      sendToast("Plant ID and Equipment Type required.", "warning");
+    // PRE-SUBMISSION VALIDATION: Prevents 422 Mismatch on primary fields
+    if (!selectedAsset) {
+      sendToast("EQUIPMENT TYPE is mandatory for the safety log.", "warning");
       return;
     }
+    if (!metadata.plate.trim()) {
+      sendToast("PLANT NUMBER is mandatory for identification.", "warning");
+      return;
+    }
+    if (!metadata.inspector.trim()) {
+      sendToast("INSPECTOR IDENTITY could not be established.", "warning");
+      return;
+    }
+
     setIsSubmitting(true);
-    await new Promise(r => setTimeout(r, 1500));
-    sendToast("Equipment Inspection Dispatched", "success");
-    setIsSubmitting(false);
-    onBack();
+    try {
+      await submitEquipmentChecklist(selectedAsset, metadata, checks, remarks, defectImages);
+      sendToast("Equipment Inspection Finalized", "success");
+      onBack();
+    } catch (err: any) {
+      // Direct user to check Airtable setup if it's a mismatch error
+      sendToast(err.message, "critical");
+    } finally { setIsSubmitting(false); }
   };
 
   return (
     <div className="animate-in slide-in-from-bottom-5 duration-500 pb-20 max-w-4xl mx-auto relative">
-      {/* Thematic Background Image */}
       <div className="fixed inset-0 z-0 pointer-events-none">
-        <img 
-          src={EQUIPMENT_BG} 
-          className="w-full h-full object-cover" 
-          alt="Heavy Equipment Background" 
-        />
+        <img src={EQUIPMENT_BG} className="w-full h-full object-cover" alt="Equipment" />
         <div className={`absolute inset-0 ${isLight ? 'bg-white/10' : 'bg-black/20'}`}></div>
       </div>
 
-      <div className={`relative z-10 p-6 sm:p-10 rounded-[3rem] border shadow-2xl overflow-hidden backdrop-blur-md form-container-glow ${
-        isLight ? 'bg-white/60 border-slate-200/50 shadow-white/10' : 'bg-[#020617]/60 border-white/10 shadow-black/20'
-      }`}>
+      <div className={`relative z-10 p-6 sm:p-10 rounded-[3rem] border shadow-2xl backdrop-blur-md form-container-glow ${isLight ? 'bg-white/60 border-slate-200/50' : 'bg-[#020617]/60 border-white/10'}`}>
         <div className="flex flex-col sm:flex-row justify-between items-center mb-10 gap-6 border-b border-white/5 pb-8">
            <div className="flex items-center gap-6">
-              <button onClick={onBack} className="p-3 rounded-2xl bg-white/10 border border-white/10 hover:bg-white/20 transition-all text-white">
+              <button onClick={onBack} className="p-3 rounded-2xl bg-white/10 border border-white/10 text-white">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
               </button>
               <div>
@@ -102,30 +138,16 @@ export const EquipmentChecklistForm: React.FC<EquipmentChecklistFormProps> = ({ 
            <div className={`px-4 py-2 rounded-xl border text-[10px] font-black uppercase tracking-widest ${isLight ? 'bg-white/80 border-slate-200 text-slate-600' : 'bg-black/40 border-white/10 text-slate-500'}`}>Form: TGC/OPT/D2</div>
         </div>
 
-        <div className="flex flex-wrap gap-4 mb-8 px-2 justify-center sm:justify-start">
-            <div className="flex items-center gap-2"><div className="w-3 h-3 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div><span className={`text-[9px] font-black uppercase ${isLight ? 'text-slate-800' : 'text-slate-300'}`}>Pass</span></div>
-            <div className="flex items-center gap-2"><div className="w-3 h-3 bg-rose-500 rounded-full shadow-[0_0_8px_rgba(244,63,94,0.5)]"></div><span className={`text-[9px] font-black uppercase ${isLight ? 'text-slate-800' : 'text-slate-300'}`}>Fail</span></div>
-            <div className="flex items-center gap-2"><div className="w-3 h-3 bg-slate-400 rounded-full shadow-[0_0_8px_rgba(148,163,184,0.5)]"></div><span className={`text-[9px] font-black uppercase ${isLight ? 'text-slate-800' : 'text-slate-300'}`}>N/A</span></div>
-        </div>
-
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-10">
-          {EQUIPMENT_LIST.slice(0, 8).map(asset => (
-            <button 
-              key={asset}
-              onClick={() => setSelectedAsset(asset)}
-              className={`p-3 rounded-2xl border text-[8px] font-black uppercase tracking-widest transition-all ${
-                selectedAsset === asset ? 'bg-blue-600 border-blue-400 text-white shadow-xl scale-[1.02]' : 'bg-black/40 border-white/10 text-slate-300 hover:bg-black/60'
-              }`}
-            >
-              {asset}
-            </button>
+          {EQUIPMENT_LIST.map(asset => (
+            <button key={asset} onClick={() => setSelectedAsset(asset)} className={`p-3 rounded-2xl border text-[8px] font-black uppercase tracking-widest transition-all ${selectedAsset === asset ? 'bg-blue-600 border-blue-400 text-white shadow-xl scale-[1.02]' : 'bg-black/40 border-white/10 text-slate-300 hover:bg-black/60'}`}>{asset}</button>
           ))}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-           <InputField id="plate" label="Plant No." value={metadata.plate} onChange={e => setMetadata({...metadata, plate: e.target.value})} placeholder="e.g. BC-09" />
+           <InputField id="plate" label="Plant No. *" value={metadata.plate} onChange={e => setMetadata({...metadata, plate: e.target.value})} placeholder="BC-09" required />
            <InputField id="make" label="Make / Model" value={metadata.make} onChange={e => setMetadata({...metadata, make: e.target.value})} placeholder="Caterpillar / JCB" />
-           <InputField id="inspector" label="Supervisor" value={metadata.inspector} onChange={e => setMetadata({...metadata, inspector: e.target.value})} placeholder="Name" />
+           <InputField id="inspector" label="Supervisor *" value={metadata.inspector} onChange={e => setMetadata({...metadata, inspector: e.target.value})} placeholder="Name" required />
         </div>
 
         <div className={`overflow-hidden rounded-3xl border ${isLight ? 'border-slate-200 bg-white/40' : 'border-white/5 bg-black/40'}`}>
@@ -148,32 +170,13 @@ export const EquipmentChecklistForm: React.FC<EquipmentChecklistFormProps> = ({ 
                     </div>
                   </td>
                   <td className="py-2 px-1">
-                    <button 
-                      onClick={() => toggleCheck(item, 'D')} 
-                      className={`w-full h-10 rounded-xl flex items-center justify-center transition-all text-sm font-black active:scale-95 ${getStatusColor(checks[`${item}-D`] || 'none')}`}
-                    >
-                      {getStatusLabel(checks[`${item}-D`] || 'none')}
-                    </button>
+                    <button onClick={() => toggleCheck(item, 'D')} className={`w-full h-10 rounded-xl flex items-center justify-center transition-all text-sm font-black active:scale-95 ${getStatusColor(checks[`${item}-D`] || 'none')}`}>{getStatusLabel(checks[`${item}-D`] || 'none')}</button>
                   </td>
                   <td className="py-2 px-1">
-                    <button 
-                      onClick={() => toggleCheck(item, 'N')} 
-                      className={`w-full h-10 rounded-xl flex items-center justify-center transition-all text-sm font-black active:scale-95 ${getStatusColor(checks[`${item}-N`] || 'none')}`}
-                    >
-                      {getStatusLabel(checks[`${item}-N`] || 'none')}
-                    </button>
+                    <button onClick={() => toggleCheck(item, 'N')} className={`w-full h-10 rounded-xl flex items-center justify-center transition-all text-sm font-black active:scale-95 ${getStatusColor(checks[`${item}-N`] || 'none')}`}>{getStatusLabel(checks[`${item}-N`] || 'none')}</button>
                   </td>
                   <td className="py-2 px-6 text-center">
-                     <button 
-                       onClick={() => setActiveCommentKey(item)}
-                       className={`p-3 rounded-xl transition-all border ${
-                         remarks[item] 
-                           ? 'bg-blue-600 text-white border-blue-400 shadow-lg' 
-                           : (isLight ? 'bg-white/80 text-slate-400 border-slate-200' : 'bg-black/20 text-slate-500 border-white/5 hover:text-white')
-                       }`}
-                     >
-                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-                     </button>
+                     <button onClick={() => setActiveCommentKey(item)} className={`p-3 rounded-xl border ${remarks[item] ? 'bg-blue-600 text-white' : 'bg-white/5 text-slate-500'}`}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></button>
                   </td>
                 </tr>
               ))}
@@ -181,44 +184,56 @@ export const EquipmentChecklistForm: React.FC<EquipmentChecklistFormProps> = ({ 
           </table>
         </div>
 
-        <div className={`mt-16 p-8 rounded-[2.5rem] border-2 flex flex-col sm:flex-row items-center justify-between gap-10 ${isLight ? 'bg-white/40 border-slate-200/50' : 'bg-black/40 border-white/5'}`}>
-           <div className="flex-1 space-y-4">
-              <h4 className={`text-[10px] font-black uppercase tracking-widest ${isLight ? 'text-blue-600' : 'text-blue-500'}`}>Operator Authorization</h4>
-              <p className={`text-[11px] font-bold italic ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
-                "I acknowledge the verification of the asset for daily readiness. All defects are recorded for remediation."
-              </p>
-           </div>
-           <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
-              <button 
-                onClick={handleSync}
-                disabled={isSubmitting}
-                className="px-10 py-6 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-[2rem] uppercase tracking-[0.4em] text-xs shadow-2xl transition-all active:scale-95 border border-blue-400/20"
-              >
-                {isSubmitting ? "Dispatching..." : "Commit Matrix"}
-              </button>
-           </div>
+        <div className="mt-12 flex justify-center">
+           <button onClick={handleSync} disabled={isSubmitting} className="w-full sm:w-80 py-6 bg-blue-600 text-white font-black rounded-[2rem] uppercase tracking-[0.4em] text-xs shadow-2xl border border-blue-400/20 active:scale-95 transition-all">
+             {isSubmitting ? "Dispatching..." : "Commit Matrix"}
+           </button>
         </div>
       </div>
 
+      {activeDefectItem && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/95 backdrop-blur-xl animate-in zoom-in duration-300">
+           <div className={`w-full max-w-sm p-8 rounded-[2.5rem] border shadow-2xl text-center ${isLight ? 'bg-white' : 'bg-slate-900 border-white/10'}`}>
+              <div className="w-16 h-16 rounded-2xl bg-rose-500/10 flex items-center justify-center mx-auto mb-6 text-rose-500 border border-rose-500/20 shadow-lg">
+                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+              </div>
+              <h4 className={`text-xl font-black mb-2 tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>Asset Defect Found</h4>
+              <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest mb-8">Component: {activeDefectItem.item}</p>
+              <div className="space-y-4">
+                 <label className="w-full py-5 rounded-2xl bg-blue-600 text-white font-black uppercase text-[10px] tracking-widest flex items-center justify-center gap-3 cursor-pointer shadow-xl active:scale-95">
+                    Capture Detail
+                    <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleDefectUpload} />
+                 </label>
+                 <button onClick={() => setActiveDefectItem(null)} className="w-full py-4 text-slate-500 font-black uppercase text-[9px] tracking-widest">Acknowledge</button>
+              </div>
+           </div>
+        </div>
+      )}
+
       {activeCommentKey && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in zoom-in duration-300">
-           <div className={`w-full max-w-sm p-8 rounded-[2.5rem] border shadow-2xl ${isLight ? 'bg-white/95 border-slate-200' : 'bg-slate-950/95 border-white/10'}`}>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in zoom-in duration-300">
+           <div className={`w-full max-w-sm p-8 rounded-[2.5rem] border shadow-2xl ${isLight ? 'bg-white' : 'bg-slate-950 border-white/10'}`}>
               <h4 className={`text-lg font-black uppercase tracking-tight mb-2 ${isLight ? 'text-slate-900' : 'text-white'}`}>Asset Remarks</h4>
               <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-6">Item: {activeCommentKey}</p>
-              <textarea 
-                value={remarks[activeCommentKey] || ''}
-                onChange={(e) => setRemarks({...remarks, [activeCommentKey]: e.target.value})}
-                placeholder="Log maintenance notes..."
-                rows={4}
-                className={`w-full p-4 rounded-2xl border outline-none font-bold text-sm resize-none mb-6 ${isLight ? 'bg-slate-50 border-slate-200 focus:border-blue-500' : 'bg-black/40 border-white/5 text-white focus:border-blue-500'}`}
-              />
-              <div className="flex flex-col gap-3">
-                 <button onClick={() => setActiveCommentKey(null)} className="w-full py-4 bg-blue-600 text-white font-black rounded-2xl uppercase text-[10px] tracking-widest shadow-lg hover:bg-blue-500 transition-all">Save Note</button>
-                 <button onClick={() => setActiveCommentKey(null)} className={`w-full py-4 font-black rounded-2xl uppercase text-[10px] tracking-widest transition-all ${isLight ? 'bg-slate-100 text-slate-600 hover:bg-slate-200' : 'bg-white/5 text-slate-400 hover:bg-white/10'}`}>Dismiss</button>
-              </div>
+              <textarea value={remarks[activeCommentKey] || ''} onChange={(e) => setRemarks({...remarks, [activeCommentKey]: e.target.value})} placeholder="Log maintenance notes..." rows={4} className={`w-full p-4 rounded-2xl border outline-none font-bold text-sm resize-none mb-6 ${isLight ? 'bg-slate-50' : 'bg-black/40 border-white/5 text-white'}`} />
+              <button onClick={() => setActiveCommentKey(null)} className="w-full py-4 bg-blue-600 text-white font-black rounded-2xl uppercase text-[10px] tracking-widest">Save Note</button>
            </div>
         </div>
       )}
     </div>
   );
+};
+
+const getStatusColor = (status: CheckStatus) => {
+  if (status === 'ok') return 'bg-emerald-500 text-white';
+  if (status === 'fail') return 'bg-rose-500 text-white';
+  if (status === 'na') return 'bg-slate-400 text-white';
+  return 'bg-white/5 text-slate-600';
+};
+
+const getStatusLabel = (status: CheckStatus) => {
+  if (status === 'ok') return '✓';
+  if (status === 'fail') return '✗';
+  if (status === 'na') return '—';
+  return '';
 };

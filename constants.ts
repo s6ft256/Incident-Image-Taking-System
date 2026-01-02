@@ -12,6 +12,7 @@ export const AIRTABLE_CONFIG = {
   BASE_ID: env.VITE_AIRTABLE_BASE_ID || 'appRNHMjdLKpotlNB', 
   TABLE_NAME: env.VITE_AIRTABLE_TABLE_NAME || 'Observation Reports', 
   INCIDENT_TABLE_NAME: 'Incident Reports',
+  CRANE_CHECK_TABLE_NAME: 'Crane Checklists',
   API_KEY: env.VITE_AIRTABLE_API_KEY || 'patzdxvHRVZMXIn81.9401a5088becb5599f3f531389524760891c53b976331a7cc70876727f8dfb7f',
 };
 

@@ -34,27 +34,28 @@ const CardBackgroundGlow: React.FC = () => (
 );
 
 const VideoBackground: React.FC<{ isLight: boolean }> = ({ isLight }) => (
-  <div className="fixed inset-0 w-full h-full overflow-hidden pointer-events-none z-0">
+  <div className="fixed inset-0 w-full h-full overflow-hidden pointer-events-none z-[-1] select-none">
     <video 
       autoPlay 
       muted 
       loop 
       playsInline 
-      className="absolute top-0 left-0 w-full h-full object-cover opacity-30 sm:opacity-50 transition-opacity duration-1000"
+      preload="auto"
+      className="absolute top-0 left-0 w-full h-full object-cover opacity-30 sm:opacity-40 transition-opacity duration-1000"
     >
       <source src="https://assets.mixkit.co/videos/preview/mixkit-digital-circuit-board-blue-interface-background-31718-preview.mp4" type="video/mp4" />
     </video>
     
     {/* Dynamic Atmosphere Overlays */}
     <div className={`absolute inset-0 transition-colors duration-1000 ${
-      isLight ? 'bg-slate-50/70' : 'bg-[#020617]/70'
+      isLight ? 'bg-slate-50/60' : 'bg-[#020617]/70'
     }`}></div>
     
     {/* Grid Overlay for Tactical Look */}
-    <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[url('https://grainy-gradients.vercel.app/noise.svg')]"></div>
+    <div className="absolute inset-0 opacity-[0.04] pointer-events-none bg-[url('https://grainy-gradients.vercel.app/noise.svg')] bg-repeat"></div>
     
-    {/* Radial Vignette */}
-    <div className={`absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(2,6,23,0.8)_100%)] ${isLight ? 'opacity-40' : 'opacity-100'}`}></div>
+    {/* Radial Vignette optimized for Large Screens */}
+    <div className={`absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(2,6,23,0.9)_100%)] ${isLight ? 'opacity-30' : 'opacity-100'}`}></div>
   </div>
 );
 
@@ -175,7 +176,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
   };
 
   return (
-    <div className="relative min-h-[90vh] flex items-center justify-center p-6 overflow-hidden">
+    <div className="relative min-h-[95vh] flex items-center justify-center p-6 overflow-hidden">
       <VideoBackground isLight={isLight} />
       
       {mode === 'welcome' ? (
