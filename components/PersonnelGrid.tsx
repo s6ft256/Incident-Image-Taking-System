@@ -34,7 +34,7 @@ const CONTRIBUTORS = [
     name: "Syed Irshad",
     role: "HSE Engineer",
     email: "irshad.syed@npc.ae",
-    image: "https://www.gulftalent.com/images1/candidates/03d/283/photo_115x115_03d28360a45f84aadc9fdf13b77f54d4"
+    image: "https://ui-avatars.com/api/?name=Syed+Irshad&background=0066FF&color=fff&bold=true"
   },
   {
     name: "Usman Zahid Qureshi",
