@@ -36,6 +36,9 @@ export const STORAGE_KEYS = {
 export const SYSTEM_LOGO_URL = 'https://www.multiply-marketing.com/trojan-wp/wp-content/uploads/2020/08/tgc-logo-300x300.png';
 export const AUTHORIZED_ADMIN_ROLES = ['technician', 'engineer'];
 
+// Default background video for auth screen (muted, short loop). Can be overridden via Vite env.
+export const AUTH_VIDEO_BG = (env.VITE_AUTH_VIDEO_BG as string) || 'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4';
+
 export const ROLES = [
   'Site Supervisor',
   'Safety Officer',

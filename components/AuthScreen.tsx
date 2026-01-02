@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { UserProfile } from '../types';
-import { ROLES, SITES, SYSTEM_LOGO_URL } from '../constants';
+import { ROLES, SITES, SYSTEM_LOGO_URL, AUTH_VIDEO_BG } from '../constants';
 import { registerProfile, getProfileByName } from '../services/profileService';
 import { uploadImageToStorage } from '../services/storageService';
 import { compressImage } from '../utils/imageCompression';
@@ -33,9 +33,17 @@ const CardBackgroundGlow: React.FC = () => (
 );
 
 const AuthBackground: React.FC<{ isLight: boolean }> = ({ isLight }) => (
-  <div className={`fixed inset-0 z-[-1] transition-colors duration-1000 ${
-    isLight ? 'bg-slate-50' : 'bg-[#020617]'
-  }`}>
+  <div className={`fixed inset-0 z-[-2] transition-colors duration-1000 ${isLight ? 'bg-slate-50' : 'bg-[#020617]'}`}>
+    <video
+      className="absolute inset-0 w-full h-full object-cover pointer-events-none -z-10"
+      src={AUTH_VIDEO_BG}
+      muted
+      loop
+      playsInline
+      autoPlay
+      aria-hidden
+    />
+
     <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[url('https://grainy-gradients.vercel.app/noise.svg')] bg-repeat"></div>
     <div className={`absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(59,130,246,0.1)_100%)] ${isLight ? 'opacity-40' : 'opacity-100'}`}></div>
     <div className="absolute top-0 left-0 w-full h-full opacity-[0.02] bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]"></div>
@@ -66,6 +74,17 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
         if (p) setProfile(prev => ({ ...prev, name: p.name }));
       });
     }
+  }, []);
+
+  // Ensure video autoplay works on browsers that require a programmatic play call
+  useEffect(() => {
+    const vids = document.querySelectorAll('video');
+    vids.forEach(v => {
+      const video = v as HTMLVideoElement;
+      if (video && video.paused) {
+        video.play().catch(() => {/* autoplay blocked — user interaction required */});
+      }
+    });
   }, []);
 
   const handleFieldChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {

@@ -56,11 +56,15 @@ const ContributorRecognition: React.FC<{ isLight: boolean }> = ({ isLight }) => 
             'bg-amber-500/20'
           }`}></div>
           <div className={`w-28 h-28 sm:w-32 sm:h-32 rounded-full overflow-hidden relative z-10 shadow-[0_20px_50px_-12px_rgba(0,0,0,0.5)] transition-all duration-700 group-hover:scale-110 border-2 ${isLight ? 'border-white bg-slate-100' : 'border-white/10 bg-slate-800'}`}>
-            <img 
-              src={contributor.image} 
-              alt={contributor.name} 
+            <img
+              src={contributor.image}
+              alt={contributor.name}
               className="w-full h-full object-cover grayscale-[0.3] group-hover:grayscale-0 transition-all duration-700"
+              loading="lazy"
+              crossOrigin="anonymous"
+              referrerPolicy="no-referrer"
               onError={(e) => {
+                (e.target as HTMLImageElement).onerror = null;
                 (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(contributor.name)}&background=0066FF&color=fff&bold=true`;
               }}
             />
@@ -273,7 +277,18 @@ export const PersonnelGrid: React.FC<PersonnelGridProps> = ({ appTheme = 'dark',
                       isLight ? 'border-white bg-slate-100 shadow-slate-200/50' : 'border-white/10 bg-black/40 shadow-black'
                     }`}>
                       {person.profileImageUrl ? (
-                        <img src={person.profileImageUrl} alt={person.name} className="w-full h-full object-cover" />
+                        <img
+                          src={person.profileImageUrl}
+                          alt={person.name}
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                          crossOrigin="anonymous"
+                          referrerPolicy="no-referrer"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).onerror = null;
+                            (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(person.name)}&background=0066FF&color=fff&bold=true`;
+                          }}
+                        />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-blue-500 font-black text-2xl">
                           {person.name.charAt(0)}

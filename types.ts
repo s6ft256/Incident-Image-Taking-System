@@ -7,7 +7,6 @@ export interface UserProfile {
   email?: string; 
   profileImageUrl?: string;
   password?: string;
-  biometricCredentialId?: string; 
   // Compliance Fields
   privacy_policy_consent?: boolean;
   user_agreement_consent?: boolean;

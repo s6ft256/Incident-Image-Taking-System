@@ -19,24 +19,24 @@
   ],
   "start_url": "/",
   "display": "standalone",
+  "scope": "/",
+  "prefer_related_applications": false,
   "orientation": "portrait",
   "theme_color": "#020617",
   "background_color": "#020617",
   "categories": ["business", "productivity", "utilities"],
-  "shortcuts": [
+  "icons": [
     {
-      "name": "New Observation Report",
-      "short_name": "Report",
-      "description": "Directly open the observation evidence acquisition terminal",
-      "url": "/?view=create",
-      "icons": [{ "src": "https://www.multiply-marketing.com/trojan-wp/wp-content/uploads/2020/08/tgc-logo-300x300.png", "sizes": "192x192" }]
+      "src": "https://www.multiply-marketing.com/trojan-wp/wp-content/uploads/2020/08/tgc-logo-300x300.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
     },
     {
-      "name": "View My Tasks",
-      "short_name": "Tasks",
-      "description": "Review assigned safety observations",
-      "url": "/?view=my-tasks",
-      "icons": [{ "src": "https://www.multiply-marketing.com/trojan-wp/wp-content/uploads/2020/08/tgc-logo-300x300.png", "sizes": "192x192" }]
+      "src": "https://www.multiply-marketing.com/trojan-wp/wp-content/uploads/2020/08/tgc-logo-300x300.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }

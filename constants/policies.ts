@@ -135,7 +135,7 @@ export const PRIVACY_POLICY = {
     },
     {
       heading: "2. Information We Collect",
-      content: "To facilitate effective safety management and incident tracking, we collect the following types of information:\n\n• Identity Information: Full Name, Employee ID, Professional Role, and assigned Work Sites.\n• Biometric Data: Encrypted cryptographic hashes used for secure local authentication. Note: Actual fingerprint or facial templates are never stored on our servers or transmitted over the network; they remain securely handled by your device's native hardware abstraction layer.\n• Operational Evidence: Photographic evidence, detailed observation narratives, geo-location data (where permitted), and time-stamped incident logs."
+      content: "To facilitate effective safety management and incident tracking, we collect the following types of information:\n\n• Identity Information: Full Name, Employee ID, Professional Role, and assigned Work Sites.\n• Operational Evidence: Photographic evidence, detailed observation narratives, geo-location data (where permitted), and time-stamped incident logs."
     },
     {
       heading: "3. Purposes of Data Processing",
@@ -147,7 +147,7 @@ export const PRIVACY_POLICY = {
     },
     {
       heading: "5. Security Protocol",
-      content: "We implement multi-layered security to safeguard your data:\n\n• Encryption: All data is encrypted in transit using TLS 1.3 and at rest using AES-256 encryption.\n• Role-Based Access Control (RBAC): Access to incident archives and personnel data is strictly limited based on organizational clearance levels.\n• Biometric Safeguards: Leveraging FIDO2/WebAuthn standards for passwordless, secure login that prevents unauthorized terminal access."
+      content: "We implement multi-layered security to safeguard your data:\n\n• Encryption: All data is encrypted in transit using TLS 1.3 and at rest using AES-256 encryption.\n• Role-Based Access Control (RBAC): Access to incident archives and personnel data is strictly limited based on organizational clearance levels.\n• Device-level Authentication: The system supports secure local authentication methods provided by the device platform."
     },
     {
       heading: "6. Data Retention Period",
@@ -155,7 +155,7 @@ export const PRIVACY_POLICY = {
     },
     {
       heading: "7. Your Rights and Control",
-      content: "Under our privacy framework, you have the right to:\n\n• Access: Request a copy of the personal data we hold about you.\n• Rectification: Update or correct inaccurate profile information through the 'Profile' section of the app.\n• Erasure: Request the deletion of your account and personal identifiers (subject to statutory safety record-keeping requirements).\n• Consent Withdrawal: Revoke authorizations for image processing or biometric usage at any time via the system settings."
+      content: "Under our privacy framework, you have the right to:\n\n• Access: Request a copy of the personal data we hold about you.\n• Rectification: Update or correct inaccurate profile information through the 'Profile' section of the app.\n• Erasure: Request the deletion of your account and personal identifiers (subject to statutory safety record-keeping requirements).\n• Consent Withdrawal: Revoke authorizations for image processing or device-level authentication at any time via the system settings."
     },
     {
       heading: "8. Contact and Feedback",
@@ -178,7 +178,7 @@ export const USER_AGREEMENT = {
     },
     {
       heading: "3. Prohibited Activities",
-      content: "Users are strictly prohibited from:\n• Attempting to reverse-engineer or gain unauthorized access to the application’s administrative backend.\n• Sharing access credentials (passwords or biometric profiles) with any other individual.\n• Using the application to harass, intimidate, or unfairly target fellow employees through biased safety reporting."
+      content: "Users are strictly prohibited from:\n• Attempting to reverse-engineer or gain unauthorized access to the application’s administrative backend.\n• Sharing access credentials (passwords) with any other individual.\n• Using the application to harass, intimidate, or unfairly target fellow employees through biased safety reporting."
     },
     {
       heading: "4. System Integrity and Data Accuracy",
@@ -201,7 +201,7 @@ export const COOKIE_POLICY = {
     },
     {
       heading: "2. Essential Cookies (Required)",
-      content: "These cookies are mandatory for the application to function. Without them, you cannot log in or use secure features.\n\n• Session Management: Keeps you logged in while you navigate between different parts of the system.\n• Security Handshake: Stores cryptographic keys required for Biometric Authentication (WebAuthn) and secure server communication.\n• Data Integrity: Tracks the progress of offline report syncing to prevent data loss."
+      content: "These cookies are mandatory for the application to function. Without them, you cannot log in or use secure features.\n\n• Session Management: Keeps you logged in while you navigate between different parts of the system.\n• Security Handshake: Stores cryptographic keys required for secure server communication.\n• Data Integrity: Tracks the progress of offline report syncing to prevent data loss."
     },
     {
       heading: "3. Preference Cookies (Customization)",

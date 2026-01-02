@@ -1,17 +1,10 @@
 
-/**
- * Biometric Service - DEACTIVATED
- * Feature removed per system requirements to bypass environment-specific WebAuthn restrictions.
- */
+// Biometric support removed
+// The biometric authentication feature has been removed from the application
+// per project requirements. This file remains for historical context only
+// and should not be imported or relied upon. If present, its APIs intentionally
+// return disabled responses.
 
-export const isBiometricsAvailable = async (): Promise<boolean> => {
-  return false;
-};
-
-export const registerBiometrics = async (userName: string): Promise<{ credentialId: string; publicKey: string }> => {
-  throw new Error("Biometric protocol is currently disabled in this environment.");
-};
-
-export const authenticateBiometrics = async (storedCredentialId: string): Promise<boolean> => {
-  return false;
-};
+export const isBiometricsAvailable = async (): Promise<boolean> => false;
+export const registerBiometrics = async () => { throw new Error('Biometric authentication removed.'); };
+export const authenticateBiometrics = async () => false;

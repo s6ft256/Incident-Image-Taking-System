@@ -5,7 +5,7 @@
 
 ## Professional Features
 
-*   **Secure Access:** Biometric lock (FaceID/Fingerprint) and Password Gateway.
+*   **Secure Access:** Password-based gateway and support for secure device-level authentication.
 *   **Evidence Acquisition:** Multi-image capture with local compression and offline queueing.
 *   **Command Dashboard:** Real-time data visualization of site risks and resolution status.
 *   **PWA Ready:** Installable on Android and iOS for offline field operations.
@@ -23,7 +23,7 @@ git add .
 ### 2. High-Integrity Committing
 Commit your changes with a descriptive message following semantic versioning principles:
 ```bash
-git commit -m "feat: implement biometric security and enhanced incident evidence grid"
+git commit -m "feat: update security and enhanced incident evidence grid"
 ```
 
 ### 3. Repository Synchronization
