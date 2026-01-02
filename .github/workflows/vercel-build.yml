@@ -1,0 +1,43 @@
+name: Vercel Build & Optional Deploy
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run vercel-build
+        run: npm run vercel-build
+
+      - name: Archive built dist
+        uses: actions/upload-artifact@v4
+        with:
+          name: site-dist
+          path: dist
+
+      - name: Optional: Deploy to Vercel
+        if: secrets.VERCEL_TOKEN != ''
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          echo "VERCEL_TOKEN is present — deploying to Vercel"
+          npm install -g vercel@29 || true
+          # Use vercel CLI to deploy the current project. Set VERCEL_TOKEN as a repository secret.
+          vercel --prod --token "$VERCEL_TOKEN" --confirm
