@@ -6,14 +6,6 @@
   ],
   "routes": [
     { "src": "/callback", "dest": "/api/callback.js" },
-    { "src": "/(.*)", "dest": "/index.html" }
-  ]
-}
-{
-  "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
-    }
+    { "src": "^/(?:.*)$", "dest": "/index.html" }
   ]
 }
