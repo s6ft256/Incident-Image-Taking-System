@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { AuditEntry, UserProfile, AuditChange } from '../types';
+
+import React, { useState, useEffect, useMemo } from 'react';
+import { AuditEntry, UserProfile, AuditChange, FetchedObservation, FetchedIncident } from '../types';
 import { STORAGE_KEYS } from '../constants';
+import { getAllReports, getAllIncidents } from '../services/airtableService';
 
 interface AuditLogViewerProps {
   appTheme: 'dark' | 'light';
@@ -9,9 +11,16 @@ interface AuditLogViewerProps {
 
 const EVENT_TYPES = ['Create', 'Update', 'Delete', 'Submit', 'Approve', 'Reject', 'Upload Evidence', 'Status Change'];
 const ACTION_CATEGORIES = ['Data Entry', 'Approval', 'Review', 'System Action'];
-const MODULE_OPTIONS = ['Risk Assessment', 'Compliance', 'Incident', 'Inspection', 'Other'];
+const MODULE_OPTIONS = ['Risk Assessment', 'Compliance', 'Incident', 'Inspection', 'Other'] as const;
 
 const BG_IMAGE = 'https://images.unsplash.com/photo-1551288049-bbbda536339a?auto=format&fit=crop&q=80&w=2000';
+
+interface SearchableRecord {
+  id: string;
+  module: typeof MODULE_OPTIONS[number];
+  summary: string;
+  timestamp: string;
+}
 
 export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ appTheme, onBack }) => {
   const isLight = appTheme === 'light';
@@ -19,7 +28,12 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ appTheme, onBack
   const [isCreating, setIsCreating] = useState(false);
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   
-  // Mock data for the detailed audit trail
+  // Linkage Directory States
+  const [recordDirectory, setRecordDirectory] = useState<SearchableRecord[]>([]);
+  const [isSearchingRecords, setIsSearchingRecords] = useState(false);
+  const [recordSearchQuery, setRecordSearchQuery] = useState('');
+  const [showRecordDropdown, setShowRecordDropdown] = useState(false);
+
   const [logs, setLogs] = useState<AuditEntry[]>([
     {
       id: 'AUD-8821-XP',
@@ -78,7 +92,60 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ appTheme, onBack
         setCurrentUser(profile);
       } catch (e) {}
     }
+    // Perform Grid discovery for related records
+    fetchGridRecords();
   }, []);
+
+  const fetchGridRecords = async () => {
+    setIsSearchingRecords(true);
+    try {
+      const [observations, incidents] = await Promise.all([
+        getAllReports(),
+        getAllIncidents()
+      ]);
+
+      const mappedObservations: SearchableRecord[] = observations.map(o => ({
+        id: o.id,
+        module: 'Inspection',
+        summary: `${o.fields["Observation Type"] || 'Hazard'}: ${o.fields["Observation"]?.substring(0, 40)}...`,
+        timestamp: o.createdTime
+      }));
+
+      const mappedIncidents: SearchableRecord[] = incidents.map(i => ({
+        id: i.id,
+        module: 'Incident',
+        summary: `INCIDENT: ${i.fields["Title"]}`,
+        timestamp: i.createdTime
+      }));
+
+      setRecordDirectory([...mappedIncidents, ...mappedObservations].sort((a, b) => 
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      ));
+    } catch (e) {
+      console.warn("Grid discovery failed", e);
+    } finally {
+      setIsSearchingRecords(false);
+    }
+  };
+
+  const filteredGridRecords = useMemo(() => {
+    if (!recordSearchQuery.trim()) return recordDirectory.slice(0, 10);
+    return recordDirectory.filter(r => 
+      r.id.toLowerCase().includes(recordSearchQuery.toLowerCase()) ||
+      r.summary.toLowerCase().includes(recordSearchQuery.toLowerCase())
+    );
+  }, [recordDirectory, recordSearchQuery]);
+
+  const selectRecordLink = (record: SearchableRecord) => {
+    setNewLog(prev => ({ 
+      ...prev, 
+      relatedRecordId: record.id, 
+      module: record.module as any,
+      actionSummary: `Audit review of ${record.module} Record ${record.id}`
+    }));
+    setRecordSearchQuery(record.id);
+    setShowRecordDropdown(false);
+  };
 
   const handleCreateSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -114,6 +181,7 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ appTheme, onBack
       relatedRecordId: '',
       reasonForChange: ''
     });
+    setRecordSearchQuery('');
   };
 
   const selectedLog = logs.find(l => l.id === selectedAuditId);
@@ -144,11 +212,7 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ appTheme, onBack
     return (
       <div className="animate-in slide-in-from-right duration-500 pb-32 max-w-5xl mx-auto relative">
         <div className="absolute inset-0 z-0 pointer-events-none opacity-5 sm:opacity-10">
-          <img 
-            src={BG_IMAGE} 
-            className="w-full h-full object-cover rounded-[3rem]" 
-            alt="Management Suite Background" 
-          />
+          <img src={BG_IMAGE} className="w-full h-full object-cover rounded-[3rem]" alt="Management Background" />
           <div className={`absolute inset-0 bg-gradient-to-b ${isLight ? 'from-white via-white/80 to-white' : 'from-[#020617] via-transparent to-[#020617]'}`}></div>
         </div>
 
@@ -226,8 +290,58 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ appTheme, onBack
               </div>
             </div>
 
-            <SectionHeader num="3" title="Justification & Integrity" />
+            <SectionHeader num="3" title="Justification & Linkage" />
             <div className="space-y-6">
+              <div className="flex flex-col gap-1.5 relative">
+                <label className="text-[9px] font-black text-blue-500 uppercase tracking-widest px-1">Related Record ID (Search Directory)</label>
+                <div className="relative group">
+                  <input 
+                    type="text"
+                    value={recordSearchQuery}
+                    onFocus={() => setShowRecordDropdown(true)}
+                    onChange={e => { setRecordSearchQuery(e.target.value); setShowRecordDropdown(true); }}
+                    placeholder="Search by ID or Description..."
+                    className={`w-full p-4 rounded-xl border outline-none transition-all font-bold text-xs pl-12 ${isLight ? 'bg-slate-50 border-slate-200 focus:border-blue-500' : 'bg-black/20 border-white/5 focus:border-blue-500 text-white'}`}
+                  />
+                  <svg className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                  
+                  {isSearchingRecords && (
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                       <div className="w-4 h-4 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin"></div>
+                    </div>
+                  )}
+
+                  {showRecordDropdown && (
+                    <div className={`absolute top-full left-0 right-0 mt-2 max-h-60 overflow-y-auto rounded-2xl border shadow-2xl z-[100] animate-in slide-in-from-top-2 ${isLight ? 'bg-white border-slate-200' : 'bg-slate-900 border-white/10'}`}>
+                      <div className="p-3 border-b border-white/5 bg-blue-600/5">
+                         <span className="text-[8px] font-black uppercase text-blue-500 tracking-[0.2em]">Safety Grid Linkage Directory</span>
+                      </div>
+                      {filteredGridRecords.length === 0 ? (
+                        <div className="p-6 text-center opacity-40 text-[9px] font-black uppercase">No records found matching query</div>
+                      ) : (
+                        filteredGridRecords.map(r => (
+                          <button 
+                            key={r.id} 
+                            type="button"
+                            onClick={() => selectRecordLink(r)}
+                            className={`w-full flex flex-col p-4 text-left border-b border-white/5 transition-all ${isLight ? 'hover:bg-slate-50' : 'hover:bg-white/5'}`}
+                          >
+                            <div className="flex justify-between items-center mb-1">
+                               <span className="text-[10px] font-mono font-black text-blue-500 uppercase">{r.id}</span>
+                               <span className={`px-2 py-0.5 rounded text-[7px] font-black uppercase ${r.module === 'Incident' ? 'bg-rose-500/10 text-rose-500' : 'bg-blue-500/10 text-blue-500'}`}>{r.module}</span>
+                            </div>
+                            <p className={`text-[10px] font-bold line-clamp-1 ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>{r.summary}</p>
+                          </button>
+                        ))
+                      )}
+                      <div className="p-3 bg-black/10 text-center">
+                         <button onClick={() => setShowRecordDropdown(false)} className="text-[8px] font-black uppercase text-slate-500 hover:text-blue-500 transition-colors">Close Linkage Terminal</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+              
               <div className="flex flex-col gap-1.5">
                 <label className="text-[9px] font-black text-rose-500 uppercase tracking-widest px-1">Reason for Manual Change *</label>
                 <textarea 
@@ -238,23 +352,13 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ appTheme, onBack
                   className={`p-4 rounded-xl border-2 border-rose-500/20 outline-none font-bold text-xs resize-none ${isLight ? 'bg-slate-50' : 'bg-black/20 text-white'}`}
                 />
               </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest px-1">Related Record ID</label>
-                <input 
-                  type="text"
-                  value={newLog.relatedRecordId}
-                  onChange={e => setNewLog({...newLog, relatedRecordId: e.target.value})}
-                  placeholder="e.g. RA-1234, REG-5678"
-                  className={`p-4 rounded-xl border outline-none font-bold text-xs ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-black/20 border-white/5 text-white'}`}
-                />
-              </div>
             </div>
 
             <div className="mt-12 p-8 rounded-[2rem] border-2 bg-blue-600/5 border-blue-500/10 text-center">
               <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-6">Identity Authorization: {currentUser?.name || 'Guest Access'}</p>
               <button 
                 type="submit"
-                className="px-12 py-5 bg-blue-600 text-white rounded-[2rem] font-black uppercase tracking-[0.4em] text-xs shadow-2xl hover:bg-blue-500 transition-all active:scale-95 border border-blue-400/30"
+                className="w-full sm:w-auto px-12 py-5 bg-blue-600 text-white rounded-[2rem] font-black uppercase tracking-[0.4em] text-xs shadow-2xl hover:bg-blue-500 transition-all active:scale-95 border border-blue-400/30"
               >
                 Commit to Activity Ledger
               </button>
@@ -269,11 +373,7 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ appTheme, onBack
     return (
       <div className="animate-in slide-in-from-right duration-500 pb-20 max-w-5xl mx-auto relative">
         <div className="absolute inset-0 z-0 pointer-events-none opacity-5 sm:opacity-10">
-          <img 
-            src={BG_IMAGE} 
-            className="w-full h-full object-cover rounded-[3rem]" 
-            alt="Management Suite Background" 
-          />
+          <img src={BG_IMAGE} className="w-full h-full object-cover rounded-[3rem]" alt="Audit History Background" />
           <div className={`absolute inset-0 bg-gradient-to-b ${isLight ? 'from-white via-white/80 to-white' : 'from-[#020617] via-transparent to-[#020617]'}`}></div>
         </div>
 
@@ -330,11 +430,7 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ appTheme, onBack
   return (
     <div className="animate-in slide-in-from-right duration-500 pb-32 max-w-5xl mx-auto relative">
       <div className="absolute inset-0 z-0 pointer-events-none opacity-5 sm:opacity-10">
-        <img 
-          src={BG_IMAGE} 
-          className="w-full h-full object-cover rounded-[3rem]" 
-          alt="Management Suite Background" 
-        />
+        <img src={BG_IMAGE} className="w-full h-full object-cover rounded-[3rem]" alt="Audit History Background" />
         <div className={`absolute inset-0 bg-gradient-to-b ${isLight ? 'from-white via-white/80 to-white' : 'from-[#020617] via-transparent to-[#020617]'}`}></div>
       </div>
 
@@ -355,7 +451,6 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ appTheme, onBack
           isLight ? 'bg-white/90 border-slate-200' : 'bg-white/[0.02] border-white/10'
         }`}>
           
-          {/* 1. Form Header */}
           <div className="text-center mb-12 border-b border-white/5 pb-10">
             <h1 className={`text-4xl font-black tracking-tighter ${isLight ? 'text-slate-900' : 'text-white'}`}>
               Audit Trail Record
@@ -388,7 +483,6 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ appTheme, onBack
             </div>
           </div>
 
-          {/* 2. Event Classification */}
           <SectionHeader num="2" title="Event Classification" />
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <FormField label="Event Type" value={selectedLog?.action || ''} auto={false} />
@@ -396,7 +490,6 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ appTheme, onBack
             <FormField label="Source" value={selectedLog?.source || ''} auto={false} />
           </div>
 
-          {/* 3. User & Access Context */}
           <SectionHeader num="3" title="User & Access Context" />
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
             <FormField label="User Name" value={selectedLog?.user || ''} />
@@ -406,7 +499,6 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ appTheme, onBack
             <FormField label="Device / Browser" value={selectedLog?.deviceBrowser || ''} />
           </div>
 
-          {/* 4. Change Details */}
           <SectionHeader num="4" title="Change Details" />
           <div className="overflow-x-auto rounded-2xl border border-white/5 bg-black/20 mb-10">
             <table className="w-full text-left">
@@ -437,7 +529,6 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ appTheme, onBack
             </table>
           </div>
 
-          {/* 5. Action Description */}
           <SectionHeader num="5" title="Action Description" />
           <div className="space-y-6">
             <div className="flex flex-col gap-1.5">
@@ -457,7 +548,6 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ appTheme, onBack
             </div>
           </div>
 
-          {/* 6. Linked Evidence */}
           {selectedLog?.evidence && (
             <>
               <SectionHeader num="6" title="Linked Evidence" />
@@ -476,21 +566,15 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ appTheme, onBack
             </>
           )}
 
-          {/* 7. Reason / Justification */}
-          {selectedLog?.reasonForChange && (
-            <>
-              <SectionHeader num="7" title="Reason / Justification" />
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 rounded-2xl border-2 border-amber-500/20 bg-amber-500/5">
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[9px] font-black text-amber-600 uppercase tracking-widest px-1">Reason for Change *</label>
-                  <p className="text-[11px] font-bold text-slate-300 italic">"{selectedLog.reasonForChange}"</p>
-                </div>
-                <FormField label="Approved By" value={selectedLog.approvedBy || ''} auto={false} />
-              </div>
-            </>
-          )}
+          <SectionHeader num="7" title="Reason / Justification" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 rounded-2xl border-2 border-amber-500/20 bg-amber-500/5">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[9px] font-black text-amber-600 uppercase tracking-widest px-1">Reason for Change *</label>
+              <p className="text-[11px] font-bold text-slate-300 italic">"{selectedLog?.reasonForChange}"</p>
+            </div>
+            <FormField label="Approved By" value={selectedLog?.approvedBy || ''} auto={false} />
+          </div>
 
-          {/* 8. Integrity & Security Controls */}
           <SectionHeader num="8" title="Integrity & Security Controls" />
           <div className="space-y-4">
             <div className="flex flex-col gap-1.5">
@@ -516,41 +600,9 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ appTheme, onBack
             </div>
           </div>
 
-          {/* 9. Review & Acknowledgement */}
-          <SectionHeader num="9" title="Review & Acknowledgement" />
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="flex flex-col gap-6">
-              <FormField label="Reviewed By" value={selectedLog?.reviewedBy || 'Pending Review'} auto={false} />
-              <FormField label="Review Date" value={selectedLog?.reviewDate || '-'} auto={false} />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest px-1">Review Notes</label>
-              <textarea 
-                readOnly 
-                rows={4} 
-                value={selectedLog?.reviewNotes || ''}
-                placeholder="No auditor notes logged."
-                className={`p-4 rounded-xl border outline-none font-bold text-xs resize-none h-full ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-black/20 border-white/5 text-white'}`}
-              />
-            </div>
-          </div>
-
-          {/* 10. Final Declaration */}
-          <div className={`mt-16 p-8 rounded-[2.5rem] border-2 text-center relative overflow-hidden ${isLight ? 'bg-zinc-50 border-zinc-200 text-zinc-900' : 'bg-white/5 border-white/5 text-slate-400'}`}>
-            <p className="text-xs font-black uppercase tracking-widest leading-relaxed max-w-3xl mx-auto italic mb-4">
-              “This audit trail entry is system-generated and cannot be altered. It serves as a permanent record for compliance, legal, and operational review.”
-            </p>
-            <div className="flex items-center justify-center gap-4">
-               <span className="text-[8px] font-black uppercase tracking-[0.4em] text-slate-600">Audit Trail Status:</span>
-               <span className="px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-[8px] font-black uppercase tracking-widest">{selectedLog?.auditStatus}</span>
-            </div>
-          </div>
-
-          {/* 11. Action Buttons */}
           <div className={`fixed bottom-0 left-0 right-0 p-6 flex justify-center items-center z-[50] ${isLight ? 'bg-white/80 border-t border-slate-200' : 'bg-[#020617]/80 border-t border-white/5'} backdrop-blur-2xl`}>
              <div className="max-w-4xl w-full flex gap-3">
                 <button onClick={() => alert("Redirecting to related record terminal...")} className="flex-1 py-4 rounded-2xl bg-zinc-800 text-white text-[9px] font-black uppercase tracking-widest hover:bg-zinc-700 transition-all flex items-center justify-center gap-2">👁️ View Related Record</button>
-                <button onClick={() => alert("Generating Secure PDF Archive...")} className={`flex-1 py-4 rounded-2xl text-[9px] font-black uppercase tracking-widest transition-all ${isLight ? 'bg-slate-100 text-slate-600 border border-slate-200' : 'bg-white/5 text-white border border-white/10 hover:bg-white/10'}`}>📄 Export Protocol</button>
                 <button onClick={() => setSelectedAuditId(null)} className="flex-1 py-4 rounded-2xl bg-blue-600 text-white text-[9px] font-black uppercase tracking-[0.4em] shadow-xl hover:bg-blue-500 transition-all active:scale-95 border border-blue-400/20">❌ Close Terminal</button>
              </div>
           </div>
