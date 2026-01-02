@@ -17,39 +17,58 @@ interface PersonnelStats {
   reportsClosed: number;
 }
 
+const CONTRIBUTORS = [
+  {
+    name: "Ahmed Abbas",
+    role: "System Integrity Architecture & Safety Governance Lead",
+    email: "ahmed.abbas@trojanconstruction.group",
+    image: "https://media.licdn.com/dms/image/v2/C4D03AQG_2PVLqp894g/profile-displayphoto-shrink_800_800/profile-displayphoto-shrink_800_800/0/1655174534836?e=1769040000&v=beta&t=-wzSqxQyq6atEh__m2j3sIBAtRnWtwYJRwwRtKEsQt4"
+  },
+  {
+    name: "Amal Jagadi",
+    role: "Infrastructure Safety Architecture & HSE Engineering",
+    email: "amal.j@npc.ae",
+    image: "https://media.licdn.com/dms/image/v2/D4E03AQHdfMf-x-xIAw/profile-displayphoto-shrink_800_800/profile-displayphoto-shrink_800_800/0/1718245749525?e=1769040000&v=beta&t=8gLCEUfwzTiaXwmRZ5d-Uky_jlPS43t5iTo1u8YPGok"
+  }
+];
+
 const ContributorRecognition: React.FC<{ isLight: boolean }> = ({ isLight }) => (
-  <div className="w-full flex items-center gap-8 py-10 px-4 animate-in fade-in slide-in-from-top-4 duration-1000 group">
-    <div className="relative shrink-0">
-      <div className="absolute inset-0 bg-blue-500/20 blur-[60px] rounded-full animate-pulse scale-150"></div>
-      <div className="w-44 h-44 rounded-full overflow-hidden relative z-10 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.6)] bg-slate-800 transition-all duration-700 group-hover:scale-110">
-        <img 
-          src="https://media.licdn.com/dms/image/v2/C4D03AQG_2PVLqp894g/profile-displayphoto-shrink_800_800/profile-displayphoto-shrink_800_800/0/1655174534836?e=1769040000&v=beta&t=-wzSqxQyq6atEh__m2j3sIBAtRnWtwYJRwwRtKEsQt4" 
-          alt="Ahmed Abbas" 
-          className="w-full h-full object-cover grayscale-[0.3] group-hover:grayscale-0 transition-all duration-700"
-          onError={(e) => {
-            (e.target as HTMLImageElement).src = 'https://ui-avatars.com/api/?name=Ahmed+Abbas&background=0066FF&color=fff&bold=true';
-          }}
-        />
+  <div className="w-full flex flex-col gap-12 py-10 px-4">
+    {CONTRIBUTORS.map((contributor, idx) => (
+      <div key={idx} className="flex flex-col sm:flex-row items-center gap-8 animate-in fade-in slide-in-from-top-4 duration-1000 group">
+        <div className="relative shrink-0">
+          <div className={`absolute inset-0 blur-[60px] rounded-full animate-pulse scale-150 ${idx === 0 ? 'bg-blue-500/20' : 'bg-cyan-500/20'}`}></div>
+          <div className={`w-36 h-36 sm:w-44 sm:h-44 rounded-full overflow-hidden relative z-10 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.6)] transition-all duration-700 group-hover:scale-110 border-2 ${isLight ? 'border-white bg-slate-100' : 'border-white/10 bg-slate-800'}`}>
+            <img 
+              src={contributor.image} 
+              alt={contributor.name} 
+              className="w-full h-full object-cover grayscale-[0.3] group-hover:grayscale-0 transition-all duration-700"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(contributor.name)}&background=0066FF&color=fff&bold=true`;
+              }}
+            />
+          </div>
+        </div>
+        <div className="flex flex-col gap-3 text-center sm:text-left">
+          <div className="space-y-1">
+            <span className="text-[10px] font-black text-blue-500 uppercase tracking-[0.5em] leading-none">Contributor Recognition</span>
+            <h4 className={`text-3xl font-black uppercase tracking-tighter leading-none ${isLight ? 'text-slate-900' : 'text-white'}`}>{contributor.name}</h4>
+            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest italic max-w-sm leading-tight opacity-90">{contributor.role}</p>
+          </div>
+          <div className="pt-2 flex justify-center sm:justify-start">
+            <a 
+              href={`mailto:${contributor.email}`} 
+              className={`inline-flex items-center gap-3 px-6 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all active:scale-95 shadow-xl border ${
+                isLight ? 'bg-blue-600 text-white border-blue-400 hover:bg-blue-500' : 'bg-blue-600/20 text-blue-400 border-blue-500/30 hover:bg-blue-600/30'
+              }`}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+              Establish Contact
+            </a>
+          </div>
+        </div>
       </div>
-    </div>
-    <div className="flex flex-col gap-3">
-      <div className="space-y-1">
-        <span className="text-[10px] font-black text-blue-500 uppercase tracking-[0.5em] leading-none">Contributor Recognition</span>
-        <h4 className={`text-3xl font-black uppercase tracking-tighter leading-none ${isLight ? 'text-slate-900' : 'text-white'}`}>Ahmed Abbas</h4>
-        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest italic max-w-[200px] leading-tight opacity-90">System Integrity Architecture & Safety Governance Lead</p>
-      </div>
-      <div className="pt-2">
-        <a 
-          href="mailto:ahmed.abbas@trojanconstruction.group" 
-          className={`inline-flex items-center gap-3 px-6 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all active:scale-95 shadow-xl border ${
-            isLight ? 'bg-blue-600 text-white border-blue-400 hover:bg-blue-500' : 'bg-blue-600/20 text-blue-400 border-blue-500/30 hover:bg-blue-600/30'
-          }`}
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-          Establish Contact
-        </a>
-      </div>
-    </div>
+    ))}
   </div>
 );
 
@@ -177,7 +196,7 @@ export const PersonnelGrid: React.FC<PersonnelGridProps> = ({ appTheme = 'dark',
         </div>
       </div>
 
-      {/* Contributor Recognition on Top */}
+      {/* Contributor Recognition List */}
       <ContributorRecognition isLight={isLight} />
 
       {/* Search & Filter Bar */}
