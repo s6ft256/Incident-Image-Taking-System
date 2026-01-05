@@ -16,6 +16,26 @@ const envStr = (key: string): string | undefined => {
   return trimmed.length > 0 ? trimmed : undefined;
 };
 
+const assertRequiredViteEnv = (requirements: Array<{ key: string; hint: string }>) => {
+  const missing = requirements
+    .map(r => ({ ...r, value: envStr(r.key) }))
+    .filter(r => !r.value);
+
+  if (missing.length === 0) return;
+
+  const missingKeys = missing.map(m => m.key).join(', ');
+  const hints = missing.map(m => `- ${m.key}: ${m.hint}`).join('\n');
+
+  throw new Error(
+    [
+      `CONFIGURATION FAULT: Missing environment variables: ${missingKeys}.`,
+      `If deployed on Vercel: Project → Settings → Environment Variables → add the missing keys for Production (and Preview if needed), then redeploy.`,
+      `\nRequired values:`,
+      hints,
+    ].join('\n')
+  );
+};
+
 export const AIRTABLE_CONFIG = {
   BASE_ID: envStr('VITE_AIRTABLE_BASE_ID'),
   TABLE_NAME: envStr('VITE_AIRTABLE_TABLE_NAME') || 'Observation Reports', 
@@ -30,6 +50,17 @@ export const SUPABASE_CONFIG = {
   BUCKET_NAME: envStr('VITE_SUPABASE_BUCKET') || 'incident-images',
   TRAINING_BUCKET_NAME: 'training_evidence'
 };
+
+// Validate required configuration in production builds.
+// In Vercel (and other static hosts), these VITE_ variables must exist at build time.
+if (env.PROD) {
+  assertRequiredViteEnv([
+    { key: 'VITE_AIRTABLE_BASE_ID', hint: "Airtable Base ID like 'appXXXXXXXXXXXXXX' (no /tbl...)" },
+    { key: 'VITE_AIRTABLE_API_KEY', hint: 'Airtable Personal Access Token (PAT)' },
+    { key: 'VITE_SUPABASE_URL', hint: "Supabase project URL like 'https://<ref>.supabase.co'" },
+    { key: 'VITE_SUPABASE_ANON_KEY', hint: 'Supabase anon public key (JWT)' },
+  ]);
+}
 
 // Application State Keys
 export const STORAGE_KEYS = {
