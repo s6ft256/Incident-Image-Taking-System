@@ -1,4 +1,5 @@
 
+
 // Configuration for the Application
 // In a real deployment, these should be environment variables (process.env.REACT_APP_... or import.meta.env.VITE_...)
 
@@ -8,20 +9,61 @@ export const MAX_IMAGES = 3;
 // Helper to safely access env variables
 const env = (import.meta as any).env || {};
 
-export const AIRTABLE_CONFIG = {
-  BASE_ID: env.VITE_AIRTABLE_BASE_ID || 'appRNHMjdLKpotlNB', 
-  TABLE_NAME: env.VITE_AIRTABLE_TABLE_NAME || 'Observation Reports', 
-  INCIDENT_TABLE_NAME: 'Incident Reports',
-  CRANE_CHECK_TABLE_NAME: 'Crane Checklists',
-  API_KEY: env.VITE_AIRTABLE_API_KEY || 'patzdxvHRVZMXIn81.9401a5088becb5599f3f531389524760891c53b976331a7cc70876727f8dfb7f',
+const envStr = (key: string): string | undefined => {
+  const val = env[key];
+  if (typeof val !== 'string') return undefined;
+  const trimmed = val.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
 };
 
+const assertRequiredViteEnv = (requirements: Array<{ key: string; hint: string }>) => {
+  const missing = requirements
+    .map(r => ({ ...r, value: envStr(r.key) }))
+    .filter(r => !r.value);
+
+  if (missing.length === 0) return;
+
+  const missingKeys = missing.map(m => m.key).join(', ');
+  const hints = missing.map(m => `- ${m.key}: ${m.hint}`).join('\n');
+
+  throw new Error(
+    [
+      `CONFIGURATION FAULT: Missing environment variables: ${missingKeys}.`,
+      `If deployed on Vercel: Project → Settings → Environment Variables → add the missing keys for Production (and Preview if needed), then redeploy.`,
+      `\nRequired values:`,
+      hints,
+    ].join('\n')
+  );
+};
+
+export const AIRTABLE_CONFIG = {
+  BASE_ID: envStr('VITE_AIRTABLE_BASE_ID'),
+  TABLE_NAME: envStr('VITE_AIRTABLE_TABLE_NAME') || 'Observation Reports', 
+  INCIDENT_TABLE_NAME: 'Incident Reports',
+  CRANE_CHECK_TABLE_NAME: 'Crane Checklists',
+  API_KEY: envStr('VITE_AIRTABLE_API_KEY'),
+};
+
+// Optional: use the server-side proxy endpoints instead of direct client-side Airtable calls
+export const USE_SERVER_PROXY = envStr('VITE_USE_SERVER_PROXY') === 'true';
+
 export const SUPABASE_CONFIG = {
-  URL: env.VITE_SUPABASE_URL || 'https://irsjpzbbpqsgrqdhanbz.supabase.co',
-  ANON_KEY: env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_fdkJTt-jW25th7SdQ0g9QQ_vAYpY-U2', 
-  BUCKET_NAME: env.VITE_SUPABASE_BUCKET || 'incident-images',
+  URL: envStr('VITE_SUPABASE_URL'),
+  ANON_KEY: envStr('VITE_SUPABASE_ANON_KEY'),
+  BUCKET_NAME: envStr('VITE_SUPABASE_BUCKET') || 'incident-images',
   TRAINING_BUCKET_NAME: 'training_evidence'
 };
+
+// Validate required configuration in production builds.
+// In Vercel (and other static hosts), these VITE_ variables must exist at build time.
+if (env.PROD) {
+  assertRequiredViteEnv([
+    { key: 'VITE_AIRTABLE_BASE_ID', hint: "Airtable Base ID like 'appXXXXXXXXXXXXXX' (no /tbl...)" },
+    { key: 'VITE_AIRTABLE_API_KEY', hint: 'Airtable Personal Access Token (PAT)' },
+    { key: 'VITE_SUPABASE_URL', hint: "Supabase project URL like 'https://<ref>.supabase.co'" },
+    { key: 'VITE_SUPABASE_ANON_KEY', hint: 'Supabase anon public key (JWT)' },
+  ]);
+}
 
 // Application State Keys
 export const STORAGE_KEYS = {

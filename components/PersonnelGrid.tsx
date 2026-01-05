@@ -1,12 +1,13 @@
-import React, { useState, useEffect, useMemo } from 'react';
+
+import React, { useState, useMemo } from 'react';
 import { UserProfile, FetchedObservation } from '../types';
-import { getAllProfiles } from '../services/profileService';
-import { getAllReports } from '../services/airtableService';
 import { AUTHORIZED_ADMIN_ROLES } from '../constants';
+import { useAppContext } from '../context/AppContext';
 
 interface PersonnelGridProps {
-  appTheme?: 'dark' | 'light';
   onBack: () => void;
+  // Fix: Add appTheme prop to align with usage in App.tsx and other components
+  appTheme?: 'dark' | 'light';
 }
 
 interface PersonnelStats {
@@ -89,34 +90,15 @@ const ContributorRecognition: React.FC<{ isLight: boolean }> = ({ isLight }) => 
   </div>
 );
 
-export const PersonnelGrid: React.FC<PersonnelGridProps> = ({ appTheme = 'dark', onBack }) => {
-  const [personnel, setPersonnel] = useState<UserProfile[]>([]);
-  const [reports, setReports] = useState<FetchedObservation[]>([]);
-  const [loading, setLoading] = useState(true);
+export const PersonnelGrid: React.FC<PersonnelGridProps> = ({ onBack, appTheme = 'dark' }) => {
+  const { state } = useAppContext();
+  const { personnel, allReports: reports, isLoading: loading } = state;
+  
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState('All Roles');
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
   
   const isLight = appTheme === 'light';
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        const [profilesData, reportsData] = await Promise.all([
-          getAllProfiles(),
-          getAllReports()
-        ]);
-        setPersonnel(profilesData);
-        setReports(reportsData);
-      } catch (err) {
-        console.error("Failed to load grid data", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, []);
 
   const personnelStats = useMemo(() => {
     const statsMap: Record<string, PersonnelStats> = {};
@@ -204,7 +186,7 @@ export const PersonnelGrid: React.FC<PersonnelGridProps> = ({ appTheme = 'dark',
           </button>
           <div className="flex flex-col">
             <h2 className={`text-2xl font-black tracking-tight leading-none ${isLight ? 'text-slate-900' : 'text-white'}`}>Personnel Grid</h2>
-            <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest mt-1 text-left">Engagement & Performance Directory</span>
+            <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest mt-1">Engagement & Performance Directory</span>
           </div>
         </div>
         <div className={`hidden sm:flex items-center gap-2 px-4 py-2 rounded-full border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'}`}>

@@ -1,6 +1,6 @@
 
 import { ObservationForm, ObservationRecord, FetchedObservation, IncidentForm, FetchedIncident, FetchedCraneChecklist, FetchedEquipmentChecklist } from '../types';
-import { AIRTABLE_CONFIG } from '../constants';
+import { AIRTABLE_CONFIG, USE_SERVER_PROXY } from '../constants';
 
 interface AirtableConfigOverride {
   baseId?: string;
@@ -11,6 +11,41 @@ interface AttachmentData {
   url: string;
   filename: string;
 }
+
+const sanitizeBaseId = (baseId?: string): string | undefined => {
+  if (!baseId) return baseId;
+
+  const trimmed = baseId.trim();
+  if (!trimmed) return undefined;
+
+  // Common copy/paste mistake: users paste `appXXXX.../tblYYYY...`
+  // Airtable API expects just the base id: `appXXXX...`
+  const noPath = trimmed.split('/')[0];
+  return noPath;
+};
+
+const getAirtableAuth = (configOverride?: AirtableConfigOverride) => {
+  const baseId = sanitizeBaseId(configOverride?.baseId || AIRTABLE_CONFIG.BASE_ID);
+  const apiKey = (configOverride?.apiKey || AIRTABLE_CONFIG.API_KEY)?.trim();
+
+  if (!baseId) {
+    throw new Error(
+      "Airtable is not configured. Set VITE_AIRTABLE_BASE_ID (example: appXXXXXXXXXXXXXX)."
+    );
+  }
+  if (!apiKey) {
+    throw new Error(
+      "Airtable is not configured. Set VITE_AIRTABLE_API_KEY (a Personal Access Token)."
+    );
+  }
+  if (!baseId.startsWith('app')) {
+    throw new Error(
+      "Invalid Airtable Base ID. It should start with 'app' and must not include '/tbl...'."
+    );
+  }
+
+  return { baseId, apiKey };
+};
 
 const handleAirtableError = (response: Response, errorData: any): string => {
   const detail = errorData?.error?.message || "";
@@ -49,10 +84,19 @@ const fetchWithRetry = async (url: string, options: RequestInit, maxRetries = 3)
 };
 
 export const submitObservationReport = async (form: ObservationForm, images: AttachmentData[], configOverride?: AirtableConfigOverride): Promise<boolean> => {
-  const BASE_ID = configOverride?.baseId || AIRTABLE_CONFIG.BASE_ID;
-  const API_KEY = configOverride?.apiKey || AIRTABLE_CONFIG.API_KEY;
   const TABLE_NAME = AIRTABLE_CONFIG.TABLE_NAME;
-  const url = `https://api.airtable.com/v0/${BASE_ID}/${encodeURIComponent(TABLE_NAME)}`;
+  const useProxy = USE_SERVER_PROXY;
+  let url: string;
+  let headers: any = { 'Content-Type': 'application/json' };
+
+  if (useProxy) {
+    // Use server-side proxy (no client-side API key)
+    url = `/api/airtable/${encodeURIComponent(TABLE_NAME)}`;
+  } else {
+    const { baseId: BASE_ID, apiKey: API_KEY } = getAirtableAuth(configOverride);
+    url = `https://api.airtable.com/v0/${BASE_ID}/${encodeURIComponent(TABLE_NAME)}`;
+    headers.Authorization = `Bearer ${API_KEY}`;
+  }
   const fields: any = {
     "Name": form.name,
     "Role / Position": form.role,
@@ -61,15 +105,22 @@ export const submitObservationReport = async (form: ObservationForm, images: Att
     "Observation": form.observation,
     "Open observations": images.map(img => ({ url: img.url, filename: img.filename }))
   };
-  await fetchWithRetry(url, { method: 'POST', headers: { 'Authorization': `Bearer ${API_KEY}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ records: [{ fields }], typecast: true }) });
+  await fetchWithRetry(url, { method: 'POST', headers, body: JSON.stringify({ records: [{ fields }], typecast: true }) });
   return true;
 };
 
 export const submitIncidentReport = async (form: IncidentForm, images: AttachmentData[], configOverride?: AirtableConfigOverride): Promise<boolean> => {
-  const BASE_ID = configOverride?.baseId || AIRTABLE_CONFIG.BASE_ID;
-  const API_KEY = configOverride?.apiKey || AIRTABLE_CONFIG.API_KEY;
   const TABLE_NAME = AIRTABLE_CONFIG.INCIDENT_TABLE_NAME;
-  const url = `https://api.airtable.com/v0/${BASE_ID}/${encodeURIComponent(TABLE_NAME)}`;
+  const useProxy = USE_SERVER_PROXY;
+  let url: string;
+  let headers: any = { 'Content-Type': 'application/json' };
+  if (useProxy) {
+    url = `/api/airtable/${encodeURIComponent(TABLE_NAME)}`;
+  } else {
+    const { baseId: BASE_ID, apiKey: API_KEY } = getAirtableAuth(configOverride);
+    url = `https://api.airtable.com/v0/${BASE_ID}/${encodeURIComponent(TABLE_NAME)}`;
+    headers.Authorization = `Bearer ${API_KEY}`;
+  }
   const severityMap: Record<string, number> = { 'Minor': 1, 'Moderate': 2, 'Major': 4, 'Critical': 5 };
   const fields: any = {
     "Title": form.title,
@@ -83,13 +134,12 @@ export const submitIncidentReport = async (form: IncidentForm, images: Attachmen
     "Reporter ID": form.reporterName,
     "Attachments": images.map(img => ({ url: img.url, filename: img.filename }))
   };
-  await fetchWithRetry(url, { method: 'POST', headers: { 'Authorization': `Bearer ${API_KEY}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ records: [{ fields }], typecast: true }) });
+  await fetchWithRetry(url, { method: 'POST', headers, body: JSON.stringify({ records: [{ fields }], typecast: true }) });
   return true;
 };
 
 export const submitTrainingRoster = async (data: any, images: AttachmentData[]): Promise<boolean> => {
-  const BASE_ID = AIRTABLE_CONFIG.BASE_ID;
-  const API_KEY = AIRTABLE_CONFIG.API_KEY;
+  const { baseId: BASE_ID, apiKey: API_KEY } = getAirtableAuth();
   const TABLE_NAME = "Training Roster";
   const url = `https://api.airtable.com/v0/${BASE_ID}/${encodeURIComponent(TABLE_NAME)}`;
   
@@ -113,8 +163,7 @@ export const submitTrainingRoster = async (data: any, images: AttachmentData[]):
 };
 
 export const submitCraneChecklist = async (craneType: string, metadata: any, checks: Record<string, string>, remarks: Record<string, string>, checklistImages: AttachmentData[] = []): Promise<boolean> => {
-  const BASE_ID = AIRTABLE_CONFIG.BASE_ID;
-  const API_KEY = AIRTABLE_CONFIG.API_KEY;
+  const { baseId: BASE_ID, apiKey: API_KEY } = getAirtableAuth();
   const TABLE_NAME = AIRTABLE_CONFIG.CRANE_CHECK_TABLE_NAME;
   const url = `https://api.airtable.com/v0/${BASE_ID}/${encodeURIComponent(TABLE_NAME)}`;
   
@@ -140,8 +189,7 @@ export const submitCraneChecklist = async (craneType: string, metadata: any, che
 };
 
 export const submitEquipmentChecklist = async (equipmentType: string, metadata: any, checks: Record<string, string>, remarks: Record<string, string>, checklistImages: AttachmentData[] = []): Promise<boolean> => {
-  const BASE_ID = AIRTABLE_CONFIG.BASE_ID;
-  const API_KEY = AIRTABLE_CONFIG.API_KEY;
+  const { baseId: BASE_ID, apiKey: API_KEY } = getAirtableAuth();
   const TABLE_NAME = 'Equipment Checklists';
   const url = `https://api.airtable.com/v0/${BASE_ID}/${encodeURIComponent(TABLE_NAME)}`;
   
@@ -171,28 +219,28 @@ export const submitEquipmentChecklist = async (equipmentType: string, metadata: 
 };
 
 export const getAllCraneChecklists = async (): Promise<FetchedCraneChecklist[]> => {
-  const url = `https://api.airtable.com/v0/${AIRTABLE_CONFIG.BASE_ID}/${encodeURIComponent(AIRTABLE_CONFIG.CRANE_CHECK_TABLE_NAME)}?maxRecords=100&sort%5B0%5D%5Bfield%5D=Inspection+Date&sort%5B0%5D%5Bdirection%5D=desc`;
-  const data = await fetchWithRetry(url, { method: 'GET', headers: { 'Authorization': `Bearer ${AIRTABLE_CONFIG.API_KEY}` } });
+  const { baseId: BASE_ID, apiKey: API_KEY } = getAirtableAuth();
+  const url = `https://api.airtable.com/v0/${BASE_ID}/${encodeURIComponent(AIRTABLE_CONFIG.CRANE_CHECK_TABLE_NAME)}?maxRecords=100&sort%5B0%5D%5Bfield%5D=Inspection+Date&sort%5B0%5D%5Bdirection%5D=desc`;
+  const data = await fetchWithRetry(url, { method: 'GET', headers: { 'Authorization': `Bearer ${API_KEY}` } });
   return data.records;
 };
 
 export const getAllEquipmentChecklists = async (): Promise<FetchedEquipmentChecklist[]> => {
-  const url = `https://api.airtable.com/v0/${AIRTABLE_CONFIG.BASE_ID}/${encodeURIComponent('Equipment Checklists')}?maxRecords=100&sort%5B0%5D%5Bfield%5D=Inspection+Date&sort%5B0%5D%5Bdirection%5D=desc`;
-  const data = await fetchWithRetry(url, { method: 'GET', headers: { 'Authorization': `Bearer ${AIRTABLE_CONFIG.API_KEY}` } });
+  const { baseId: BASE_ID, apiKey: API_KEY } = getAirtableAuth();
+  const url = `https://api.airtable.com/v0/${BASE_ID}/${encodeURIComponent('Equipment Checklists')}?maxRecords=100&sort%5B0%5D%5Bfield%5D=Inspection+Date&sort%5B0%5D%5Bdirection%5D=desc`;
+  const data = await fetchWithRetry(url, { method: 'GET', headers: { 'Authorization': `Bearer ${API_KEY}` } });
   return data.records;
 };
 
 export const getAllIncidents = async (configOverride?: AirtableConfigOverride): Promise<FetchedIncident[]> => {
-  const BASE_ID = configOverride?.baseId || AIRTABLE_CONFIG.BASE_ID;
-  const API_KEY = configOverride?.apiKey || AIRTABLE_CONFIG.API_KEY;
+  const { baseId: BASE_ID, apiKey: API_KEY } = getAirtableAuth(configOverride);
   const url = `https://api.airtable.com/v0/${BASE_ID}/${encodeURIComponent(AIRTABLE_CONFIG.INCIDENT_TABLE_NAME)}?maxRecords=100`;
   const data = await fetchWithRetry(url, { method: 'GET', headers: { 'Authorization': `Bearer ${API_KEY}` } });
   return data.records.sort((a: any, b: any) => new Date(b.createdTime).getTime() - new Date(a.createdTime).getTime());
 };
 
 export const getAllReports = async (configOverride?: AirtableConfigOverride): Promise<FetchedObservation[]> => {
-  const BASE_ID = configOverride?.baseId || AIRTABLE_CONFIG.BASE_ID;
-  const API_KEY = configOverride?.apiKey || AIRTABLE_CONFIG.API_KEY;
+  const { baseId: BASE_ID, apiKey: API_KEY } = getAirtableAuth(configOverride);
   const url = `https://api.airtable.com/v0/${BASE_ID}/${encodeURIComponent(AIRTABLE_CONFIG.TABLE_NAME)}?maxRecords=100`;
   const data = await fetchWithRetry(url, { method: 'GET', headers: { 'Authorization': `Bearer ${API_KEY}` } });
   return data.records.sort((a: any, b: any) => new Date(b.createdTime).getTime() - new Date(a.createdTime).getTime());

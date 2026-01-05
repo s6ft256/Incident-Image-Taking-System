@@ -1,9 +1,9 @@
-
 import { createClient } from '@supabase/supabase-js';
 import { SUPABASE_CONFIG } from '../constants';
 import { UserProfile } from '../types';
 
-const supabase = createClient(SUPABASE_CONFIG.URL, SUPABASE_CONFIG.ANON_KEY);
+const isValidConfig = SUPABASE_CONFIG.URL && SUPABASE_CONFIG.ANON_KEY;
+const supabase = isValidConfig ? createClient(SUPABASE_CONFIG.URL, SUPABASE_CONFIG.ANON_KEY) : null;
 const TABLE_NAME = 'profiles';
 
 /**
@@ -21,8 +21,17 @@ const handleDBError = (error: any): string => {
   return error.message || "Registry synchronization failed.";
 };
 
+const requireSupabase = () => {
+  if (!supabase) {
+    throw new Error(
+      "CONFIGURATION FAULT: Personnel registry is not activated. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY."
+    );
+  }
+};
+
 export const registerProfile = async (profile: UserProfile): Promise<UserProfile> => {
-  const { data, error } = await supabase
+  requireSupabase();
+  const { data, error } = await supabase!
     .from(TABLE_NAME)
     .insert([{ 
       name: profile.name, 
@@ -57,7 +66,8 @@ export const registerProfile = async (profile: UserProfile): Promise<UserProfile
 };
 
 export const getProfileByName = async (name: string): Promise<UserProfile | null> => {
-  const { data, error } = await supabase
+  requireSupabase();
+  const { data, error } = await supabase!
     .from(TABLE_NAME)
     .select('*')
     .eq('name', name)
@@ -82,7 +92,9 @@ export const getProfileByName = async (name: string): Promise<UserProfile | null
 };
 
 export const getAllProfiles = async (): Promise<UserProfile[]> => {
-  const { data, error } = await supabase
+  // Personnel directory is optional for core app flows; don't hard-fail startup.
+  if (!supabase) return [];
+  const { data, error } = await supabase!
     .from(TABLE_NAME)
     .select('name, role, site, email, profile_image_url');
   
@@ -98,6 +110,7 @@ export const getAllProfiles = async (): Promise<UserProfile[]> => {
 };
 
 export const updateProfile = async (id: string, updates: Partial<UserProfile>): Promise<void> => {
+  requireSupabase();
   const dbUpdates: any = {};
   if (updates.name !== undefined) dbUpdates.name = updates.name;
   if (updates.site !== undefined) dbUpdates.site = updates.site;
@@ -105,7 +118,7 @@ export const updateProfile = async (id: string, updates: Partial<UserProfile>): 
   if (updates.password !== undefined) dbUpdates.password = updates.password;
   if (updates.profileImageUrl !== undefined) dbUpdates.profile_image_url = updates.profileImageUrl;
 
-  const { error } = await supabase
+  const { error } = await supabase!
     .from(TABLE_NAME)
     .update(dbUpdates)
     .eq('id', id);
@@ -114,7 +127,8 @@ export const updateProfile = async (id: string, updates: Partial<UserProfile>): 
 };
 
 export const deleteProfile = async (id: string): Promise<void> => {
-  const { error } = await supabase
+  requireSupabase();
+  const { error } = await supabase!
     .from(TABLE_NAME)
     .delete()
     .eq('id', id);

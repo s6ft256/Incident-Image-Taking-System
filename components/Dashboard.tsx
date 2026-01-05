@@ -1,30 +1,17 @@
-import React, { useEffect, useState, useMemo } from 'react';
-import { getAllReports } from '../services/airtableService';
-import { FetchedObservation, UserProfile } from '../types';
+
+import React, { useState, useMemo } from 'react';
+import { FetchedObservation } from '../types';
 import { WeatherWidget } from './WeatherWidget';
 import { LocationPrompt } from './LocationPrompt';
-import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  CartesianGrid,
-  Legend,
-  ReferenceLine,
-  BarChart,
-  Bar,
-  Cell
-} from 'recharts';
+import { BarChart, Bar, Cell, Tooltip, ResponsiveContainer, XAxis, YAxis } from 'recharts';
+import { useAppContext } from '../context/AppContext';
 
 interface DashboardProps {
   baseId: string;
   onNavigate: (view: 'create' | 'recent' | 'my-tasks' | 'personnel' | 'checklists' | 'risk-assessment' | 'training-management' | 'compliance-tracker' | 'audit-trail' | 'incident-report') => void;
+  // Fix: Add appTheme prop to align with usage in App.tsx and other components
   appTheme?: 'dark' | 'light';
 }
-
-const PROFILE_KEY = 'hse_guardian_profile';
 
 const SEVERITY_MAP: Record<string, number> = {
   'Fire Risk': 10,
@@ -61,41 +48,19 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appTheme = 'dark' }) => {
-  const [reports, setReports] = useState<FetchedObservation[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [userName, setUserName] = useState<string>('');
+  const { state } = useAppContext();
+  const { userProfile, allReports: reports, isLoading: loading } = state;
+
   const [locationRefreshKey, setLocationRefreshKey] = useState(0);
   const [activeCategory, setActiveCategory] = useState<'operations' | 'management'>('operations');
   const [systemTime, setSystemTime] = useState(new Date().toLocaleTimeString());
 
   const isLight = appTheme === 'light';
 
-  useEffect(() => {
+  React.useEffect(() => {
     const timer = setInterval(() => setSystemTime(new Date().toLocaleTimeString()), 1000);
     return () => clearInterval(timer);
   }, []);
-
-  useEffect(() => {
-    const savedProfile = localStorage.getItem(PROFILE_KEY);
-    if (savedProfile) {
-        try {
-            const profile: UserProfile = JSON.parse(savedProfile);
-            setUserName(profile.name);
-        } catch(e) {}
-    }
-
-    const loadData = async () => {
-      try {
-        const data = await getAllReports({ baseId });
-        setReports(data);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadData();
-  }, [baseId]);
 
   const weeklyReports = useMemo(() => {
     const now = new Date();
@@ -112,8 +77,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
   }, [reports]);
 
   const siteStats = useMemo(() => {
-    // FIX: Explicitly type the accumulator for the reduce function to prevent TypeScript from inferring it as 'unknown'.
-    const data = weeklyReports.reduce<Record<string, { count: number, severityScore: number }>>((acc, curr) => {
+    // FIX: Add explicit type for the reduce accumulator to avoid 'unknown' type errors.
+    const data = weeklyReports.reduce<Record<string, { count: number; severityScore: number }>>((acc, curr) => {
       const site = curr.fields["Site / Location"] || 'Other';
       const type = curr.fields["Observation Type"] || 'Other';
       const severity = SEVERITY_MAP[type] || 1;
@@ -134,10 +99,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
 
   const myTaskCount = useMemo(() => {
     return reports.filter(r => 
-        r.fields["Assigned To"] === userName && 
+        r.fields["Assigned To"] === userProfile?.name && 
         (!r.fields["Action taken"] || r.fields["Action taken"].trim().length === 0)
     ).length;
-  }, [reports, userName]);
+  }, [reports, userProfile?.name]);
 
   return (
     <div className="space-y-6 pb-12 animate-in fade-in duration-700">
