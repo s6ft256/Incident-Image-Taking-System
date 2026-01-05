@@ -9,18 +9,25 @@ export const MAX_IMAGES = 3;
 // Helper to safely access env variables
 const env = (import.meta as any).env || {};
 
+const envStr = (key: string): string | undefined => {
+  const val = env[key];
+  if (typeof val !== 'string') return undefined;
+  const trimmed = val.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+};
+
 export const AIRTABLE_CONFIG = {
-  BASE_ID: env.VITE_AIRTABLE_BASE_ID,
-  TABLE_NAME: env.VITE_AIRTABLE_TABLE_NAME || 'Observation Reports', 
+  BASE_ID: envStr('VITE_AIRTABLE_BASE_ID'),
+  TABLE_NAME: envStr('VITE_AIRTABLE_TABLE_NAME') || 'Observation Reports', 
   INCIDENT_TABLE_NAME: 'Incident Reports',
   CRANE_CHECK_TABLE_NAME: 'Crane Checklists',
-  API_KEY: env.VITE_AIRTABLE_API_KEY,
+  API_KEY: envStr('VITE_AIRTABLE_API_KEY'),
 };
 
 export const SUPABASE_CONFIG = {
-  URL: env.VITE_SUPABASE_URL,
-  ANON_KEY: env.VITE_SUPABASE_ANON_KEY,
-  BUCKET_NAME: env.VITE_SUPABASE_BUCKET || 'incident-images',
+  URL: envStr('VITE_SUPABASE_URL'),
+  ANON_KEY: envStr('VITE_SUPABASE_ANON_KEY'),
+  BUCKET_NAME: envStr('VITE_SUPABASE_BUCKET') || 'incident-images',
   TRAINING_BUCKET_NAME: 'training_evidence'
 };
 
