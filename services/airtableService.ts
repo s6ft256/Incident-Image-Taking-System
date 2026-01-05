@@ -1,6 +1,6 @@
 
 import { ObservationForm, ObservationRecord, FetchedObservation, IncidentForm, FetchedIncident, FetchedCraneChecklist, FetchedEquipmentChecklist } from '../types';
-import { AIRTABLE_CONFIG } from '../constants';
+import { AIRTABLE_CONFIG, USE_SERVER_PROXY } from '../constants';
 
 interface AirtableConfigOverride {
   baseId?: string;
@@ -84,9 +84,19 @@ const fetchWithRetry = async (url: string, options: RequestInit, maxRetries = 3)
 };
 
 export const submitObservationReport = async (form: ObservationForm, images: AttachmentData[], configOverride?: AirtableConfigOverride): Promise<boolean> => {
-  const { baseId: BASE_ID, apiKey: API_KEY } = getAirtableAuth(configOverride);
   const TABLE_NAME = AIRTABLE_CONFIG.TABLE_NAME;
-  const url = `https://api.airtable.com/v0/${BASE_ID}/${encodeURIComponent(TABLE_NAME)}`;
+  const useProxy = USE_SERVER_PROXY;
+  let url: string;
+  let headers: any = { 'Content-Type': 'application/json' };
+
+  if (useProxy) {
+    // Use server-side proxy (no client-side API key)
+    url = `/api/airtable/${encodeURIComponent(TABLE_NAME)}`;
+  } else {
+    const { baseId: BASE_ID, apiKey: API_KEY } = getAirtableAuth(configOverride);
+    url = `https://api.airtable.com/v0/${BASE_ID}/${encodeURIComponent(TABLE_NAME)}`;
+    headers.Authorization = `Bearer ${API_KEY}`;
+  }
   const fields: any = {
     "Name": form.name,
     "Role / Position": form.role,
@@ -95,14 +105,22 @@ export const submitObservationReport = async (form: ObservationForm, images: Att
     "Observation": form.observation,
     "Open observations": images.map(img => ({ url: img.url, filename: img.filename }))
   };
-  await fetchWithRetry(url, { method: 'POST', headers: { 'Authorization': `Bearer ${API_KEY}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ records: [{ fields }], typecast: true }) });
+  await fetchWithRetry(url, { method: 'POST', headers, body: JSON.stringify({ records: [{ fields }], typecast: true }) });
   return true;
 };
 
 export const submitIncidentReport = async (form: IncidentForm, images: AttachmentData[], configOverride?: AirtableConfigOverride): Promise<boolean> => {
-  const { baseId: BASE_ID, apiKey: API_KEY } = getAirtableAuth(configOverride);
   const TABLE_NAME = AIRTABLE_CONFIG.INCIDENT_TABLE_NAME;
-  const url = `https://api.airtable.com/v0/${BASE_ID}/${encodeURIComponent(TABLE_NAME)}`;
+  const useProxy = USE_SERVER_PROXY;
+  let url: string;
+  let headers: any = { 'Content-Type': 'application/json' };
+  if (useProxy) {
+    url = `/api/airtable/${encodeURIComponent(TABLE_NAME)}`;
+  } else {
+    const { baseId: BASE_ID, apiKey: API_KEY } = getAirtableAuth(configOverride);
+    url = `https://api.airtable.com/v0/${BASE_ID}/${encodeURIComponent(TABLE_NAME)}`;
+    headers.Authorization = `Bearer ${API_KEY}`;
+  }
   const severityMap: Record<string, number> = { 'Minor': 1, 'Moderate': 2, 'Major': 4, 'Critical': 5 };
   const fields: any = {
     "Title": form.title,
@@ -116,7 +134,7 @@ export const submitIncidentReport = async (form: IncidentForm, images: Attachmen
     "Reporter ID": form.reporterName,
     "Attachments": images.map(img => ({ url: img.url, filename: img.filename }))
   };
-  await fetchWithRetry(url, { method: 'POST', headers: { 'Authorization': `Bearer ${API_KEY}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ records: [{ fields }], typecast: true }) });
+  await fetchWithRetry(url, { method: 'POST', headers, body: JSON.stringify({ records: [{ fields }], typecast: true }) });
   return true;
 };
 

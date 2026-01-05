@@ -44,6 +44,9 @@ export const AIRTABLE_CONFIG = {
   API_KEY: envStr('VITE_AIRTABLE_API_KEY'),
 };
 
+// Optional: use the server-side proxy endpoints instead of direct client-side Airtable calls
+export const USE_SERVER_PROXY = envStr('VITE_USE_SERVER_PROXY') === 'true';
+
 export const SUPABASE_CONFIG = {
   URL: envStr('VITE_SUPABASE_URL'),
   ANON_KEY: envStr('VITE_SUPABASE_ANON_KEY'),
