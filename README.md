@@ -16,7 +16,11 @@
 3.  **Environment Variables**:
     *   Copy the `.env.example` file to a new file named `.env`.
     *   `cp .env.example .env`
-    *   Fill in the required API keys and IDs in the `.env` file. These are essential for connecting to Airtable, Supabase, and Google Gemini.
+    *   Fill in the required values in `.env` (do not commit it):
+        *   `VITE_AIRTABLE_BASE_ID` (looks like `appXXXXXXXXXXXXXX` — do not include `/tbl...`)
+        *   `VITE_AIRTABLE_API_KEY` (Airtable Personal Access Token)
+        *   `VITE_SUPABASE_URL`
+        *   `VITE_SUPABASE_ANON_KEY`
 4.  **Run:** `npm run dev`
 
 
