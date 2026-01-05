@@ -1,8 +1,7 @@
-
 import { createClient } from '@supabase/supabase-js';
 import { SUPABASE_CONFIG } from '../constants';
 
-const isValidConfig = SUPABASE_CONFIG.URL.startsWith('https') && !SUPABASE_CONFIG.URL.includes('your-project-id');
+const isValidConfig = SUPABASE_CONFIG.URL && SUPABASE_CONFIG.URL.startsWith('https') && !SUPABASE_CONFIG.URL.includes('your-project-id');
 
 const supabase = isValidConfig 
   ? createClient(SUPABASE_CONFIG.URL, SUPABASE_CONFIG.ANON_KEY)

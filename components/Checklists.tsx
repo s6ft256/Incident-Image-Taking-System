@@ -160,8 +160,8 @@ export const Checklists: React.FC<ChecklistsProps> = ({ appTheme = 'dark', onBac
              </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {/* FIX: Add key prop for list rendering */}
               {(activeTab === 'crane-history' ? craneHistory : equipmentHistory).map(rec => (
-                // FIX: Added key prop to the component call, which is a standard React requirement for lists.
                 <RecordCard key={rec.id} record={rec} type={activeTab === 'crane-history' ? 'crane' : 'equipment'} />
               ))}
             </div>

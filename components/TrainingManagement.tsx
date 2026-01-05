@@ -369,7 +369,7 @@ export const TrainingManagement: React.FC<TrainingManagementProps> = ({ appTheme
 
           <div className="mb-10 pt-8 border-t border-white/5">
              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1 mb-4 block">Evidence (Max 3):</label>
-             {/* Fix: Wrapped processImageUpload in an arrow function to find the correct UploadedImage object from its id, resolving the type incompatibility with ImageGrid's onRetry prop */}
+             {/* FIX: Check if image exists before retrying upload to prevent runtime error. */}
              <ImageGrid 
                images={trainingImages} 
                onAdd={handleAddImage} 

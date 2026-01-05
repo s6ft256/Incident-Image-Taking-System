@@ -1,9 +1,9 @@
-
 import { createClient } from '@supabase/supabase-js';
 import { SUPABASE_CONFIG } from '../constants';
 import { TraineeRow, UploadedImage } from '../types';
 
-const supabase = createClient(SUPABASE_CONFIG.URL, SUPABASE_CONFIG.ANON_KEY);
+const isValidConfig = SUPABASE_CONFIG.URL && SUPABASE_CONFIG.ANON_KEY;
+const supabase = isValidConfig ? createClient(SUPABASE_CONFIG.URL, SUPABASE_CONFIG.ANON_KEY) : null;
 
 export interface TrainingSessionData {
   id?: string;
@@ -19,6 +19,12 @@ export interface TrainingSessionData {
   created_at?: string;
 }
 
+const checkSupabase = () => {
+    if (!supabase) {
+        throw new Error("CONFIGURATION FAULT: Training registry is not activated. Verify Supabase credentials.");
+    }
+}
+
 const handleDBError = (error: any, context: string): string => {
   if (!error) return `Fault in ${context}`;
   if (error.code === '42P01') return `GRID INTEGRITY FAULT: Training registry table is missing.`;
@@ -26,7 +32,8 @@ const handleDBError = (error: any, context: string): string => {
 };
 
 export const getTrainingHistory = async (): Promise<TrainingSessionData[]> => {
-  const { data: sessions, error } = await supabase
+  checkSupabase();
+  const { data: sessions, error } = await supabase!
     .from('training_sessions')
     .select(`
       *,
@@ -61,7 +68,8 @@ export const getTrainingHistory = async (): Promise<TrainingSessionData[]> => {
 };
 
 export const saveTrainingRoster = async (data: TrainingSessionData): Promise<string> => {
-  const { data: session, error: sessionError } = await supabase
+  checkSupabase();
+  const { data: session, error: sessionError } = await supabase!
     .from('training_sessions')
     .insert([{
       project_name: data.projectName,
@@ -91,7 +99,7 @@ export const saveTrainingRoster = async (data: TrainingSessionData): Promise<str
       }));
 
     if (traineesToInsert.length > 0) {
-      const { error: traineeError } = await supabase
+      const { error: traineeError } = await supabase!
         .from('training_trainees')
         .insert(traineesToInsert);
       if (traineeError) throw new Error(handleDBError(traineeError, "TRAINEE MANIFEST"));
@@ -105,7 +113,7 @@ export const saveTrainingRoster = async (data: TrainingSessionData): Promise<str
       image_url: img.serverUrl
     }));
 
-    const { error: photoError } = await supabase
+    const { error: photoError } = await supabase!
       .from('training_photos')
       .insert(photosToInsert);
     if (photoError) throw new Error(handleDBError(photoError, "EVIDENCE ARCHIVING"));
