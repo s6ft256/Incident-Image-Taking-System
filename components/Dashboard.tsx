@@ -1,15 +1,15 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { FetchedObservation } from '../types';
 import { WeatherWidget } from './WeatherWidget';
 import { LocationPrompt } from './LocationPrompt';
 import { BarChart, Bar, Cell, Tooltip, ResponsiveContainer, XAxis, YAxis } from 'recharts';
 import { useAppContext } from '../context/AppContext';
+import { getSystemGitStatus, GitStatus } from '../services/githubService';
 
 interface DashboardProps {
   baseId: string;
   onNavigate: (view: 'create' | 'recent' | 'my-tasks' | 'personnel' | 'checklists' | 'risk-assessment' | 'training-management' | 'compliance-tracker' | 'audit-trail' | 'incident-report') => void;
-  // Fix: Add appTheme prop to align with usage in App.tsx and other components
   appTheme?: 'dark' | 'light';
 }
 
@@ -54,18 +54,23 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
   const [locationRefreshKey, setLocationRefreshKey] = useState(0);
   const [activeCategory, setActiveCategory] = useState<'operations' | 'management'>('operations');
   const [systemTime, setSystemTime] = useState(new Date().toLocaleTimeString());
+  const [gitStatus, setGitStatus] = useState<GitStatus | null>(null);
 
   const isLight = appTheme === 'light';
 
-  React.useEffect(() => {
+  useEffect(() => {
     const timer = setInterval(() => setSystemTime(new Date().toLocaleTimeString()), 1000);
+    
+    // Fetch Git Protocol Status
+    getSystemGitStatus().then(setGitStatus);
+
     return () => clearInterval(timer);
   }, []);
 
   const weeklyReports = useMemo(() => {
     const now = new Date();
     const last7Days = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    return reports.filter(r => new Date(r.createdTime) >= last7Days);
+    return reports.filter(r => r.fields["Action taken"]?.trim() || new Date(r.createdTime) >= last7Days);
   }, [reports]);
 
   const stats = useMemo(() => {
@@ -77,7 +82,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
   }, [reports]);
 
   const siteStats = useMemo(() => {
-    // FIX: Add explicit type for the reduce accumulator to avoid 'unknown' type errors.
+    // @google/genai-fix: Explicitly typing the accumulator and using Object.keys with non-null assertion
     const data = weeklyReports.reduce<Record<string, { count: number; severityScore: number }>>((acc, curr) => {
       const site = curr.fields["Site / Location"] || 'Other';
       const type = curr.fields["Observation Type"] || 'Other';
@@ -86,13 +91,25 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
       if (!acc[site]) {
         acc[site] = { count: 0, severityScore: 0 };
       }
-      acc[site].count += 1;
-      acc[site].severityScore += severity;
+      
+      const siteEntry = acc[site];
+      if (siteEntry) {
+        siteEntry.count += 1;
+        siteEntry.severityScore += severity;
+      }
+      
       return acc;
     }, {});
 
-    return Object.entries(data)
-      .map(([name, s]) => ({ name, count: s.count, criticality: s.severityScore }))
+    return Object.keys(data)
+      .map((name) => {
+        const entry = data[name]!;
+        return { 
+          name, 
+          count: entry.count, 
+          criticality: entry.severityScore 
+        };
+      })
       .sort((a, b) => b.criticality - a.criticality)
       .slice(0, 5);
   }, [weeklyReports]);
@@ -118,17 +135,21 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
           </div>
           <div className={`h-4 w-[1px] ${isLight ? 'bg-slate-200' : 'bg-white/10'}`}></div>
           <div className="flex items-center gap-2">
-             <span className={`text-[9px] font-black uppercase tracking-widest ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>UTC Sync:</span>
+             <span className={`text-[9px] font-black uppercase tracking-widest ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>UTC:</span>
              <span className={`text-[10px] font-mono font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>{systemTime}</span>
           </div>
         </div>
         <div className="hidden sm:flex items-center gap-6">
            <div className="flex items-center gap-2">
-              <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Grid ID:</span>
-              <span className="text-[10px] font-mono text-blue-500 font-black">HSE-G-2.5</span>
+              <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Git:</span>
+              <span className={`text-[10px] font-mono font-black ${gitStatus?.status === 'Synced' ? 'text-emerald-500' : 'text-amber-500'}`}>
+                {gitStatus ? `${gitStatus.branch}/${gitStatus.lastCommit}` : 'SCANNING...'}
+              </span>
            </div>
            <div className="flex items-center gap-2">
-              <span className="text-[9px] font-black text-emerald-500 uppercase px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">Authorized</span>
+              <span className="text-[9px] font-black text-emerald-500 uppercase px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+                {gitStatus?.version || 'V2.5'}
+              </span>
            </div>
         </div>
       </div>
@@ -137,7 +158,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
       <div className={`group relative px-6 sm:px-12 py-12 rounded-[2.5rem] border-2 overflow-hidden transition-all duration-500 form-container-glow ${
         isLight ? 'bg-white border-blue-500/10' : 'bg-[#020617] border-blue-500/30'
       }`}>
-        {/* Animated Background Gradients */}
         <div className="absolute top-0 right-0 w-64 h-64 bg-blue-600/10 blur-[100px] rounded-full -translate-y-1/2 translate-x-1/2 pointer-events-none"></div>
         <div className="absolute bottom-0 left-0 w-64 h-64 bg-rose-600/5 blur-[100px] rounded-full translate-y-1/2 -translate-x-1/2 pointer-events-none"></div>
         
@@ -175,8 +195,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          
-          {/* Site Severity Bar Chart */}
           <div className={`lg:col-span-7 p-8 rounded-[2.5rem] border shadow-2xl flex flex-col relative overflow-hidden min-h-[400px] ${
             isLight ? 'bg-white border-slate-200' : 'bg-slate-900/40 border-white/5 backdrop-blur-md'
           }`}>
@@ -220,7 +238,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
              </div>
           </div>
 
-          {/* Engagement Overview */}
           <div className={`lg:col-span-5 p-8 rounded-[2.5rem] border shadow-2xl flex flex-col justify-between relative overflow-hidden ${
             isLight ? 'bg-white border-slate-200' : 'bg-slate-900/40 border-white/5 backdrop-blur-md'
           }`}>
@@ -264,7 +281,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
                 </div>
              </div>
           </div>
-
         </div>
       )}
 
@@ -374,43 +390,37 @@ const TerminalButton = ({ onClick, icon, label, color, count, transparent, isLig
 
   const getIcon = (type: string) => {
     switch (type) {
-      case 'alert': return <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>;
-      case 'plus': return <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>;
+      case 'alert': return <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>;
+      case 'plus': return <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4"><path d="M12 5v14M5 12h14"/></svg>;
       case 'user': return <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>;
-      case 'list': return <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>;
-      case 'check': return <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>;
+      case 'list': return <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>;
+      case 'check': return <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M9 12l2 2 4-4M7.83 11H5a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-4a2 2 0 0 0-2-2h-2.83"/></svg>;
       case 'users': return <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>;
       case 'shield': return <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>;
-      case 'book': return <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>;
-      case 'award': return <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>;
-      case 'history': return <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>;
+      case 'book': return <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20v2H6.5a2.5 2.5 0 0 1 0-5H20V5H6.5A2.5 2.5 0 0 1 4 2.5v17Z"/></svg>;
+      case 'award': return <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 17 17 23 15.79 13.88"/></svg>;
+      case 'history': return <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>;
       default: return null;
     }
   };
 
   return (
-    <button 
+    <button
       onClick={onClick}
-      className={`group relative h-32 flex flex-col items-center justify-center p-4 rounded-[2.5rem] border transition-all active:scale-95 shadow-xl ${
-        isLight ? 'backdrop-blur-sm' : 'backdrop-blur-2xl'
-      } ${
-        transparent 
-          ? 'bg-transparent border-2 border-blue-400/60 shadow-[0_0_20px_rgba(59,130,246,0.4),0_10px_20px_rgba(0,0,0,0.4)] hover:bg-blue-500/10 hover:border-blue-400 hover:shadow-[0_0_30px_rgba(59,130,246,0.7),0_15px_30px_rgba(0,0,0,0.5)]' 
-          : 'bg-white/[0.03] border-white/10 hover:bg-white/[0.08] hover:border-blue-500/50'
+      className={`relative h-28 sm:h-32 rounded-3xl p-4 flex flex-col items-center justify-center transition-all duration-300 group shadow-2xl border ${
+        isLight
+          ? `bg-white/50 border-slate-200/50 hover:border-slate-300`
+          : `bg-black/40 border-white/10 hover:border-${color}-500/30 hover:bg-${color}-950/20`
       }`}
     >
-       <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-white mb-3 transition-transform group-hover:scale-110 shadow-2xl border border-white/10 ${colors[color]}`}>
-          {getIcon(icon)}
-          {count ? (
-            <div className="absolute -top-1 -right-1 bg-rose-600 text-white text-[8px] font-black w-6 h-6 rounded-full flex items-center justify-center border-2 border-slate-900 animate-bounce">
-               {count}
-            </div>
-          ) : null}
-       </div>
-       <span className={`text-[10px] font-black uppercase tracking-widest transition-colors ${transparent ? 'text-white drop-shadow-md' : 'text-slate-400 group-hover:text-white'}`}>{label}</span>
-       <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-10 transition-opacity text-white">
-          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m9 18 6-6-6-6"/></svg>
-       </div>
+      <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center text-white transition-all mb-2 shadow-xl ${colors[color]}`}>{getIcon(icon)}</div>
+      <span className={`text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-center ${isLight ? 'text-slate-900' : 'text-slate-300'}`}>{label}</span>
+
+      {count > 0 && (
+        <div className="absolute -top-2 -right-2 w-6 h-6 bg-rose-600 text-white rounded-full flex items-center justify-center text-xs font-black shadow-lg border-2 border-[#020617] animate-in zoom-in">
+          {count}
+        </div>
+      )}
     </button>
   );
 };

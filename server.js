@@ -15,9 +15,6 @@ const crypto = require('crypto');
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Accept JSON bodies for proxy endpoints
-app.use(express.json({ limit: '10mb' }));
-
 // Environment variables (Set these in Render Dashboard)
 const CLIENT_ID = process.env.AIRTABLE_CLIENT_ID;
 const CLIENT_SECRET = process.env.AIRTABLE_CLIENT_SECRET;
@@ -85,40 +82,6 @@ app.get('/callback', async (req, res) => {
   } catch (err) {
     console.error('Token Exchange Error:', err.response?.data || err.message);
     res.status(500).send('Failed to exchange token. Check server logs.');
-  }
-});
-
-// --- Server-side Airtable Proxy ---
-// These endpoints forward requests to Airtable using server-side secrets.
-// Configure AIRTABLE_BASE_ID and AIRTABLE_API_KEY in your deployment (not VITE_ vars).
-app.get('/api/airtable/:table', async (req, res) => {
-  const base = process.env.AIRTABLE_BASE_ID;
-  const apiKey = process.env.AIRTABLE_API_KEY;
-  if (!base || !apiKey) return res.status(500).json({ error: 'Server misconfigured: missing Airtable credentials.' });
-
-  try {
-    const table = req.params.table;
-    const qs = new URLSearchParams(req.query).toString();
-    const url = `https://api.airtable.com/v0/${base}/${encodeURIComponent(table)}${qs ? '?' + qs : ''}`;
-    const response = await axios.get(url, { headers: { Authorization: `Bearer ${apiKey}` } });
-    res.status(response.status).json(response.data);
-  } catch (err) {
-    res.status(err.response?.status || 500).json(err.response?.data || { error: err.message });
-  }
-});
-
-app.post('/api/airtable/:table', async (req, res) => {
-  const base = process.env.AIRTABLE_BASE_ID;
-  const apiKey = process.env.AIRTABLE_API_KEY;
-  if (!base || !apiKey) return res.status(500).json({ error: 'Server misconfigured: missing Airtable credentials.' });
-
-  try {
-    const table = req.params.table;
-    const url = `https://api.airtable.com/v0/${base}/${encodeURIComponent(table)}`;
-    const response = await axios.post(url, req.body, { headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' } });
-    res.status(response.status).json(response.data);
-  } catch (err) {
-    res.status(err.response?.status || 500).json(err.response?.data || { error: err.message });
   }
 });
 

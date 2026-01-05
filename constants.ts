@@ -1,69 +1,29 @@
 
-
 // Configuration for the Application
-// In a real deployment, these should be environment variables (process.env.REACT_APP_... or import.meta.env.VITE_...)
+// Sensitive values are pulled from environment variables for security compliance.
 
 export const MIN_IMAGES = 1;
 export const MAX_IMAGES = 3;
 
-// Helper to safely access env variables
-const env = (import.meta as any).env || {};
-
-const envStr = (key: string): string | undefined => {
-  const val = env[key];
-  if (typeof val !== 'string') return undefined;
-  const trimmed = val.trim();
-  return trimmed.length > 0 ? trimmed : undefined;
-};
-
-const assertRequiredViteEnv = (requirements: Array<{ key: string; hint: string }>) => {
-  const missing = requirements
-    .map(r => ({ ...r, value: envStr(r.key) }))
-    .filter(r => !r.value);
-
-  if (missing.length === 0) return;
-
-  const missingKeys = missing.map(m => m.key).join(', ');
-  const hints = missing.map(m => `- ${m.key}: ${m.hint}`).join('\n');
-
-  throw new Error(
-    [
-      `CONFIGURATION FAULT: Missing environment variables: ${missingKeys}.`,
-      `If deployed on Vercel: Project → Settings → Environment Variables → add the missing keys for Production (and Preview if needed), then redeploy.`,
-      `\nRequired values:`,
-      hints,
-    ].join('\n')
-  );
-};
-
 export const AIRTABLE_CONFIG = {
-  BASE_ID: envStr('VITE_AIRTABLE_BASE_ID'),
-  TABLE_NAME: envStr('VITE_AIRTABLE_TABLE_NAME') || 'Observation Reports', 
+  // @google/genai-fix: Replaced import.meta.env with process.env to resolve Property 'env' does not exist on type 'ImportMeta' error.
+  BASE_ID: process.env.VITE_AIRTABLE_BASE_ID || 'appRNHMjdLKpotlNB',
+  TABLE_NAME: 'Observation Reports', 
   INCIDENT_TABLE_NAME: 'Incident Reports',
   CRANE_CHECK_TABLE_NAME: 'Crane Checklists',
-  API_KEY: envStr('VITE_AIRTABLE_API_KEY'),
+  // @google/genai-fix: Replaced import.meta.env with process.env to resolve Property 'env' does not exist on type 'ImportMeta' error.
+  API_KEY: process.env.VITE_AIRTABLE_API_KEY || '',
 };
-
-// Optional: use the server-side proxy endpoints instead of direct client-side Airtable calls
-export const USE_SERVER_PROXY = envStr('VITE_USE_SERVER_PROXY') === 'true';
 
 export const SUPABASE_CONFIG = {
-  URL: envStr('VITE_SUPABASE_URL'),
-  ANON_KEY: envStr('VITE_SUPABASE_ANON_KEY'),
-  BUCKET_NAME: envStr('VITE_SUPABASE_BUCKET') || 'incident-images',
+  // @google/genai-fix: Replaced import.meta.env with process.env to resolve Property 'env' does not exist on type 'ImportMeta' error.
+  URL: process.env.VITE_SUPABASE_URL || '',
+  // @google/genai-fix: Replaced import.meta.env with process.env to resolve Property 'env' does not exist on type 'ImportMeta' error.
+  ANON_KEY: process.env.VITE_SUPABASE_ANON_KEY || '',
+  // @google/genai-fix: Replaced import.meta.env with process.env to resolve Property 'env' does not exist on type 'ImportMeta' error.
+  BUCKET_NAME: process.env.VITE_SUPABASE_BUCKET || 'incident-images',
   TRAINING_BUCKET_NAME: 'training_evidence'
 };
-
-// Validate required configuration in production builds.
-// In Vercel (and other static hosts), these VITE_ variables must exist at build time.
-if (env.PROD) {
-  assertRequiredViteEnv([
-    { key: 'VITE_AIRTABLE_BASE_ID', hint: "Airtable Base ID like 'appXXXXXXXXXXXXXX' (no /tbl...)" },
-    { key: 'VITE_AIRTABLE_API_KEY', hint: 'Airtable Personal Access Token (PAT)' },
-    { key: 'VITE_SUPABASE_URL', hint: "Supabase project URL like 'https://<ref>.supabase.co'" },
-    { key: 'VITE_SUPABASE_ANON_KEY', hint: 'Supabase anon public key (JWT)' },
-  ]);
-}
 
 // Application State Keys
 export const STORAGE_KEYS = {

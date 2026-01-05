@@ -1,3 +1,4 @@
+
 # HSE Guardian | Incident Image Taking System
 
 **HSE Guardian** is a professional-grade, mobile-first safety reporting tool. It is engineered for field safety personnel to capture high-integrity photographic evidence, manage incident lifecycles, and monitor site criticality in real-time.
@@ -14,39 +15,30 @@
 1.  **Clone:** `git clone <repo-url>`
 2.  **Install:** `npm install`
 3.  **Environment Variables**:
-    *   Copy the `.env.example` file to a new file named `.env`.
-    *   `cp .env.example .env`
-    *   Fill in the required values in `.env` (do not commit it):
-        *   `VITE_AIRTABLE_BASE_ID` (looks like `appXXXXXXXXXXXXXX` — do not include `/tbl...`)
-        *   `VITE_AIRTABLE_API_KEY` (Airtable Personal Access Token)
-        *   `VITE_SUPABASE_URL`
-        *   `VITE_SUPABASE_ANON_KEY`
+    *   The application uses environment variables for security. **Never commit your `.env` file to GitHub.**
+    *   Create a `.env` file in the root directory.
+    *   Copy the contents of `.env.example` into your new `.env` file.
+    *   Fill in your specific API keys for Airtable, Supabase, and Google Gemini.
 4.  **Run:** `npm run dev`
 
 
 ## Deployment & GitHub Workflow
 
-To stage, commit, and sync your changes to GitHub, use the following professional workflow:
+To stage, commit, and sync your changes to GitHub securely:
 
 ### 1. Local Staging
-Stage all modified files for the next commit:
+Verify that your `.env` is listed in `.gitignore` (this project already does this) to prevent accidental credential leaks.
 ```bash
 git add .
 ```
 
-### 2. High-Integrity Committing
-Commit your changes with a descriptive message following semantic versioning principles:
+### 2. Synchronization
+Use the built-in professional sync script which handles staging, semantic committing, and pushing in one high-integrity operation:
 ```bash
-git commit -m "feat: implement biometric security and enhanced incident evidence grid"
+npm run git-sync
 ```
 
-### 3. Repository Synchronization
-Push your local commits to the remote GitHub repository:
-```bash
-git push origin main
-```
-
-### 4. Automated CI/CD
+### 3. Automated CI/CD
 The project includes a GitHub Actions workflow (`.github/workflows/main.yml`) that automatically triggers on every push to the `main` branch to verify build integrity.
 
 ## Developed by

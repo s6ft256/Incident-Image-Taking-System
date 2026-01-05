@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { TraineeRow, UploadedImage } from '../types';
 import { getAddress } from '../services/weatherService';
@@ -7,6 +8,7 @@ import { uploadImageToStorage } from '../services/storageService';
 import { saveTrainingRoster, getTrainingHistory, TrainingSessionData } from '../services/trainingService';
 import { submitTrainingRoster } from '../services/airtableService';
 import { sendToast } from '../services/notificationService';
+import { MAX_IMAGES } from '../constants';
 
 interface TrainingManagementProps {
   appTheme: 'dark' | 'light';
@@ -18,13 +20,11 @@ const BG_IMAGE = 'https://images.unsplash.com/photo-1504307651254-35680f3366d4?a
 export const TrainingManagement: React.FC<TrainingManagementProps> = ({ appTheme, onBack }) => {
   const isLight = appTheme === 'light';
   
-  // Terminal State
   const [view, setView] = useState<'list' | 'create'>('list');
   const [history, setHistory] = useState<TrainingSessionData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedSession, setSelectedSession] = useState<TrainingSessionData | null>(null);
 
-  // Creation State
   const [projectName, setProjectName] = useState('');
   const [location, setLocation] = useState('Acquiring GPS...');
   const [contractor, setContractor] = useState('');
@@ -75,22 +75,6 @@ export const TrainingManagement: React.FC<TrainingManagementProps> = ({ appTheme
     }
   }, [view]);
 
-  const addTraineeRow = () => {
-    setTrainees([...trainees, { id: crypto.randomUUID(), name: '', companyNo: '', designation: '', isSigned: false }]);
-  };
-
-  const updateTrainee = (id: string, field: keyof TraineeRow, value: any) => {
-    setTrainees(trainees.map(t => t.id === id ? { ...t, [field]: value } : t));
-  };
-
-  const toggleTraineeSign = (id: string) => {
-    setTrainees(trainees.map(t => t.id === id ? { 
-      ...t, 
-      isSigned: !t.isSigned, 
-      signTimestamp: !t.isSigned ? new Date().toLocaleTimeString() : undefined 
-    } : t));
-  };
-
   const processImageUpload = async (img: UploadedImage) => {
     const imageId = img.id;
     setTrainingImages(prev => prev.map(i => i.id === imageId ? { ...i, status: 'uploading', progress: 10 } : i));
@@ -103,21 +87,26 @@ export const TrainingManagement: React.FC<TrainingManagementProps> = ({ appTheme
     }
   };
 
-  const handleAddImage = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      const newImage: UploadedImage = {
+  const handleAddFiles = useCallback((files: FileList) => {
+    const remainingSlots = MAX_IMAGES - trainingImages.length;
+    const filesToProcess = Array.from(files).slice(0, remainingSlots);
+
+    if (filesToProcess.length === 0) return;
+
+    const newImages: UploadedImage[] = filesToProcess.map(file => {
+      const newImg: UploadedImage = {
         id: crypto.randomUUID(),
         file: file,
         previewUrl: URL.createObjectURL(file),
         status: 'pending',
         progress: 0
       };
-      setTrainingImages(prev => [...prev, newImage]);
-      processImageUpload(newImage);
-      e.target.value = '';
-    }
-  }, []);
+      processImageUpload(newImg);
+      return newImg;
+    });
+
+    setTrainingImages(prev => [...prev, ...newImages]);
+  }, [trainingImages.length]);
 
   const handleSubmit = async () => {
     if (!projectName || !topicDiscussed || !conductedBy || !conductorSigned) {
@@ -146,7 +135,6 @@ export const TrainingManagement: React.FC<TrainingManagementProps> = ({ appTheme
       sendToast("Training Record Dispatched", "success");
       setView('list');
       loadHistory();
-      // Reset form
       setProjectName(''); setTopicDiscussed(''); setTrainees([{ id: crypto.randomUUID(), name: '', companyNo: '', designation: '', isSigned: false }]); setTrainingImages([]);
     } catch (err: any) {
       sendToast(err.message, "critical");
@@ -211,7 +199,6 @@ export const TrainingManagement: React.FC<TrainingManagementProps> = ({ appTheme
           )}
         </div>
 
-        {/* Detailed Session View Overlay */}
         {selectedSession && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-8 bg-black/95 backdrop-blur-xl animate-in fade-in duration-300">
              <div className={`w-full max-w-5xl max-h-full overflow-y-auto rounded-[3rem] border shadow-2xl p-8 sm:p-12 ${isLight ? 'bg-white' : 'bg-[#020617] border-white/10'}`}>
@@ -245,28 +232,6 @@ export const TrainingManagement: React.FC<TrainingManagementProps> = ({ appTheme
                            <a key={i} href={img.serverUrl} target="_blank" className="aspect-square rounded-2xl overflow-hidden border-2 border-white/5 hover:border-blue-500 transition-all shadow-xl">
                               <img src={img.serverUrl} className="w-full h-full object-cover" alt="Evidence" />
                            </a>
-                         ))}
-                      </div>
-                   </div>
-                </div>
-
-                <div className="mb-12">
-                   <h4 className="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-6 px-2">Trainee Manifest</h4>
-                   <div className={`rounded-[2rem] border overflow-hidden ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/5'}`}>
-                      <div className={`grid grid-cols-[60px_1fr_120px_1fr_100px] gap-4 p-4 border-b text-[9px] font-black uppercase text-slate-500 ${isLight ? 'bg-white' : 'bg-black/20'}`}>
-                         <span>SN</span><span>Name</span><span>Company No</span><span>Designation</span><span className="text-center">Sign Status</span>
-                      </div>
-                      <div className="divide-y divide-white/5 max-h-80 overflow-y-auto">
-                         {selectedSession.trainees.map((t, i) => (
-                           <div key={i} className="grid grid-cols-[60px_1fr_120px_1fr_100px] gap-4 p-4 items-center">
-                              <span className="text-[10px] font-black opacity-30">{i + 1}</span>
-                              <span className={`text-[11px] font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>{t.name}</span>
-                              <span className="text-[10px] font-mono text-slate-500">{t.companyNo}</span>
-                              <span className="text-[10px] font-bold text-slate-400">{t.designation}</span>
-                              <div className="flex justify-center">
-                                 {t.isSigned ? <span className="text-[8px] font-black bg-emerald-500/10 text-emerald-500 px-2 py-0.5 rounded-full border border-emerald-500/20">SIGNED {t.signTimestamp}</span> : <span className="text-[8px] font-black text-slate-600">PENDING</span>}
-                              </div>
-                           </div>
                          ))}
                       </div>
                    </div>
@@ -325,10 +290,6 @@ export const TrainingManagement: React.FC<TrainingManagementProps> = ({ appTheme
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">Project Name</label>
                 <input type="text" value={projectName} onChange={(e) => setProjectName(e.target.value)} placeholder="Project ID" className={`w-full p-4 rounded-2xl border outline-none font-bold text-sm ${isLight ? 'bg-slate-50' : 'bg-black/40 border-white/5 text-white'}`} />
               </div>
-              <div className="flex flex-col gap-2">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">Location (Auto GPS)</label>
-                <div className="p-4 rounded-2xl border font-mono text-[11px] truncate bg-black/20 border-white/5 text-blue-400">{location}</div>
-              </div>
             </div>
             <div className="space-y-6">
               <div className="flex flex-col gap-2">
@@ -343,36 +304,11 @@ export const TrainingManagement: React.FC<TrainingManagementProps> = ({ appTheme
             <textarea rows={4} value={topicDiscussed} onChange={(e) => setTopicDiscussed(e.target.value)} className={`w-full p-6 rounded-[2rem] border outline-none font-bold text-sm resize-none ${isLight ? 'bg-slate-50' : 'bg-black/40 border-white/5 text-white'}`} />
           </div>
 
-          <div className="mb-10 overflow-x-auto">
-            <div className="min-w-[600px]">
-              <div className={`grid grid-cols-[60px_1fr_120px_1fr_100px] gap-4 p-4 mb-2 text-[9px] font-black uppercase text-slate-500`}>
-                <span>SN</span><span>Name</span><span>ID No</span><span>Designation</span><span className="text-center">Sign</span>
-              </div>
-              <div className="space-y-3">
-                {trainees.map((trainee, index) => (
-                  <div key={trainee.id} className="grid grid-cols-[60px_1fr_120px_1fr_100px] gap-4 items-center">
-                    <div className="h-12 flex items-center justify-center rounded-xl border bg-black/20 border-white/5 text-xs text-slate-600">{index + 1}</div>
-                    <input value={trainee.name} onChange={(e) => updateTrainee(trainee.id, 'name', e.target.value)} className={`h-12 px-4 rounded-xl border outline-none text-xs font-bold ${isLight ? 'bg-white' : 'bg-black/40 border-white/5 text-white'}`} />
-                    <input value={trainee.companyNo} onChange={(e) => updateTrainee(trainee.id, 'companyNo', e.target.value)} className={`h-12 px-4 rounded-xl border outline-none text-xs font-bold ${isLight ? 'bg-white' : 'bg-black/40 border-white/5 text-white'}`} />
-                    <input value={trainee.designation} onChange={(e) => updateTrainee(trainee.id, 'designation', e.target.value)} className={`h-12 px-4 rounded-xl border outline-none text-xs font-bold ${isLight ? 'bg-white' : 'bg-black/40 border-white/5 text-white'}`} />
-                    <button onClick={() => toggleTraineeSign(trainee.id)} className={`h-12 rounded-xl border flex items-center justify-center ${trainee.isSigned ? 'bg-emerald-500 text-white' : 'bg-white/5 text-slate-600'}`}>
-                       {trainee.isSigned ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4"><path d="M20 6L9 17l-5-5"/></svg> : <span className="text-[8px] font-black uppercase">Sign</span>}
-                    </button>
-                  </div>
-                ))}
-              </div>
-              <button onClick={addTraineeRow} className="mt-6 w-full py-4 border-2 border-dashed border-blue-500/30 rounded-2xl flex items-center justify-center gap-3 text-blue-500 text-[10px] font-black uppercase hover:bg-blue-500/5 transition-all">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 5v14M5 12h14"/></svg> Add Row
-              </button>
-            </div>
-          </div>
-
           <div className="mb-10 pt-8 border-t border-white/5">
-             <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1 mb-4 block">Evidence (Max 3):</label>
-             {/* FIX: Check if image exists before retrying upload to prevent runtime error. */}
+             <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1 mb-4 block">Evidence Acquisition (Drag & Drop Supported):</label>
              <ImageGrid 
                images={trainingImages} 
-               onAdd={handleAddImage} 
+               onAdd={handleAddFiles} 
                onRemove={(id) => setTrainingImages(trainingImages.filter(i => i.id !== id))} 
                onRetry={(id) => {
                  const img = trainingImages.find(i => i.id === id);

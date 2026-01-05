@@ -21,16 +21,14 @@ const handleDBError = (error: any): string => {
   return error.message || "Registry synchronization failed.";
 };
 
-const requireSupabase = () => {
-  if (!supabase) {
-    throw new Error(
-      "CONFIGURATION FAULT: Personnel registry is not activated. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY."
-    );
-  }
-};
+const checkSupabase = () => {
+    if (!supabase) {
+        throw new Error("CONFIGURATION FAULT: Personnel registry is not activated. Verify Supabase credentials.");
+    }
+}
 
 export const registerProfile = async (profile: UserProfile): Promise<UserProfile> => {
-  requireSupabase();
+  checkSupabase();
   const { data, error } = await supabase!
     .from(TABLE_NAME)
     .insert([{ 
@@ -66,7 +64,7 @@ export const registerProfile = async (profile: UserProfile): Promise<UserProfile
 };
 
 export const getProfileByName = async (name: string): Promise<UserProfile | null> => {
-  requireSupabase();
+  checkSupabase();
   const { data, error } = await supabase!
     .from(TABLE_NAME)
     .select('*')
@@ -92,8 +90,7 @@ export const getProfileByName = async (name: string): Promise<UserProfile | null
 };
 
 export const getAllProfiles = async (): Promise<UserProfile[]> => {
-  // Personnel directory is optional for core app flows; don't hard-fail startup.
-  if (!supabase) return [];
+  checkSupabase();
   const { data, error } = await supabase!
     .from(TABLE_NAME)
     .select('name, role, site, email, profile_image_url');
@@ -110,7 +107,7 @@ export const getAllProfiles = async (): Promise<UserProfile[]> => {
 };
 
 export const updateProfile = async (id: string, updates: Partial<UserProfile>): Promise<void> => {
-  requireSupabase();
+  checkSupabase();
   const dbUpdates: any = {};
   if (updates.name !== undefined) dbUpdates.name = updates.name;
   if (updates.site !== undefined) dbUpdates.site = updates.site;
@@ -127,7 +124,7 @@ export const updateProfile = async (id: string, updates: Partial<UserProfile>): 
 };
 
 export const deleteProfile = async (id: string): Promise<void> => {
-  requireSupabase();
+  checkSupabase();
   const { error } = await supabase!
     .from(TABLE_NAME)
     .delete()

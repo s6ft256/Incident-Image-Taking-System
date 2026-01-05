@@ -6,7 +6,6 @@ import { useAppContext } from '../context/AppContext';
 
 interface PersonnelGridProps {
   onBack: () => void;
-  // Fix: Add appTheme prop to align with usage in App.tsx and other components
   appTheme?: 'dark' | 'light';
 }
 
@@ -206,18 +205,14 @@ export const PersonnelGrid: React.FC<PersonnelGridProps> = ({ onBack, appTheme =
             placeholder="Search identity by name or email..." 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className={`w-full p-4 rounded-2xl border outline-none transition-all pl-12 text-sm font-medium ${
-              isLight ? 'bg-white border-slate-200 focus:border-blue-500 shadow-sm' : 'bg-white/5 border-white/10 focus:border-blue-500 text-white'
-            }`}
+            className={`w-full p-4 rounded-2xl border outline-none transition-all pl-12 text-sm font-medium ${isLight ? 'bg-white border-slate-200 focus:border-blue-500 shadow-sm' : 'bg-white/5 border-white/10 focus:border-blue-500 text-white'}`}
           />
           <svg className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors ${isLight ? 'text-slate-400 group-focus-within:text-blue-500' : 'text-slate-500 group-focus-within:text-blue-500'}`} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
         </div>
         <select 
           value={filterRole}
           onChange={(e) => setFilterRole(e.target.value)}
-          className={`px-6 py-4 rounded-2xl border outline-none text-xs font-black uppercase tracking-widest cursor-pointer ${
-            isLight ? 'bg-white border-slate-200 text-slate-700' : 'bg-slate-900 border-white/10 text-white'
-          }`}
+          className={`px-6 py-4 rounded-2xl border outline-none text-xs font-black uppercase tracking-widest cursor-pointer ${isLight ? 'bg-white border-slate-200 text-slate-700' : 'bg-slate-900 border-white/10 text-white'}`}
         >
           {roles.map(role => <option key={role} value={role}>{role}</option>)}
         </select>
@@ -255,7 +250,7 @@ export const PersonnelGrid: React.FC<PersonnelGridProps> = ({ onBack, appTheme =
                       isLight ? 'border-white bg-slate-100 shadow-slate-200/50' : 'border-white/10 bg-black/40 shadow-black'
                     }`}>
                       {person.profileImageUrl ? (
-                        <img src={person.profileImageUrl} alt={person.name} className="w-full h-full object-cover" />
+                        <img src={person.profileImageUrl} alt={person.name} className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(person.name)}&background=0d6efd&color=fff`; }}/>
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-blue-500 font-black text-2xl">
                           {person.name.charAt(0)}
@@ -325,9 +320,7 @@ export const PersonnelGrid: React.FC<PersonnelGridProps> = ({ onBack, appTheme =
                          <button 
                           onClick={(e) => handleEmailClick(e, person.email)}
                           title="Establish Communication"
-                          className={`p-3.5 rounded-2xl transition-all shadow-lg ${
-                            isLight ? 'bg-blue-50 text-blue-600 hover:bg-blue-100' : 'bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 border border-blue-500/10'
-                          }`}
+                          className={`p-3.5 rounded-2xl transition-all shadow-lg ${isLight ? 'bg-blue-50 text-blue-600 hover:bg-blue-100' : 'bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 border border-blue-500/10'}`}
                          >
                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                               <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>

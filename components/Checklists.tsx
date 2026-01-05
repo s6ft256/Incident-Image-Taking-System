@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { getAllCraneChecklists, getAllEquipmentChecklists } from '../services/airtableService';
 import { FetchedCraneChecklist, FetchedEquipmentChecklist } from '../types';
@@ -160,7 +161,6 @@ export const Checklists: React.FC<ChecklistsProps> = ({ appTheme = 'dark', onBac
              </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {/* FIX: Add key prop for list rendering */}
               {(activeTab === 'crane-history' ? craneHistory : equipmentHistory).map(rec => (
                 <RecordCard key={rec.id} record={rec} type={activeTab === 'crane-history' ? 'crane' : 'equipment'} />
               ))}

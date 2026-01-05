@@ -7,7 +7,7 @@ import { useObservationReport } from '../hooks/useIncidentReport';
 import { getAllProfiles } from '../services/profileService';
 import { UserProfile } from '../types';
 import { sendNotification } from '../services/notificationService';
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 
 interface CreateReportFormProps {
   baseId: string;
@@ -22,6 +22,7 @@ interface AISuggestion {
 }
 
 export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBack, appTheme = 'dark' }) => {
+  // @google/genai-fix: The `useObservationReport` hook returns `handleAddFiles`, not `handleAddImage`. Corrected the destructured property name.
   const {
     formData,
     touched,
@@ -35,7 +36,7 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
     handleInputChange,
     handleBlur,
     fetchCurrentLocation,
-    handleAddImage,
+    handleAddFiles,
     handleRemoveImage,
     handleRetry,
     handleSubmit,
@@ -65,16 +66,35 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
     if (!formData.observation || formData.observation.length < 20 || !isOnline) return;
     
     setIsAnalyzing(true);
+    setAiResult(null);
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
-        contents: `Analyze this safety observation: "${formData.observation}". 
-        Return ONLY a JSON object with: 
-        1. "category": Select exactly one from [${OBSERVATION_TYPES.join(', ')}]
-        2. "recommendation": A very short corrective action.
-        3. "severity": "Low", "Medium", or "High"`,
-        config: { responseMimeType: "application/json" }
+        contents: `Analyze this safety observation: "${formData.observation}".`,
+        config: { 
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              category: {
+                type: Type.STRING,
+                description: 'The most relevant safety category for the observation.',
+                enum: OBSERVATION_TYPES,
+              },
+              recommendation: {
+                type: Type.STRING,
+                description: 'A brief, actionable corrective measure.',
+              },
+              severity: {
+                type: Type.STRING,
+                description: 'The assessed risk level.',
+                enum: ['Low', 'Medium', 'High'],
+              },
+            },
+            required: ['category', 'recommendation', 'severity'],
+          }
+        }
       });
 
       const result = JSON.parse(response.text || '{}');
@@ -320,7 +340,7 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
         </div>
 
         <div className={`${isLight ? 'bg-white border-slate-200' : 'bg-white/5 border-white/10'} backdrop-blur-xl rounded-[2rem] border p-8 shadow-2xl form-container-glow`}>
-          <ImageGrid images={images} onAdd={handleAddImage} onRemove={handleRemoveImage} onRetry={handleRetry} appTheme={appTheme} />
+          <ImageGrid images={images} onAdd={handleAddFiles} onRemove={handleRemoveImage} onRetry={handleRetry} appTheme={appTheme} />
           {images.length < MIN_IMAGES && (
             <div className="mt-4 flex items-center gap-2 text-[10px] font-black text-amber-500 uppercase tracking-widest px-2 animate-pulse">
                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

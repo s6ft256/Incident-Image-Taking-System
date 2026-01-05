@@ -125,29 +125,28 @@ export const useObservationReport = (baseId: string) => {
     );
   }, []);
 
-  const handleAddImage = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const filesToAdd = Array.from(e.target.files) as File[];
-      const remainingSlots = MAX_IMAGES - images.length;
-      
-      const limitedFiles = filesToAdd.slice(0, remainingSlots);
-      
-      if (filesToAdd.length > remainingSlots) {
-        setErrorMessage(`Transmission limit reached. Only ${remainingSlots} additional images accepted.`);
-        setTimeout(() => setErrorMessage(''), 3000);
-      }
+  const handleAddFiles = useCallback((files: FileList) => {
+    const filesToAdd = Array.from(files).filter(f => f.type.startsWith('image/'));
+    const remainingSlots = MAX_IMAGES - images.length;
+    
+    if (filesToAdd.length === 0) return;
 
-      const newImages: UploadedImage[] = limitedFiles.map(file => ({
-        id: crypto.randomUUID(),
-        file: file,
-        previewUrl: URL.createObjectURL(file),
-        status: 'pending',
-        progress: 0
-      }));
-
-      setImages(prev => [...prev, ...newImages]);
-      e.target.value = '';
+    const limitedFiles = filesToAdd.slice(0, remainingSlots);
+    
+    if (filesToAdd.length > remainingSlots) {
+      setErrorMessage(`Transmission limit reached. Only ${remainingSlots} additional images accepted.`);
+      setTimeout(() => setErrorMessage(''), 3000);
     }
+
+    const newImages: UploadedImage[] = limitedFiles.map(file => ({
+      id: crypto.randomUUID(),
+      file: file,
+      previewUrl: URL.createObjectURL(file),
+      status: 'pending',
+      progress: 0
+    }));
+
+    setImages(prev => [...prev, ...newImages]);
   }, [images.length]);
 
   const handleRemoveImage = useCallback((id: string) => {
@@ -268,7 +267,7 @@ export const useObservationReport = (baseId: string) => {
     handleInputChange,
     handleBlur,
     fetchCurrentLocation,
-    handleAddImage,
+    handleAddFiles,
     handleRemoveImage,
     handleRetry: (id: string) => {
       const img = images.find(i => i.id === id);
