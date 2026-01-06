@@ -1,11 +1,11 @@
-
-import { ObservationForm, UploadedImage } from '../types';
+import { ObservationForm, UploadedImage, IncidentForm, OfflineIncident } from '../types';
 
 const DB_NAME = 'HSE_Guardian_Offline_DB';
-const STORE_NAME = 'pending_observation_reports';
-const DB_VERSION = 2;
+const OBS_STORE_NAME = 'pending_observation_reports';
+const INCIDENT_STORE_NAME = 'pending_incident_reports';
+const DB_VERSION = 3;
 
-export interface OfflineReport {
+export interface OfflineObservation {
   id: string;
   form: ObservationForm;
   images: {
@@ -36,8 +36,11 @@ export const openDB = (): Promise<IDBDatabase> => {
 
     request.onupgradeneeded = (event) => {
       const db = (event.target as IDBOpenDBRequest).result;
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+      if (!db.objectStoreNames.contains(OBS_STORE_NAME)) {
+        db.createObjectStore(OBS_STORE_NAME, { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains(INCIDENT_STORE_NAME)) {
+        db.createObjectStore(INCIDENT_STORE_NAME, { keyPath: 'id' });
       }
     };
 
@@ -51,7 +54,7 @@ export const openDB = (): Promise<IDBDatabase> => {
  */
 export const saveOfflineReport = async (form: ObservationForm, images: UploadedImage[]): Promise<void> => {
   const db = await openDB();
-  const offlineData: OfflineReport = {
+  const offlineData: OfflineObservation = {
     id: crypto.randomUUID(),
     form,
     images: images.map(img => ({ id: img.id, file: img.file })),
@@ -60,35 +63,54 @@ export const saveOfflineReport = async (form: ObservationForm, images: UploadedI
 
   return new Promise<void>((resolve, reject) => {
     try {
-      const tx = db.transaction(STORE_NAME, 'readwrite');
-      const store = tx.objectStore(STORE_NAME);
-      const request = store.put(offlineData);
-
+      const tx = db.transaction(OBS_STORE_NAME, 'readwrite');
+      const store = tx.objectStore(OBS_STORE_NAME);
+      store.put(offlineData);
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(new Error("Failed to write to local ledger."));
-      request.onerror = () => reject(new Error("Data persistence failed."));
     } catch (e) {
       reject(e);
     }
   });
 };
 
+export const saveOfflineIncident = async (form: IncidentForm, images: UploadedImage[]): Promise<void> => {
+  const db = await openDB();
+  const offlineData: OfflineIncident = {
+    id: crypto.randomUUID(),
+    form,
+    images: images.map(img => ({ id: img.id, file: img.file, isAnnotated: img.isAnnotated })),
+    timestamp: Date.now()
+  };
+  return new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(INCIDENT_STORE_NAME, 'readwrite');
+    tx.objectStore(INCIDENT_STORE_NAME).put(offlineData);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(new Error("Failed to persist incident to local ledger."));
+  });
+};
+
+
 /**
  * Retrieves all reports currently queued in the local database.
  */
-export const getOfflineReports = async (): Promise<OfflineReport[]> => {
+export const getOfflineReports = async (): Promise<OfflineObservation[]> => {
   const db = await openDB();
   return new Promise((resolve, reject) => {
-    try {
-      const tx = db.transaction(STORE_NAME, 'readonly');
-      const store = tx.objectStore(STORE_NAME);
-      const request = store.getAll();
+    const tx = db.transaction(OBS_STORE_NAME, 'readonly');
+    const request = tx.objectStore(OBS_STORE_NAME).getAll();
+    request.onsuccess = () => resolve(request.result || []);
+    request.onerror = () => reject(new Error("Failed to extract data from local ledger."));
+  });
+};
 
-      request.onsuccess = () => resolve(request.result || []);
-      request.onerror = () => reject(new Error("Failed to extract data from local ledger."));
-    } catch (e) {
-      reject(e);
-    }
+export const getOfflineIncidents = async (): Promise<OfflineIncident[]> => {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(INCIDENT_STORE_NAME, 'readonly');
+    const request = tx.objectStore(INCIDENT_STORE_NAME).getAll();
+    request.onsuccess = () => resolve(request.result || []);
+    request.onerror = () => reject(new Error("Failed to extract incidents from local ledger."));
   });
 };
 
@@ -97,17 +119,16 @@ export const getOfflineReports = async (): Promise<OfflineReport[]> => {
  */
 export const getPendingReportCount = async (): Promise<number> => {
   const db = await openDB();
-  return new Promise((resolve, reject) => {
-    try {
-      const tx = db.transaction(STORE_NAME, 'readonly');
-      const store = tx.objectStore(STORE_NAME);
-      const request = store.count();
-
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(new Error("Failed to query queue status."));
-    } catch (e) {
-      reject(e);
-    }
+  const tx = db.transaction([OBS_STORE_NAME, INCIDENT_STORE_NAME], 'readonly');
+  const obsCountReq = tx.objectStore(OBS_STORE_NAME).count();
+  const incCountReq = tx.objectStore(INCIDENT_STORE_NAME).count();
+  
+  return new Promise((resolve) => {
+    let obsCount = 0;
+    let incCount = 0;
+    obsCountReq.onsuccess = () => { obsCount = obsCountReq.result; };
+    incCountReq.onsuccess = () => { incCount = incCountReq.result; };
+    tx.oncomplete = () => resolve(obsCount + incCount);
   });
 };
 
@@ -117,19 +138,23 @@ export const getPendingReportCount = async (): Promise<number> => {
 export const deleteOfflineReport = async (id: string): Promise<void> => {
   const db = await openDB();
   return new Promise<void>((resolve, reject) => {
-    try {
-      const tx = db.transaction(STORE_NAME, 'readwrite');
-      const store = tx.objectStore(STORE_NAME);
-      const request = store.delete(id);
-
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(new Error("Failed to purge report from local storage."));
-      request.onerror = () => reject(new Error("Purge operation failed."));
-    } catch (e) {
-      reject(e);
-    }
+    const tx = db.transaction(OBS_STORE_NAME, 'readwrite');
+    tx.objectStore(OBS_STORE_NAME).delete(id);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(new Error("Failed to purge report from local storage."));
   });
 };
+
+export const deleteOfflineIncident = async (id: string): Promise<void> => {
+  const db = await openDB();
+  return new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(INCIDENT_STORE_NAME, 'readwrite');
+    tx.objectStore(INCIDENT_STORE_NAME).delete(id);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(new Error("Failed to purge incident from local storage."));
+  });
+};
+
 
 /**
  * Completely purges the local report database. Use with caution.
@@ -137,15 +162,10 @@ export const deleteOfflineReport = async (id: string): Promise<void> => {
 export const clearOfflineStorage = async (): Promise<void> => {
   const db = await openDB();
   return new Promise<void>((resolve, reject) => {
-    try {
-      const tx = db.transaction(STORE_NAME, 'readwrite');
-      const store = tx.objectStore(STORE_NAME);
-      const request = store.clear();
-
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(new Error("Global purge operation interrupted."));
-    } catch (e) {
-      reject(e);
-    }
+    const tx = db.transaction([OBS_STORE_NAME, INCIDENT_STORE_NAME], 'readwrite');
+    tx.objectStore(OBS_STORE_NAME).clear();
+    tx.objectStore(INCIDENT_STORE_NAME).clear();
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(new Error("Global purge operation interrupted."));
   });
 };

@@ -1,4 +1,3 @@
-
 export interface WeatherData {
   temp: number;
   condition: string;
@@ -18,7 +17,10 @@ export const getAddress = async (lat: number, lon: number): Promise<string> => {
   try {
     const geoUrl = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`;
     const geoRes = await fetch(geoUrl, {
-      headers: { 'Accept-Language': 'en', 'User-Agent': 'HSE-Guardian-App' }
+      headers: { 
+        'Accept-Language': 'en', 
+        'User-Agent': 'HSE-Guardian/1.0 (mailto:niwamanyaelius95@gmail.com)' 
+      }
     });
     const geoJson = await geoRes.json();
     
