@@ -22,7 +22,6 @@ interface AISuggestion {
 }
 
 export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBack, appTheme = 'dark' }) => {
-  // @google/genai-fix: The `useObservationReport` hook returns `handleAddFiles`, not `handleAddImage`. Corrected the destructured property name.
   const {
     formData,
     touched,
@@ -33,6 +32,7 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
     errorMessage,
     isOnline,
     isLocating,
+    isAnalyzingImage,
     handleInputChange,
     handleBlur,
     fetchCurrentLocation,
@@ -45,7 +45,7 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
   } = useObservationReport(baseId);
 
   const [teamMembers, setTeamMembers] = useState<string[]>([]);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isAnalyzingText, setIsAnalyzingText] = useState(false);
   const [aiResult, setAiResult] = useState<AISuggestion | null>(null);
   const isLight = appTheme === 'light';
 
@@ -61,11 +61,11 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
     fetchTeam();
   }, []);
 
-  // AI Analysis Logic
-  const analyzeHazard = useCallback(async () => {
+  // AI Analysis Logic for Text
+  const analyzeHazardText = useCallback(async () => {
     if (!formData.observation || formData.observation.length < 20 || !isOnline) return;
     
-    setIsAnalyzing(true);
+    setIsAnalyzingText(true);
     setAiResult(null);
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -102,17 +102,17 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
         setAiResult(result);
       }
     } catch (e) {
-      console.error("AI Analysis failed", e);
+      console.error("AI Text Analysis failed", e);
     } finally {
-      setIsAnalyzing(false);
+      setIsAnalyzingText(false);
     }
   }, [formData.observation, isOnline]);
 
-  // Debounced AI call
+  // Debounced AI call for text
   useEffect(() => {
-    const timer = setTimeout(analyzeHazard, 2000);
+    const timer = setTimeout(analyzeHazardText, 2000);
     return () => clearTimeout(timer);
-  }, [formData.observation, analyzeHazard]);
+  }, [formData.observation, analyzeHazardText]);
 
   const applyAISuggestion = () => {
     if (aiResult) {
@@ -193,16 +193,18 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
             required 
           />
 
-          {isAnalyzing && (
+          {(isAnalyzingText || isAnalyzingImage) && (
             <div className="flex items-center gap-2 px-2 animate-pulse">
               <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce"></div>
               <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce delay-75"></div>
               <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce delay-150"></div>
-              <span className="text-[8px] font-black uppercase text-blue-500 tracking-widest">Gemini Analyzing Hazard Profile...</span>
+              <span className="text-[8px] font-black uppercase text-blue-500 tracking-widest">
+                {isAnalyzingImage ? 'Gemini Analyzing Evidence...' : 'Gemini Analyzing Hazard Profile...'}
+              </span>
             </div>
           )}
 
-          {aiResult && !isAnalyzing && (
+          {aiResult && !isAnalyzingText && (
             <div className="bg-blue-600/10 border border-blue-500/20 p-5 rounded-2xl animate-in fade-in slide-in-from-top-2 relative overflow-hidden group">
               <div className="absolute top-0 right-0 p-2">
                  <span className={`text-[8px] font-black px-2 py-1 rounded-full uppercase ${

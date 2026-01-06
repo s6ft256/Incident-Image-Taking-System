@@ -169,16 +169,19 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
               <div className="absolute inset-0 bg-blue-500/20 blur-3xl rounded-full scale-125"></div>
               <img src={SYSTEM_LOGO_URL} className="h-40 w-40 relative z-10 drop-shadow-2xl animate-pulse object-contain" alt="System Logo" />
             </div>
-            <div className="space-y-2 mb-10">
-              <h2 className={`text-4xl font-black tracking-tighter ${isLight ? 'text-slate-900' : 'text-white'}`}>HSE <span className="text-blue-500">Guardian</span></h2>
-              <div className="flex flex-col items-center"><div className="h-1.5 w-14 bg-red-600 mt-1 rounded-full shadow-[0_0_15px_rgba(220,38,38,0.8)]"></div></div>
+            <div className="space-y-1 mb-10">
+              <h2 className={`text-4xl font-black tracking-tighter leading-none ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                HSE<span className="text-blue-500">GUARDIAN</span>
+              </h2>
+              <p className={`mt-2 text-[10px] font-black uppercase tracking-[0.2em] ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>High-Integrity Safety Protocol</p>
+              <div className="flex flex-col items-center pt-2"><div className="h-1.5 w-14 bg-red-600 rounded-full shadow-[0_0_15px_rgba(220,38,38,0.8)]"></div></div>
             </div>
 
             <div className="w-full flex flex-col gap-3">
               <button onClick={() => setMode('login')} className={`w-full font-black py-5 rounded-2xl transition-all active:scale-[0.98] uppercase tracking-widest text-[11px] border ${isLight ? 'bg-blue-600 text-white border-blue-400 shadow-blue-500/20 shadow-md' : 'bg-blue-600/20 border-blue-500/30 text-white hover:bg-blue-600/30'}`}>Access Protocol</button>
               <button onClick={() => setMode('signup')} className={`w-full font-black py-5 rounded-2xl transition-all active:scale-[0.98] uppercase tracking-widest text-[11px] border ${isLight ? 'bg-white border-blue-200 text-slate-900 shadow-sm' : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'}`}>New Identity</button>
             </div>
-            <p className={`mt-10 text-[9px] font-bold uppercase tracking-widest ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>Secure Personal Authentication System</p>
+            <p className={`mt-10 text-[9px] font-bold uppercase tracking-widest ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>High-Integrity Evidence Gateway</p>
           </div>
           <CardBackgroundGlow />
         </AuthCard>
@@ -229,12 +232,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
                       <input type="checkbox" id="imageConsent" checked={imageConsent} onChange={(e) => setImageConsent(e.target.checked)} className="mt-0.5 w-4 h-4 rounded border-slate-700 bg-slate-900 text-blue-600 focus:ring-blue-500" />
                       <label htmlFor="imageConsent" className={`text-[7px] font-black uppercase tracking-widest leading-relaxed ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
                         I authorize evidence image collection.
-                      </label>
-                   </div>
-                   <div className="flex items-start gap-3 px-1">
-                      <input type="checkbox" id="cookieConsent" checked={cookieConsent} onChange={(e) => setCookieConsent(e.target.checked)} className="mt-0.5 w-4 h-4 rounded border-slate-700 bg-slate-900 text-blue-600 focus:ring-blue-500" />
-                      <label htmlFor="cookieConsent" className={`text-[7px] font-black uppercase tracking-widest leading-relaxed ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
-                        I acknowledge use of Essential cookies.
                       </label>
                    </div>
                 </div>

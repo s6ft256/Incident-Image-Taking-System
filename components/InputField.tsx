@@ -8,7 +8,8 @@ interface InputFieldProps {
   onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
   onBlur?: (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
   placeholder?: string;
-  type?: 'text' | 'select' | 'textarea' | 'password';
+  // @google/genai-fix: Added 'date' and 'time' to the type definition to support date and time inputs.
+  type?: 'text' | 'select' | 'textarea' | 'password' | 'date' | 'time';
   options?: string[];
   list?: string[];
   required?: boolean;
@@ -19,6 +20,7 @@ interface InputFieldProps {
   autoCapitalize?: "none" | "sentences" | "words" | "characters";
   error?: string;
   touched?: boolean;
+  disabled?: boolean;
 }
 
 export const InputField: React.FC<InputFieldProps> = memo(({ 
@@ -38,16 +40,19 @@ export const InputField: React.FC<InputFieldProps> = memo(({
   autoCorrect = "off",
   autoCapitalize = "sentences",
   error,
-  touched
+  touched,
+  // @google/genai-fix: Added disabled prop to handle disabled state for inputs.
+  disabled = false
 }) => {
   const dataListId = list && list.length > 0 ? `${id}-list` : undefined;
   const hasError = touched && !!error;
 
+  // @google/genai-fix: Added styling for disabled state.
   const baseClasses = `w-full rounded-xl border px-4 py-3.5 outline-none transition-all duration-200 text-sm ${
     hasError 
       ? 'border-rose-500 ring-1 ring-rose-500/20 shadow-[0_0_10px_rgba(244,63,94,0.1)]' 
       : 'focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500'
-  }`;
+  } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`;
   
   const themeClasses = `bg-slate-900/40 text-slate-100 placeholder:text-slate-600 light-mode:bg-white light-mode:text-slate-900 ${
     !hasError ? 'border-slate-700 light-mode:border-slate-300' : ''
@@ -66,6 +71,7 @@ export const InputField: React.FC<InputFieldProps> = memo(({
               className={`${baseClasses} ${themeClasses} appearance-none pr-10`}
               required={required}
               autoComplete={autoComplete}
+              disabled={disabled}
             >
               <option value="" disabled className="text-slate-500">Select {label}</option>
               {options.map((opt) => (
@@ -94,6 +100,7 @@ export const InputField: React.FC<InputFieldProps> = memo(({
             className={`${baseClasses} ${themeClasses} resize-none min-h-[120px]`}
             required={required}
             autoComplete={autoComplete}
+            disabled={disabled}
           />
         );
       case 'password':
@@ -108,13 +115,15 @@ export const InputField: React.FC<InputFieldProps> = memo(({
             autoComplete={autoComplete}
             className={`${baseClasses} ${themeClasses}`}
             required={required}
+            disabled={disabled}
           />
         );
       default:
         return (
           <>
             <input
-              type="text"
+              // @google/genai-fix: Changed type from hardcoded "text" to the passed `type` prop.
+              type={type}
               id={id}
               value={value}
               onChange={onChange}
@@ -127,6 +136,7 @@ export const InputField: React.FC<InputFieldProps> = memo(({
               autoCapitalize={autoCapitalize}
               className={`${baseClasses} ${themeClasses}`}
               required={required}
+              disabled={disabled}
             />
             {dataListId && (
               <datalist id={dataListId}>

@@ -8,6 +8,7 @@ interface ImageGridProps {
   onRemove: (id: string) => void;
   onAdd: (files: FileList) => void;
   onRetry: (id: string) => void;
+  onAnnotate?: (id: string) => void;
   appTheme?: 'dark' | 'light';
   hideHeader?: boolean;
 }
@@ -16,7 +17,8 @@ export const ImageGrid: React.FC<ImageGridProps> = memo(({
   images, 
   onRemove, 
   onAdd, 
-  onRetry, 
+  onRetry,
+  onAnnotate,
   appTheme = 'dark',
   hideHeader = false
 }) => {
@@ -102,19 +104,23 @@ export const ImageGrid: React.FC<ImageGridProps> = memo(({
                 relative aspect-square overflow-hidden rounded-xl border-2 transition-all duration-300
                 ${img.status === 'error' ? (isLight ? 'border-rose-500 bg-rose-50' : 'border-rose-500 bg-rose-950/20') : 
                   img.status === 'success' ? (isLight ? 'border-emerald-500 bg-emerald-50' : 'border-emerald-600') : 
-                  img.status === 'uploading' ? (isLight ? 'border-blue-500 bg-blue-50' : 'border-blue-500') :
+                  img.status === 'uploading' || img.status === 'analyzing' ? (isLight ? 'border-blue-500 bg-blue-50' : 'border-blue-500') :
                   (isLight ? 'border-slate-200 hover:border-blue-400' : 'border-slate-700 hover:border-blue-500/50')}
-                cursor-zoom-in
               `}
               onClick={() => setSelectedImage(img.previewUrl)}
             >
+              {img.isAnnotated && (
+                <div className="absolute top-2 right-2 z-10 px-2 py-1 bg-blue-600 text-white text-[7px] font-black uppercase rounded-full border-2 border-slate-900 shadow-lg">
+                  Annotated
+                </div>
+              )}
               <img 
                 src={img.previewUrl} 
                 alt="Evidence" 
-                className={`h-full w-full object-cover transition-transform duration-500 ${
-                  img.status === 'uploading' ? 'blur-[2px] opacity-70' : 
+                className={`h-full w-full object-cover transition-all duration-500 ${
+                  img.status === 'uploading' || img.status === 'analyzing' ? 'blur-[2px] opacity-70' : 
                   img.status === 'error' ? 'grayscale opacity-40' :
-                  'group-hover:scale-110'
+                  'group-hover:scale-110 cursor-zoom-in'
                 }`}
               />
               
@@ -122,7 +128,7 @@ export const ImageGrid: React.FC<ImageGridProps> = memo(({
                 <div className={`absolute inset-0 flex flex-col items-center justify-center p-4 z-20 ${isLight ? 'bg-white/70' : 'bg-slate-900/60'}`}>
                    <div className="w-full space-y-2">
                       <div className="flex justify-between items-center px-1 text-[8px] font-black text-blue-500">
-                        <span>SYNCING...</span>
+                        <span>{img.progress < 50 ? 'Compressing...' : 'Syncing...'}</span>
                         <span>{img.progress}%</span>
                       </div>
                       <div className="w-full bg-slate-800 rounded-full h-1 overflow-hidden">
@@ -132,17 +138,31 @@ export const ImageGrid: React.FC<ImageGridProps> = memo(({
                 </div>
               )}
 
+              {img.status === 'analyzing' && (
+                <div className={`absolute inset-0 flex flex-col items-center justify-center p-4 z-20 ${isLight ? 'bg-white/70' : 'bg-slate-900/60'}`}>
+                   <div className="w-6 h-6 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin"></div>
+                   <span className="text-[7px] font-black uppercase text-blue-500 mt-2">Analyzing...</span>
+                </div>
+              )}
+
               {img.status === 'error' && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center p-3 text-center bg-black/85 backdrop-blur-[2px] z-20">
-                   <svg className="w-6 h-6 text-rose-500 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                   </svg>
-                   <button 
-                     onClick={(e) => { e.stopPropagation(); onRetry(img.id); }}
-                     className="px-3 py-1 bg-rose-500 text-white text-[8px] font-black uppercase rounded-lg active:scale-90"
-                   >
-                     Retry
-                   </button>
+                   <div className="relative w-full h-full group/error">
+                      <svg className="w-6 h-6 text-rose-500 mb-2 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 group-hover/error:opacity-0 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); onRetry(img.id); }}
+                        className="px-3 py-1 bg-rose-500 text-white text-[8px] font-black uppercase rounded-lg active:scale-90 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover/error:opacity-100 transition-opacity"
+                      >
+                        Retry
+                      </button>
+                      <div className="absolute -bottom-2 w-full left-0 opacity-0 group-hover/error:opacity-100 transition-opacity pointer-events-none">
+                        <div className="bg-slate-950 text-white text-[8px] p-2 rounded-lg shadow-xl border border-white/10 font-mono">
+                          {img.errorMessage || 'Unknown Fault'}
+                        </div>
+                      </div>
+                   </div>
                 </div>
               )}
             </div>
@@ -151,20 +171,35 @@ export const ImageGrid: React.FC<ImageGridProps> = memo(({
               <span className={`text-[7px] font-black uppercase tracking-widest ${
                 img.status === 'success' ? 'text-emerald-500' :
                 img.status === 'error' ? 'text-rose-500' :
-                img.status === 'uploading' ? 'text-blue-500' : 'text-slate-500'
+                img.status === 'uploading' ? 'text-blue-500' : 
+                img.status === 'analyzing' ? 'text-blue-500' : 'text-slate-500'
               }`}>
-                {img.status === 'success' ? 'Verified' : img.status === 'error' ? 'Fault' : img.status === 'uploading' ? 'Syncing' : 'Queued'}
+                {img.status === 'success' ? 'Verified' : img.status === 'error' ? 'Fault' : img.status === 'uploading' ? 'Syncing' : img.status === 'analyzing' ? 'AI Scan' : 'Queued'}
               </span>
               
-              {img.status !== 'uploading' && (
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); onRemove(img.id); }}
-                  className={`flex h-4 w-4 items-center justify-center rounded-md text-slate-400 hover:bg-rose-500 hover:text-white transition-all ${isLight ? 'bg-slate-100' : 'bg-slate-800'}`}
-                >
-                  <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                </button>
-              )}
+              <div className="flex items-center gap-2">
+                {onAnnotate && img.status === 'success' && (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); onAnnotate(img.id); }}
+                    className={`flex h-7 items-center justify-center gap-1.5 rounded-lg px-3 text-slate-400 hover:text-white transition-all ${isLight ? 'bg-slate-100 hover:bg-blue-500' : 'bg-slate-800 hover:bg-blue-500'}`}
+                    title="Annotate Image"
+                  >
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                    <span className="text-[7px] font-black uppercase tracking-widest">Annotate</span>
+                  </button>
+                )}
+                {img.status !== 'uploading' && img.status !== 'analyzing' && (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); onRemove(img.id); }}
+                    className={`flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-rose-500 hover:text-white transition-all ${isLight ? 'bg-slate-100' : 'bg-slate-800'}`}
+                    title="Remove Image"
+                  >
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         ))}

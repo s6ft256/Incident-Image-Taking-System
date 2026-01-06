@@ -1,16 +1,12 @@
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useMemo } from 'react';
 import { InputField } from './InputField';
 import { ImageGrid } from './ImageGrid';
-import { INCIDENT_TYPES, SEVERITY_LEVELS, STORAGE_KEYS, MIN_IMAGES, AIRTABLE_CONFIG, DEPARTMENTS, MAX_IMAGES } from '../constants';
-import { UserProfile, IncidentForm, UploadedImage } from '../types';
-import { getAddress } from '../services/weatherService';
-import { compressImage } from '../utils/imageCompression';
-import { uploadImageToStorage } from '../services/storageService';
-import { getAllProfiles } from '../services/profileService';
-import { submitIncidentReport } from '../services/airtableService';
-import { sendToast, sendNotification } from '../services/notificationService';
-import { GoogleGenAI, Type } from "@google/genai";
+import { INCIDENT_TYPES, DEPARTMENTS, SITES, MIN_IMAGES, getRiskLevel, LIKELIHOOD_LEVELS, SEVERITY_LEVELS } from '../constants';
+import { UploadedImage } from '../types';
+import { useIncidentReportForm } from '../hooks/useIncidentReportForm';
+import { ImageAnnotator } from './ImageAnnotator';
+import { useAppContext } from '../context/AppContext';
 
 interface IncidentReportFormProps {
   appTheme: 'dark' | 'light';
@@ -19,226 +15,227 @@ interface IncidentReportFormProps {
 
 export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ appTheme, onBack }) => {
   const isLight = appTheme === 'light';
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isLocating, setIsLocating] = useState(false);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [images, setImages] = useState<UploadedImage[]>([]);
-  const [userEmail, setUserEmail] = useState('');
-  
-  const [personnel, setPersonnel] = useState<UserProfile[]>([]);
-  const [selectedEmails, setSelectedEmails] = useState<string[]>([]);
-  const [emailInput, setEmailInput] = useState('');
-  const [showDirectory, setShowDirectory] = useState(false);
-  const directoryRef = useRef<HTMLDivElement>(null);
+  const { state } = useAppContext();
+  const [annotatingImage, setAnnotatingImage] = useState<UploadedImage | null>(null);
 
-  const [formData, setFormData] = useState<IncidentForm>({
-    title: '',
-    type: '',
-    severity: 'Minor',
-    date: new Date().toISOString().split('T')[0],
-    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
-    location: '',
-    department: 'Operations',
-    description: '',
-    involvedParties: '',
-    equipmentInvolved: '',
-    witnesses: '',
-    immediateAction: '',
-    reporterName: '',
-    reporterRole: '',
-    concernedEmail: ''
-  });
+  const personnelNames = useMemo(() => {
+    return state.personnel.map(p => p.name).sort();
+  }, [state.personnel]);
 
-  useEffect(() => {
-    const initForm = async () => {
-      const savedProfile = localStorage.getItem(STORAGE_KEYS.PROFILE);
-      if (savedProfile) {
-        try {
-          const profile: UserProfile = JSON.parse(savedProfile);
-          setFormData(prev => ({
-            ...prev,
-            reporterName: profile.name,
-            reporterRole: profile.role
-          }));
-          if (profile.email) setUserEmail(profile.email);
-        } catch (e) {}
-      }
+  const {
+    formData,
+    setFormData,
+    images,
+    setImages,
+    submitStatus,
+    isLocating,
+    errorMessage,
+    fetchCurrentLocation,
+    handleInputChange,
+    handleAddFiles,
+    handleRemoveImage,
+    handleRetryUpload,
+    handleSubmit,
+  } = useIncidentReportForm();
 
-      try {
-        const users = await getAllProfiles();
-        setPersonnel(users.filter(u => u.email));
-      } catch (err) {
-        console.error("Directory sync failed", err);
-      }
+  const handleAnnotationSave = (annotatedFile: File) => {
+    if (!annotatingImage) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const newPreviewUrl = reader.result as string;
+      setImages(prev => prev.map(img => 
+        img.id === annotatingImage.id 
+          ? { ...img, file: annotatedFile, previewUrl: newPreviewUrl, isAnnotated: true }
+          : img
+      ));
+      setAnnotatingImage(null);
     };
-    initForm();
-
-    const handleClickOutside = (event: MouseEvent) => {
-      if (directoryRef.current && !directoryRef.current.contains(event.target as Node)) {
-        setShowDirectory(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { id, value } = e.target;
-    setFormData(prev => ({ ...prev, [id]: value }));
+    reader.readAsDataURL(annotatedFile);
   };
 
-  const fetchLocation = useCallback(() => {
-    if (!navigator.geolocation) return;
-    setIsLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        try {
-          const addr = await getAddress(pos.coords.latitude, pos.coords.longitude);
-          setFormData(prev => ({ ...prev, location: `${addr} | GPS: ${pos.coords.latitude.toFixed(6)}, ${pos.coords.longitude.toFixed(6)}` }));
-        } catch (e) {
-          setFormData(prev => ({ ...prev, location: `${pos.coords.latitude.toFixed(6)}, ${pos.coords.longitude.toFixed(6)}` }));
-        } finally {
-          setIsLocating(false);
-        }
-      },
-      () => setIsLocating(false),
-      { timeout: 10000 }
+  const riskScore = formData.severityScore * formData.likelihoodScore;
+  const riskInfo = getRiskLevel(riskScore);
+  const isAnnotationMissing = images.length > 0 && !images.some(img => img.isAnnotated);
+
+  if (submitStatus === 'success') {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center animate-in zoom-in duration-500">
+         <div className="w-24 h-24 bg-emerald-500 rounded-full flex items-center justify-center mb-8 shadow-[0_0_40px_rgba(16,185,129,0.3)]">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4"><polyline points="20 6 9 17 4 12"/></svg>
+         </div>
+         <h2 className={`text-4xl font-black tracking-tight mb-4 ${isLight ? 'text-slate-900' : 'text-white'}`}>INCIDENT LOGGED</h2>
+         <p className="text-slate-500 uppercase tracking-widest text-[10px] font-black mb-10 max-w-xs leading-relaxed">
+            Record successfully serialized and synced to cloud grid. Audit trail initiated.
+         </p>
+         <button onClick={onBack} className="px-12 py-5 bg-blue-600 text-white rounded-[2rem] font-black uppercase text-xs tracking-widest shadow-xl hover:bg-blue-500 transition-all border border-blue-400/20">Return to Grid</button>
+      </div>
     );
-  }, []);
-
-  const uploadImage = async (img: UploadedImage) => {
-    try {
-      setImages(prev => prev.map(i => i.id === img.id ? { ...i, status: 'uploading', progress: 10 } : i));
-      const compressed = await compressImage(img.file);
-      const url = await uploadImageToStorage(compressed, 'incident_evidence');
-      setImages(prev => prev.map(i => i.id === img.id ? { ...i, status: 'success', progress: 100, serverUrl: url } : i));
-    } catch (e: any) {
-      setImages(prev => prev.map(i => i.id === img.id ? { ...i, status: 'error', errorMessage: e.message } : i));
-    }
-  };
-
-  const handleAddFiles = useCallback((files: FileList) => {
-    const remainingSlots = MAX_IMAGES - images.length;
-    const filesToProcess = Array.from(files).slice(0, remainingSlots);
-
-    if (filesToProcess.length === 0) return;
-
-    const newImages: UploadedImage[] = filesToProcess.map(file => {
-      const newImg: UploadedImage = {
-        id: crypto.randomUUID(),
-        file: file,
-        previewUrl: URL.createObjectURL(file),
-        status: 'pending',
-        progress: 0
-      };
-      uploadImage(newImg);
-      return newImg;
-    });
-
-    setImages(prev => [...prev, ...newImages]);
-  }, [images.length]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.type || !formData.description || images.length < MIN_IMAGES) {
-      sendToast("Mandatory fields and evidence required.", "warning");
-      return;
-    }
-    
-    setIsSubmitting(true);
-    try {
-      const successfulImages = images.filter(img => img.status === 'success' && img.serverUrl);
-      const attachments = successfulImages.map(img => ({
-        url: img.serverUrl!,
-        filename: img.file.name
-      }));
-
-      if (attachments.length === 0 && images.length > 0) {
-        throw new Error("Evidence sync is in progress. Please wait for the 'Verified' status.");
-      }
-
-      await submitIncidentReport(formData, attachments, { baseId: AIRTABLE_CONFIG.BASE_ID });
-      sendToast("Incident Log Successfully Dispatched", "success");
-      onBack();
-    } catch (err: any) {
-      sendToast(err.message || "Dispatch failed.", "critical");
-      setIsSubmitting(false);
-    }
-  };
+  }
 
   return (
     <div className="animate-in slide-in-from-right duration-500 pb-24 max-w-4xl mx-auto">
-      <div className={`mb-8 p-8 rounded-[2.5rem] border shadow-2xl overflow-hidden backdrop-blur-md form-container-glow ${
-        isLight ? 'bg-white border-slate-200' : 'bg-slate-900/90 border-blue-500/20'
-      }`}>
-        <div className="flex items-center justify-between mb-8 pb-6 border-b border-white/5">
-          <div className="flex items-center gap-4">
-            <button type="button" onClick={onBack} className={`p-3 rounded-2xl border transition-all ${isLight ? 'bg-slate-50 border-slate-200 text-slate-600' : 'bg-white/5 border-white/10 text-white'}`}>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-            </button>
-            <div>
-              <h2 className={`text-2xl font-black tracking-tight leading-none ${isLight ? 'text-slate-900' : 'text-white'}`}>Incident Report</h2>
-              <span className="text-[10px] font-black text-rose-500 uppercase tracking-widest mt-1 block text-left">Reactive Event Documentation</span>
-            </div>
+      {annotatingImage && (
+        <ImageAnnotator 
+          src={annotatingImage.previewUrl}
+          onSave={handleAnnotationSave}
+          onClose={() => setAnnotatingImage(null)}
+        />
+      )}
+
+      <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center gap-4">
+          <button type="button" onClick={onBack} className={`p-3 rounded-2xl border transition-all ${isLight ? 'bg-slate-50 border-slate-200 text-slate-600' : 'bg-white/5 border-white/10 text-white'}`}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+          </button>
+          <div>
+            <h2 className={`text-2xl font-black tracking-tight leading-none ${isLight ? 'text-slate-900' : 'text-white'}`}>Reactive Incident Report</h2>
+            <span className="text-[10px] font-black text-rose-500 uppercase tracking-widest mt-1 block text-left">High-Integrity Data Acquisition</span>
+          </div>
+        </div>
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-8">
+        <div className={`p-8 rounded-[3rem] border shadow-2xl backdrop-blur-md ${isLight ? 'bg-white border-slate-200' : 'bg-slate-900/40 border-white/5'}`}>
+          <div className="space-y-8">
+            {/* 1. Identification */}
+            <section>
+              <h3 className="text-[10px] font-black text-blue-500 uppercase tracking-[0.2em] px-1 mb-6 flex items-center gap-2">
+                 <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
+                 1. Event Identification
+              </h3>
+              <div className="grid grid-cols-1 gap-6">
+                <InputField id="title" label="Incident Title *" value={formData.title} onChange={handleInputChange} placeholder="e.g. Structural Collapse - Zone 4" required />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <InputField id="type" label="Event Type *" value={formData.type} onChange={handleInputChange} list={INCIDENT_TYPES} required />
+                  <InputField id="department" label="Department *" value={formData.department} onChange={handleInputChange} list={DEPARTMENTS} required />
+                  <InputField id="site" label="Work Site *" value={formData.site} onChange={handleInputChange} list={SITES} required />
+                  <div className="flex items-end gap-2">
+                    <div className="flex-1"><InputField id="location" label="GPS Precise Location *" value={formData.location} onChange={handleInputChange} placeholder="Click icon to sync GPS" required /></div>
+                    <button type="button" onClick={fetchCurrentLocation} disabled={isLocating} className={`h-14 w-14 rounded-2xl flex items-center justify-center shrink-0 transition-all border ${isLocating ? 'bg-blue-600/20 border-blue-500/20' : 'bg-blue-600/10 border-blue-500/30 text-blue-400 hover:bg-blue-600/20'}`}>
+                      {isLocating ? <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div> : <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* 2. Investigation */}
+            <section className="pt-8 border-t border-white/5">
+              <h3 className="text-[10px] font-black text-blue-500 uppercase tracking-[0.2em] px-1 mb-6 flex items-center gap-2">
+                 <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
+                 2. Narrative & Investigation
+              </h3>
+              <div className="space-y-6">
+                <InputField id="description" label="Detailed Chronology *" type="textarea" value={formData.description} onChange={handleInputChange} placeholder="Provide a step-by-step account of the event..." required />
+                <InputField id="involvedParties" label="Personnel Involved" type="textarea" value={formData.involvedParties} onChange={handleInputChange} placeholder="List names, IDs, and injuries (if any)..." />
+                <InputField id="equipmentInvolved" label="Assets / Equipment Impacted" type="textarea" value={formData.equipmentInvolved} onChange={handleInputChange} placeholder="Machine IDs, serial numbers, property damage..." />
+                <InputField id="witnesses" label="Direct Witnesses" type="textarea" value={formData.witnesses} onChange={handleInputChange} placeholder="Name and contact info for all witnesses..." />
+              </div>
+            </section>
+
+            {/* 3. Risk Assessment */}
+            <section className="pt-8 border-t border-white/5">
+              <h3 className="text-[10px] font-black text-blue-500 uppercase tracking-[0.2em] px-1 mb-6 flex items-center gap-2">
+                 <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
+                 3. Dynamic Risk Assessment
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8 p-6 rounded-[2rem] bg-black/20 border border-white/5 shadow-inner">
+                <div className="flex flex-col gap-3">
+                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest px-1">Initial Severity: <span className="text-blue-400">{SEVERITY_LEVELS[formData.severityScore]}</span></label>
+                  <input type="range" min="1" max="5" value={formData.severityScore} onChange={e => setFormData(p => ({ ...p, severityScore: +e.target.value }))} className="w-full accent-blue-600 cursor-pointer" />
+                </div>
+                <div className="flex flex-col gap-3">
+                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest px-1">Likelihood: <span className="text-blue-400">{LIKELIHOOD_LEVELS[formData.likelihoodScore]}</span></label>
+                  <input type="range" min="1" max="5" value={formData.likelihoodScore} onChange={e => setFormData(p => ({ ...p, likelihoodScore: +e.target.value }))} className="w-full accent-blue-600 cursor-pointer" />
+                </div>
+                <div className={`${riskInfo.color} p-5 rounded-2xl flex flex-col items-center justify-center text-center border-2 transition-all duration-500 ${riskInfo.textColor.replace('text-', 'border-')}/40 shadow-2xl`}>
+                  <span className="text-white text-4xl font-black tracking-tighter">{riskScore}</span>
+                  <span className="text-white/80 text-[8px] font-black uppercase tracking-[0.3em] mt-1">{riskInfo.level} PRIORITY</span>
+                </div>
+              </div>
+            </section>
+
+            {/* 4. Evidence */}
+            <section className="pt-8 border-t border-white/5">
+              <h3 className="text-[10px] font-black text-blue-500 uppercase tracking-[0.2em] px-1 mb-6 flex items-center gap-2">
+                 <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
+                 4. Photographic Evidence acquisition
+              </h3>
+              <div className={`p-6 rounded-[2rem] border transition-all ${isAnnotationMissing ? 'border-amber-500/30 bg-amber-500/5' : 'bg-black/20 border-white/5'}`}>
+                <ImageGrid 
+                  images={images} 
+                  onAdd={handleAddFiles} 
+                  onRemove={handleRemoveImage} 
+                  onRetry={handleRetryUpload}
+                  onAnnotate={(id) => setAnnotatingImage(images.find(img => img.id === id) || null)}
+                  appTheme={appTheme} 
+                  hideHeader={true}
+                />
+              </div>
+              {isAnnotationMissing && images.length > 0 && (
+                <div className="mt-4 flex items-center gap-2 px-2 text-amber-500 animate-pulse">
+                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                   <span className="text-[8px] font-black uppercase tracking-widest">Digital Annotation required for context</span>
+                </div>
+              )}
+            </section>
+
+            {/* 5. Workflow & Oversight */}
+            <section className="pt-8 border-t border-white/5">
+              <h3 className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.2em] px-1 mb-6 flex items-center gap-2">
+                 <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></div>
+                 5. Workflow & Oversight
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <InputField id="reviewer" label="Reviewer / Safety Lead" value={formData.reviewer} onChange={handleInputChange} list={personnelNames} />
+                <InputField id="reviewDate" label="Review Date" type="date" value={formData.reviewDate} onChange={handleInputChange} />
+                <div className="md:col-span-2">
+                  <InputField id="reviewComments" label="Managerial Review Comments" type="textarea" value={formData.reviewComments} onChange={handleInputChange} placeholder="Administrative or technical feedback on the report..." />
+                </div>
+                <InputField id="actionAssignedTo" label="Action Assigned To" value={formData.actionAssignedTo} onChange={handleInputChange} list={personnelNames} />
+                <InputField id="actionDueDate" label="Action Due Date" type="date" value={formData.actionDueDate} onChange={handleInputChange} />
+              </div>
+            </section>
+
+            {/* 6. Remediation & Closure */}
+            <section className="pt-8 border-t border-white/5">
+              <h3 className="text-[10px] font-black text-amber-500 uppercase tracking-[0.2em] px-1 mb-6 flex items-center gap-2">
+                 <div className="w-1.5 h-1.5 bg-amber-500 rounded-full"></div>
+                 6. Remediation & Closure
+              </h3>
+              <div className="space-y-6">
+                <InputField id="correctiveAction" label="Corrective Action Details" type="textarea" value={formData.correctiveAction} onChange={handleInputChange} placeholder="Describe the physical actions taken to prevent recurrence..." />
+                <InputField id="verificationComments" label="Verification Note" type="textarea" value={formData.verificationComments} onChange={handleInputChange} placeholder="Validation comments from the inspector..." />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <InputField id="closedBy" label="Closure Certified By" value={formData.closedBy} onChange={handleInputChange} list={personnelNames} />
+                  <InputField id="closureDate" label="Closure Date" type="date" value={formData.closureDate} onChange={handleInputChange} />
+                </div>
+              </div>
+            </section>
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-8">
-          <div className="space-y-6">
-            <h3 className="text-[10px] font-black text-blue-500 uppercase tracking-[0.2em] px-1">1. Event Identification</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <InputField id="title" label="Incident Title" value={formData.title} onChange={handleInputChange} placeholder="Brief summary" required />
-              <InputField id="type" label="Incident Type" value={formData.type} onChange={handleInputChange} list={INCIDENT_TYPES} required />
-              <InputField id="department" label="Involved Department" value={formData.department} onChange={handleInputChange} list={DEPARTMENTS} required />
-              <InputField id="severity" label="Initial Severity" value={formData.severity} onChange={handleInputChange} list={SEVERITY_LEVELS} required />
-            </div>
+        {errorMessage && (
+          <div className="p-5 rounded-2xl bg-rose-600/10 border-2 border-rose-500/20 text-rose-500 flex items-center gap-4 animate-in shake">
+             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg>
+             <span className="text-[10px] font-black uppercase tracking-widest">{errorMessage}</span>
           </div>
+        )}
 
-          <div className="space-y-6">
-            <div className="flex items-center justify-between px-1">
-              <h3 className="text-[10px] font-black text-blue-500 uppercase tracking-[0.2em]">2. Evidence Acquisition</h3>
-              <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Supports Drag & Drop</span>
+        <button 
+          type="submit"
+          disabled={submitStatus === 'submitting'}
+          className={`w-full py-6 rounded-[2.5rem] font-black uppercase tracking-[0.4em] text-xs shadow-2xl transition-all active:scale-[0.98] border border-blue-400/20 ${submitStatus === 'submitting' ? 'bg-slate-800 text-slate-500' : 'bg-blue-600 hover:bg-blue-500 text-white'}`}
+        >
+          {submitStatus === 'submitting' ? (
+            <div className="flex items-center justify-center gap-4">
+               <div className="w-5 h-5 border-2 border-slate-500 border-t-white rounded-full animate-spin"></div>
+               <span>Serializing & Syncing...</span>
             </div>
-            <div className={`p-6 rounded-[2rem] border ${isLight ? 'bg-slate-50 border-slate-200 shadow-inner' : 'bg-black/20 border-white/5'}`}>
-              <ImageGrid 
-                images={images} 
-                onAdd={handleAddFiles} 
-                onRemove={(id) => setImages(prev => prev.filter(i => i.id !== id))} 
-                onRetry={(id) => {
-                  const img = images.find(i => i.id === id);
-                  if (img) uploadImage(img);
-                }} 
-                appTheme={appTheme} 
-                hideHeader={true}
-              />
-            </div>
-            {images.length < MIN_IMAGES && (
-              <p className="text-[9px] font-black text-rose-500 uppercase tracking-widest px-2 animate-pulse">Minimum {MIN_IMAGES} evidence image required.</p>
-            )}
-          </div>
-
-          <div className="space-y-6">
-            <h3 className="text-[10px] font-black text-blue-500 uppercase tracking-[0.2em] px-1">3. Narrative Description</h3>
-            <InputField 
-              id="description" 
-              label="Chronological Account" 
-              type="textarea" 
-              value={formData.description} 
-              onChange={handleInputChange} 
-              placeholder="Describe exactly what happened, step by step..." 
-              required 
-            />
-          </div>
-
-          <button 
-            type="submit"
-            disabled={isSubmitting}
-            className={`w-full py-6 rounded-[2rem] font-black uppercase tracking-[0.4em] text-xs shadow-2xl transition-all active:scale-[0.98] border ${isSubmitting ? 'bg-slate-800 text-slate-500 border-white/5' : 'bg-rose-600 hover:bg-rose-500 text-white border-rose-400/20'}`}
-          >
-            {isSubmitting ? "Serializing Report..." : "Dispatch Incident Log"}
-          </button>
-        </form>
-      </div>
+          ) : "Dispatch Unified Incident Record"}
+        </button>
+      </form>
     </div>
   );
 };

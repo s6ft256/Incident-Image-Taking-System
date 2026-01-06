@@ -24,24 +24,22 @@ export const NotificationSystem: React.FC<NotificationSystemProps> = ({ appTheme
   const [toasts, setToasts] = useState<Toast[]>([]);
   const isLight = appTheme === 'light';
   
-  // Track recently shown messages to prevent duplication
   const recentMessagesRef = useRef<Map<string, number>>(new Map());
 
   useEffect(() => {
     const handleAlert = (e: any) => {
-      // Prevent duplicate high-level alerts for the same record ID
-      if (activeAlert?.id === e.detail.id) return;
+      if (!e.detail || activeAlert?.id === e.detail.id) return;
       setActiveAlert(e.detail);
     };
     
     const handleToast = (e: any) => {
-      const message = e.detail.message;
+      if (!e.detail || !e.detail.message) return;
+      
+      const message = String(e.detail.message);
       const type = e.detail.type || 'info';
       const id = e.detail.id || `toast-${message.replace(/\s+/g, '-').toLowerCase()}`;
       
       const now = Date.now();
-      
-      // Deduplication: If exact same message/type sent within last 3 seconds, ignore
       const lastSeen = recentMessagesRef.current.get(id);
       if (lastSeen && now - lastSeen < 3000 && !e.detail.progress) {
         return;
@@ -64,11 +62,9 @@ export const NotificationSystem: React.FC<NotificationSystemProps> = ({ appTheme
           updated[existingIndex] = newToast;
           return updated;
         }
-        // Keep only top 3 toasts to prevent screen clutter
         return [newToast, ...prev].slice(0, 3);
       });
 
-      // Auto-remove standard toasts
       if (!newToast.progress && !newToast.action) {
         setTimeout(() => {
           setToasts(prev => prev.filter(t => t.id !== newToast.id));
@@ -103,11 +99,6 @@ export const NotificationSystem: React.FC<NotificationSystemProps> = ({ appTheme
           from { background-position: 0 0; }
           to { background-position: 40px 0; }
         }
-        @keyframes pulse-red-line {
-          0% { box-shadow: 0 0 10px 2px rgba(220, 38, 38, 0.6); transform: scaleX(1); }
-          50% { box-shadow: 0 0 25px 8px rgba(220, 38, 38, 1); transform: scaleX(1.1); }
-          100% { box-shadow: 0 0 10px 2px rgba(220, 38, 38, 0.6); transform: scaleX(1); }
-        }
         .hazard-border {
           background: repeating-linear-gradient(
             -45deg,
@@ -139,7 +130,7 @@ export const NotificationSystem: React.FC<NotificationSystemProps> = ({ appTheme
                  </div>
                  <div>
                    <h3 className={`text-lg font-black tracking-tighter ${isLight ? 'text-slate-900' : 'text-white'}`}>CRITICAL THREAT</h3>
-                   <p className="text-[10px] font-black text-rose-500 uppercase tracking-[0.3em]">Sector {activeAlert.fields["Site / Location"]?.split(' ')[0]}</p>
+                   <p className="text-[10px] font-black text-rose-500 uppercase tracking-[0.3em]">Sector {String(activeAlert.fields["Site / Location"] || "UNSET").split(' ')[0]}</p>
                  </div>
               </div>
               <div className={`p-4 rounded-2xl border mb-6 ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'}`}>
@@ -190,14 +181,6 @@ export const NotificationSystem: React.FC<NotificationSystemProps> = ({ appTheme
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M18 6L6 18M6 6l12 12"/></svg>
               </button>
             </div>
-            {toast.action && (
-              <button 
-                onClick={() => { toast.action?.onClick(); removeToast(toast.id); }}
-                className="mt-3 w-full py-2 bg-blue-600/10 hover:bg-blue-600/20 rounded-xl text-[9px] font-black uppercase tracking-widest text-blue-500 transition-all border border-blue-500/20"
-              >
-                {toast.action.label}
-              </button>
-            )}
           </div>
         ))}
       </div>
