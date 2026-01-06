@@ -3,13 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>HSEGuardian | Secure Evidence Portal</title>
+    <title>HSE Guardian | Secure Safety Portal</title>
     <link rel="icon" href="https://www.multiply-marketing.com/trojan-wp/wp-content/uploads/2020/08/tgc-logo-300x300.png" />
     <link rel="apple-touch-icon" href="https://www.multiply-marketing.com/trojan-wp/wp-content/uploads/2020/08/tgc-logo-300x300.png" />
     <link rel="manifest" href="manifest.json" />
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="HSEGuardian">
+    <meta name="apple-mobile-web-app-title" content="HSE Guardian">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <script type="importmap">
@@ -20,7 +20,7 @@
     "react/": "https://esm.sh/react@^19.2.3/",
     "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.88.0",
     "@google/genai": "https://esm.sh/@google/genai@^1.34.0",
-    "recharts": "https://esm.sh/recharts@^3.6.0",
+    "recharts": "https://esm.sh/recharts@^2.12.7",
     "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
     "vite": "https://esm.sh/vite@^7.3.0"
   }
@@ -37,7 +37,6 @@
         cursor: default;
       }
       
-      /* Allow text selection for data analysis on desktop */
       @media (hover: hover) {
         p, span, h1, h2, h3, h4, div[id^="report-"], .font-mono {
           -webkit-user-select: text !important;
@@ -52,7 +51,6 @@
         will-change: auto;
       }
 
-      /* Global Hover and Touch Logic */
       button, a, [role="button"], .group {
         transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
         cursor: pointer;
@@ -74,7 +72,6 @@
         }
       }
 
-      /* Haptic-style Touch Feedback */
       button:active:not(:disabled), a:active, [role="button"]:active, .group:active {
         transform: scale(0.97) translateY(0) !important;
         transition: all 0.1s ease !important;
@@ -107,10 +104,37 @@
       .animate-in {
         animation-fill-mode: both;
       }
+
+      @media print {
+        body {
+          background-color: #fff !important;
+          color: #000 !important;
+          font-size: 10pt;
+        }
+        .printable-hidden {
+          display: none !important;
+        }
+        .printable-report-container {
+          display: block !important;
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+        }
+        .page-break-before {
+          page-break-before: always;
+        }
+        @page {
+          size: A4;
+          margin: 0.5in;
+        }
+      }
     </style>
-  </head>
+  <link rel="stylesheet" href="/index.css">
+</head>
   <body>
     <div id="root"></div>
     <script type="module" src="index.tsx"></script>
-  </body>
+  <script type="module" src="/index.tsx"></script>
+</body>
 </html>

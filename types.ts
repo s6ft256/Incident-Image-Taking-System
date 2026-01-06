@@ -18,19 +18,42 @@ export interface UserProfile {
 export interface IncidentForm {
   title: string;
   type: string;
-  severity: 'Minor' | 'Moderate' | 'Major' | 'Critical';
+  severityScore: number;
+  likelihoodScore: number;
   date: string;
   time: string;
   location: string;
+  site: string;
+  deviceMetadata?: string;
   department: string;
   description: string;
   involvedParties: string;
   equipmentInvolved: string;
   witnesses: string;
-  immediateAction: string;
+  rootCause: string;
+  recommendedControls: string;
   reporterName: string;
-  reporterRole: string;
-  concernedEmail?: string;
+  // Workflow & Resolution Fields
+  reviewer: string;
+  reviewDate: string;
+  reviewComments: string;
+  correctiveAction: string;
+  actionAssignedTo: string;
+  actionDueDate: string;
+  verificationComments: string;
+  closedBy: string;
+  closureDate: string;
+}
+
+export interface OfflineIncident {
+  id: string;
+  form: IncidentForm;
+  images: {
+    id: string;
+    file: File;
+    isAnnotated?: boolean;
+  }[];
+  timestamp: number;
 }
 
 export interface FetchedIncident {
@@ -42,20 +65,34 @@ export interface FetchedIncident {
     "Incident Date": string;
     "Location": string;
     "Department": string;
-    "Status": string;
+    "Site / Project"?: string;
+    "Device Metadata"?: string;
+    "Status": 'Pending Review' | 'Action Pending' | 'Verification Pending' | 'Closed';
     "Severity": number;
+    "Likelihood"?: number;
+    "Risk Level"?: number;
     "Category": string;
     "Reporter ID": string;
     "Persons Involved"?: string;
     "Equipment Involved"?: string;
     "Witnesses"?: string;
+    "Root Cause"?: string;
+    "Recommended Controls"?: string;
     "Image URLs"?: string;
-    "Attachments"?: Array<{ 
-      url: string; 
-      filename: string;
-    }>;
+    "Attachments"?: Array<{ url: string; filename: string }>;
     "Geolocation"?: string;
     "Metadata"?: string;
+    // Workflow Fields
+    "Reviewer"?: string;
+    "Review Date"?: string;
+    "Review Comments"?: string;
+    "Corrective Action"?: string;
+    "Action Assigned To"?: string;
+    "Action Due Date"?: string;
+    "Verification Comments"?: string;
+    "Verification Photos"?: Array<{ url: string; filename: string }>;
+    "Closed By"?: string;
+    "Closure Date"?: string;
   };
 }
 
@@ -167,9 +204,10 @@ export interface UploadedImage {
   file: File;
   previewUrl: string;
   serverUrl?: string; 
-  status: 'pending' | 'uploading' | 'success' | 'error';
+  status: 'pending' | 'uploading' | 'success' | 'error' | 'analyzing';
   progress: number;
-  errorMessage?: string; 
+  errorMessage?: string;
+  isAnnotated?: boolean;
 }
 
 export interface HazardRow {

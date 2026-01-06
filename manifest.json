@@ -1,8 +1,7 @@
-
 {
   "short_name": "HSE Guardian",
-  "name": "HSE Guardian: Observation Management",
-  "description": "Professional safety reporting and critical equipment management system for field personnel.",
+  "name": "HSE Guardian Safety System",
+  "description": "Professional high-integrity safety evidence collection and management system.",
   "icons": [
     {
       "src": "https://www.multiply-marketing.com/trojan-wp/wp-content/uploads/2020/08/tgc-logo-300x300.png",
@@ -25,16 +24,16 @@
   "categories": ["business", "productivity", "utilities"],
   "shortcuts": [
     {
-      "name": "New Observation Report",
-      "short_name": "Report",
-      "description": "Directly open the observation evidence acquisition terminal",
+      "name": "Capture Evidence",
+      "short_name": "Capture",
+      "description": "Directly open the evidence acquisition terminal",
       "url": "/?view=create",
       "icons": [{ "src": "https://www.multiply-marketing.com/trojan-wp/wp-content/uploads/2020/08/tgc-logo-300x300.png", "sizes": "192x192" }]
     },
     {
       "name": "View My Tasks",
       "short_name": "Tasks",
-      "description": "Review assigned safety observations",
+      "description": "Review assigned observations",
       "url": "/?view=my-tasks",
       "icons": [{ "src": "https://www.multiply-marketing.com/trojan-wp/wp-content/uploads/2020/08/tgc-logo-300x300.png", "sizes": "192x192" }]
     }
