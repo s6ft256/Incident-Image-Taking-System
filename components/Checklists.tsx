@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { getAllCraneChecklists, getAllEquipmentChecklists } from '../services/airtableService';
 import { FetchedCraneChecklist, FetchedEquipmentChecklist } from '../types';
+import { useEdgeSwipeBack } from '../hooks/useSwipeGesture';
 
 interface ChecklistsProps {
   appTheme?: 'dark' | 'light';
@@ -36,6 +37,9 @@ const EQUIP_ITEMS = [
 ];
 
 export const Checklists: React.FC<ChecklistsProps> = ({ appTheme = 'dark', onBack, onOpenInspection, onOpenCrane, onOpenEquipment }) => {
+  // Enable swipe from left edge to go back
+  useEdgeSwipeBack(onBack);
+
   const isLight = appTheme === 'light';
   const [activeTab, setActiveTab] = useState<Tab>('inventory');
   const [craneHistory, setCraneHistory] = useState<FetchedCraneChecklist[]>([]);

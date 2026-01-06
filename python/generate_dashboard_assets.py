@@ -77,10 +77,11 @@ def _plot_incidents_over_time(df: pd.DataFrame, date_col: str, out_path: str) ->
 
 def _compute_open_closed_observations(observations: pd.DataFrame) -> Tuple[int, int, int]:
     total = int(len(observations))
-    if "Action taken" not in observations.columns:
+    action_col = next((col for col in ["Action Taken", "Action taken"] if col in observations.columns), None)
+    if not action_col:
         return total, 0, total
 
-    action = observations["Action taken"].fillna("").astype(str)
+    action = observations[action_col].fillna("").astype(str)
     closed = int((action.str.strip().str.len() > 0).sum())
     open_ = total - closed
     return total, open_, closed

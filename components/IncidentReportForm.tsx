@@ -8,6 +8,7 @@ import { useIncidentReportForm } from '../hooks/useIncidentReportForm';
 import { ImageAnnotator } from './ImageAnnotator';
 import { useAppContext } from '../context/AppContext';
 import { sendToast } from '../services/notificationService';
+import { useEdgeSwipeBack } from '../hooks/useSwipeGesture';
 
 interface IncidentReportFormProps {
   appTheme: 'dark' | 'light';
@@ -18,6 +19,9 @@ export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ appTheme
   const isLight = appTheme === 'light';
   const { state } = useAppContext();
   const [annotatingImage, setAnnotatingImage] = useState<UploadedImage | null>(null);
+
+  // Enable swipe from left edge to go back
+  useEdgeSwipeBack(onBack);
 
   const personnelNames = useMemo(() => {
     return state.personnel.map(p => p.name).sort();

@@ -22,7 +22,9 @@ export const useObservationReport = (baseId: string) => {
     observation: '',
     actionTaken: '',
     assignedTo: '',
-    location: ''
+    location: '',
+    rootCause: '',
+    closedBy: ''
   });
   
   const [touched, setTouched] = useState<Record<string, boolean>>({});
@@ -60,12 +62,10 @@ export const useObservationReport = (baseId: string) => {
 
   const validationErrors = useMemo(() => {
     const errors: Record<string, string> = {};
-    if (!formData.name.trim()) errors.name = "Observer name is required";
-    if (!formData.role.trim()) errors.role = "Current role is required";
-    if (!formData.site.trim()) errors.site = "Site location is required";
-    if (!formData.category.trim()) errors.category = "Observation type is required";
-    if (!formData.observation.trim()) errors.observation = "Description is required";
-    else if (formData.observation.length < 10) errors.observation = "Please provide more detail (min 10 chars)";
+    // All fields are optional - allow submission even with missing data
+    if (formData.observation.trim() && formData.observation.length < 10) {
+      errors.observation = "Please provide more detail (min 10 chars)";
+    }
     
     return errors;
   }, [formData]);
@@ -125,12 +125,18 @@ export const useObservationReport = (baseId: string) => {
   const analyzeImageWithAI = useCallback(async (image: UploadedImage) => {
     if (!isOnline) return;
     
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+    if (!apiKey) {
+      console.warn('Gemini API key not configured. Skipping AI image analysis.');
+      return;
+    }
+    
     setIsAnalyzingImage(true);
     setImages(prev => prev.map(i => i.id === image.id ? { ...i, status: 'analyzing' } : i));
 
     try {
       const base64Data = await fileToBase64(image.file);
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const ai = new GoogleGenAI({ apiKey });
       const imagePart = { inlineData: { mimeType: image.file.type, data: base64Data } };
       
       const response = await ai.models.generateContent({
@@ -231,16 +237,10 @@ export const useObservationReport = (baseId: string) => {
     Object.keys(formData).forEach(key => { allTouched[key] = true; });
     setTouched(allTouched);
 
+    // Allow submission even with validation errors or missing images
     if (Object.keys(validationErrors).length > 0) {
-      setErrorMessage("Report Validation Failed. Please check the mandatory fields."); 
-      setSubmitStatus('error'); 
-      return;
-    }
-    
-    if (images.length < MIN_IMAGES) {
-      setErrorMessage(`Evidence Required: At least ${MIN_IMAGES} photo(s) must be captured.`); 
-      setSubmitStatus('error'); 
-      return;
+      // Just show warning but don't prevent submission
+      console.warn("Form has validation errors, but allowing submission:", validationErrors);
     }
 
     setIsSubmitting(true);
@@ -316,7 +316,9 @@ export const useObservationReport = (baseId: string) => {
         observation: '',
         actionTaken: '',
         assignedTo: '',
-        location: ''
+        location: '',
+        rootCause: '',
+        closedBy: ''
       });
       setImages([]);
     }

@@ -140,22 +140,27 @@ export interface ObservationForm {
   assignedTo?: string;
   location?: string; 
   rootCause?: string; 
+  closedBy?: string;
   correctiveActionPlan?: string; 
 }
 
 export interface ObservationRecord {
   fields: {
     "Name": string;
-    "Role / Position": string;
-    "Site / Location": string;
+    "Role/Position"?: string;
+    "Role / Position"?: string;
+    "Site/Location"?: string;
+    "Site / Location"?: string;
     "Observation Type"?: string;
     "Observation": string;
-    "Action taken": string;
+    "Action Taken"?: string;
+    "Action taken"?: string;
     "Closed by"?: string;
+    "Closed By"?: string;
     "Assigned To"?: string;
     "Location"?: string; 
     "Root Cause"?: string;
-    "Open observations"?: Array<{ 
+    "Attachments"?: Array<{ 
       url: string; 
       filename?: string; 
     }>;
@@ -171,16 +176,20 @@ export interface FetchedObservation {
   createdTime: string;
   fields: {
     "Name": string;
-    "Role / Position": string;
-    "Site / Location": string;
+    "Role/Position"?: string;
+    "Role / Position"?: string;
+    "Site/Location"?: string;
+    "Site / Location"?: string;
     "Observation Type"?: string;
     "Observation": string;
-    "Action taken": string;
+    "Action Taken"?: string;
+    "Action taken"?: string;
     "Closed by"?: string;
+    "Closed By"?: string;
     "Assigned To"?: string;
     "Location"?: string; 
     "Root Cause"?: string;
-    "Open observations"?: Array<{ 
+    "Attachments"?: Array<{ 
       url: string; 
       filename: string;
       thumbnails?: {

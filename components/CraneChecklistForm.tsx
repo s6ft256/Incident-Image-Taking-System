@@ -7,6 +7,7 @@ import { uploadImageToStorage } from '../services/storageService';
 import { compressImage } from '../utils/imageCompression';
 import { STORAGE_KEYS } from '../constants';
 import { UserProfile } from '../types';
+import { useEdgeSwipeBack } from '../hooks/useSwipeGesture';
 
 interface CraneChecklistFormProps {
   appTheme: 'dark' | 'light';
@@ -32,6 +33,9 @@ const CHECK_ITEMS = [
 ];
 
 export const CraneChecklistForm: React.FC<CraneChecklistFormProps> = ({ appTheme, onBack }) => {
+  // Enable swipe from left edge to go back
+  useEdgeSwipeBack(onBack);
+
   const isLight = appTheme === 'light';
   const today = new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' });
   

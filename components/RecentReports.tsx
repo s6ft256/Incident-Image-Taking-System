@@ -10,6 +10,7 @@ import { updateIncident, updateObservation } from '../services/airtableService';
 import { sendToast } from '../services/notificationService';
 import { uploadImageToStorage } from '../services/storageService';
 import { compressImage } from '../utils/imageCompression';
+import { useEdgeSwipeBack } from '../hooks/useSwipeGesture';
 
 interface RecentReportsProps {
   baseId: string;
@@ -44,6 +45,9 @@ const DataField: React.FC<DataFieldProps> = ({ label, value, icon, isLight }) =>
 );
 
 export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, appTheme = 'dark', filterAssignee, onPrint }) => {
+  // Enable swipe from left edge to go back
+  useEdgeSwipeBack(onBack);
+  
   const { state, refetchData } = useAppContext();
   const { allReports, allIncidents, isLoading: loading } = state;
   
@@ -69,6 +73,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [actionDrafts, setActionDrafts] = useState<Record<string, string>>({});
   const [isUpdatingObservation, setIsUpdatingObservation] = useState<Record<string, boolean>>({});
+  const [isUploadingClosureImages, setIsUploadingClosureImages] = useState<Record<string, boolean>>({});
 
   const [incidentEdits, setIncidentEdits] = useState<Record<string, Partial<{
     // Core fields
@@ -336,7 +341,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
     }
   };
 
-  const handleResubmitObservation = async (reportId: string, assigneeName: string) => {
+  const handleResubmitObservation = async (reportId: string, assigneeName: string, closureImages?: FileList, existingFields?: any) => {
     const draft = String(actionDrafts[reportId] ?? '').trim();
     if (draft.length < 3) {
       sendToast('Please enter an action/update before resubmitting.', 'warning');
@@ -344,16 +349,36 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
     }
     setIsUpdatingObservation(prev => ({ ...prev, [reportId]: true }));
     try {
-      await updateObservation(reportId, {
-        "Action taken": draft,
-        "Closed by": assigneeName,
-      });
+      const updateData: Record<string, any> = {
+        "Action Taken": draft,
+        "Closed By": currentUserName,
+      };
+
+      // Upload closure images if provided
+      if (closureImages && closureImages.length > 0) {
+        setIsUploadingClosureImages(prev => ({ ...prev, [reportId]: true }));
+        const imageList = Array.from(closureImages).filter(f => f.type.startsWith('image/'));
+        const uploaded: Array<{ url: string; filename: string }> = [];
+        
+        for (const file of imageList) {
+          const compressed = await compressImage(file);
+          const url = await uploadImageToStorage(compressed, 'observation_closure');
+          uploaded.push({ url, filename: file.name });
+        }
+        
+        const existing = Array.isArray(existingFields?.["Closed observations"]) ? existingFields["Closed observations"] : [];
+        updateData["Closed observations"] = [...existing, ...uploaded];
+        setIsUploadingClosureImages(prev => ({ ...prev, [reportId]: false }));
+      }
+
+      await updateObservation(reportId, updateData);
       sendToast('Update submitted successfully.', 'success');
       refetchData();
     } catch (e: any) {
       sendToast(e?.message || 'Failed to resubmit update.', 'critical');
     } finally {
       setIsUpdatingObservation(prev => ({ ...prev, [reportId]: false }));
+      setIsUploadingClosureImages(prev => ({ ...prev, [reportId]: false }));
     }
   };
 
@@ -1139,13 +1164,14 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
 
                                  const draft = actionDrafts[report.id] ?? String(fields["Action taken"] || '');
                                  const isBusy = !!isUpdatingObservation[report.id];
+                                 const isUploadingImages = !!isUploadingClosureImages[report.id];
 
                                  return (
                                    <div className={`mt-6 p-5 rounded-2xl border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'}`}>
                                      <div className="flex items-center justify-between gap-3 mb-3">
                                        <div>
                                          <div className="text-[10px] font-black text-blue-500 uppercase tracking-[0.3em]">Assigned Action Update</div>
-                                         <div className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">Edit and resubmit (optional)</div>
+                                         <div className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">Fill action taken and upload closure images</div>
                                        </div>
                                      </div>
                                      <textarea
@@ -1157,15 +1183,32 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
                                          isLight ? 'bg-white border-slate-200 focus:border-blue-500' : 'bg-black/30 border-white/10 focus:border-blue-500 text-white'
                                        }`}
                                      />
+                                     <div className="mt-4">
+                                       <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 block">
+                                         Closure Images (Optional)
+                                       </label>
+                                       <input
+                                         id={`closure-images-${report.id}`}
+                                         type="file"
+                                         multiple
+                                         accept="image/*"
+                                         className={`w-full p-3 rounded-2xl border text-sm font-bold outline-none transition-all ${
+                                           isLight ? 'bg-white border-slate-200' : 'bg-black/30 border-white/10 text-white'
+                                         }`}
+                                       />
+                                     </div>
                                      <div className="flex justify-end mt-4">
                                        <button
-                                         disabled={isBusy}
-                                         onClick={() => handleResubmitObservation(report.id, filterAssignee)}
+                                         disabled={isBusy || isUploadingImages}
+                                         onClick={() => {
+                                           const fileInput = document.getElementById(`closure-images-${report.id}`) as HTMLInputElement;
+                                           handleResubmitObservation(report.id, filterAssignee, fileInput?.files || undefined, fields);
+                                         }}
                                          className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 border ${
                                            isLight ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-500' : 'bg-blue-600 text-white border-blue-500/20 hover:bg-blue-500'
-                                         } ${isBusy ? 'opacity-60 cursor-not-allowed' : ''}`}
+                                         } ${(isBusy || isUploadingImages) ? 'opacity-60 cursor-not-allowed' : ''}`}
                                        >
-                                         {isBusy ? 'Submitting…' : 'Resubmit Update'}
+                                         {isUploadingImages ? 'Uploading Images…' : isBusy ? 'Submitting…' : 'Close Observation'}
                                        </button>
                                      </div>
                                    </div>
@@ -1223,7 +1266,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
                              <div>
                                 <h4 className="text-[10px] font-black text-rose-500 uppercase tracking-[0.2em] mb-4">Initial Acquisition (Detection)</h4>
                                 <div className="grid grid-cols-2 gap-4">
-                                   {(isIncident ? fields.Attachments : fields["Open observations"])?.map((att: any, i: number) => (
+                                   {fields.Attachments?.map((att: any, i: number) => (
                                      <a href={att.url} target="_blank" rel="noopener noreferrer" key={i} className="group/img aspect-video rounded-2xl overflow-hidden border-2 border-white/5 shadow-xl transition-all hover:border-blue-500/50">
                                         <img src={att.url} className="w-full h-full object-cover transition-transform duration-700 group-hover/img:scale-110" alt="evidence" />
                                      </a>

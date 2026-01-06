@@ -10,6 +10,7 @@ import { submitTrainingRoster } from '../services/airtableService';
 import { sendToast } from '../services/notificationService';
 import { MAX_IMAGES } from '../constants';
 import { getPositionWithRefinement } from '../utils/geolocation';
+import { useEdgeSwipeBack } from '../hooks/useSwipeGesture';
 
 interface TrainingManagementProps {
   appTheme: 'dark' | 'light';
@@ -19,6 +20,9 @@ interface TrainingManagementProps {
 const BG_IMAGE = 'https://images.unsplash.com/photo-1504307651254-35680f3366d4?auto=format&fit=crop&q=80&w=2000';
 
 export const TrainingManagement: React.FC<TrainingManagementProps> = ({ appTheme, onBack }) => {
+  // Enable swipe from left edge to go back
+  useEdgeSwipeBack(onBack);
+
   const isLight = appTheme === 'light';
   
   const [view, setView] = useState<'list' | 'create'>('list');

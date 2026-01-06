@@ -9,6 +9,7 @@ import { UserProfile } from '../types';
 import { sendNotification } from '../services/notificationService';
 import { GoogleGenAI, Type } from "@google/genai";
 import { handleError } from '../utils/errorHandler';
+import { useEdgeSwipeBack } from '../hooks/useSwipeGesture';
 
 interface CreateReportFormProps {
   baseId: string;
@@ -23,6 +24,9 @@ interface AISuggestion {
 }
 
 export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBack, appTheme = 'dark' }) => {
+  // Enable swipe from left edge to go back
+  useEdgeSwipeBack(onBack);
+
   const {
     formData,
     touched,
@@ -69,7 +73,13 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
     setIsAnalyzingText(true);
     setAiResult(null);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+      if (!apiKey) {
+        console.warn('Gemini API key not configured. Skipping AI analysis.');
+        setIsAnalyzingText(false);
+        return;
+      }
+      const ai = new GoogleGenAI({ apiKey });
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: `Analyze this safety observation: "${formData.observation}".`,
@@ -192,7 +202,6 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
             type="textarea" 
             rows={4} 
             placeholder="Describe the findings and immediate hazards..." 
-            required 
           />
 
           {(isAnalyzingText || isAnalyzingImage) && (
@@ -252,7 +261,6 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
                 error={validationErrors.category}
                 touched={touched.category}
                 list={OBSERVATION_TYPES} 
-                required 
             />
             <InputField 
                 id="assignedTo" 
@@ -268,6 +276,18 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
             />
           </div>
 
+          <div className="pt-4 border-t border-white/5">
+            <InputField 
+              id="rootCause" 
+              label="Root Cause (Optional)" 
+              value={formData.rootCause || ''} 
+              onChange={handleInputChange} 
+              type="textarea"
+              rows={2}
+              placeholder="Identify the underlying cause if known..."
+            />
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-white/5">
             <InputField 
               id="name" 
@@ -277,7 +297,6 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
               onBlur={handleBlur}
               error={validationErrors.name}
               touched={touched.name}
-              required 
               placeholder="Your Name" 
             />
             <InputField 
@@ -288,7 +307,6 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
               onBlur={handleBlur}
               error={validationErrors.role}
               touched={touched.role}
-              required 
               list={ROLES} 
             />
           </div>
@@ -302,7 +320,6 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
               onBlur={handleBlur}
               error={validationErrors.site}
               touched={touched.site}
-              required 
               list={SITES} 
             />
             <div className="flex flex-col gap-2">
@@ -346,11 +363,11 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
         <div className={`${isLight ? 'bg-white border-slate-200' : 'bg-white/5 border-white/10'} backdrop-blur-xl rounded-[2rem] border p-8 shadow-2xl form-container-glow`}>
           <ImageGrid images={images} onAdd={handleAddFiles} onRemove={handleRemoveImage} onRetry={handleRetry} appTheme={appTheme} />
           {images.length < MIN_IMAGES && (
-            <div className="mt-4 flex items-center gap-2 text-[10px] font-black text-amber-500 uppercase tracking-widest px-2 animate-pulse">
+            <div className="mt-4 flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-widest px-2">
                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                </svg>
-               Min {MIN_IMAGES} evidence photo required
+               Evidence photos are optional
             </div>
           )}
         </div>

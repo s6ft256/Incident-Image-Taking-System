@@ -27,6 +27,9 @@ const handleAirtableError = async (response: Response, context: { baseId: string
     errorData = { error: { message: response.statusText } };
   }
 
+  // Log exact error for debugging
+  console.error("🔴 AIRTABLE ERROR RESPONSE:", JSON.stringify(errorData, null, 2));
+
   if (response.status === 401) return "AUTHENTICATION FAILED: Check your Airtable Personal Access Token.";
   
   if (response.status === 403) {
@@ -40,7 +43,11 @@ const handleAirtableError = async (response: Response, context: { baseId: string
     return `CONFIGURATION ERROR: Table "${context.tableName}" not found in Base "${context.baseId}". Verify that you are using the correct Table ID (e.g., tbl...) rather than the display name.`;
   }
   
-  if (response.status === 422) return `SCHEMA MISMATCH: One or more fields sent do not exist in the Airtable table "${context.tableName}". Check for missing columns or renamed fields.`;
+  if (response.status === 422) {
+    // Show exact error message from Airtable including which field is invalid
+    const exactError = errorData?.error?.message || 'Unknown field error';
+    return `SCHEMA MISMATCH (422): ${exactError}`;
+  }
   
   if (response.status === 429) return "RATE LIMIT: Airtable is throttling requests. Please wait.";
 
@@ -85,23 +92,53 @@ const fetchAllPaginatedRecords = async <T>(initialUrl: string, apiKey: string, c
   return allRecords;
 };
 
+const normalizeObservationRecord = (record: FetchedObservation): FetchedObservation => {
+  const normalizedFields = { ...record.fields };
+  const aliasField = (primary: string, fallback: string) => {
+    if (primary in normalizedFields && !(fallback in normalizedFields)) {
+      (normalizedFields as any)[fallback] = (normalizedFields as any)[primary];
+    }
+    if (fallback in normalizedFields && !(primary in normalizedFields)) {
+      (normalizedFields as any)[primary] = (normalizedFields as any)[fallback];
+    }
+  };
+
+  aliasField('Site/Location', 'Site / Location');
+  aliasField('Action Taken', 'Action taken');
+  aliasField('Closed By', 'Closed by');
+  aliasField('Role/Position', 'Role / Position');
+
+  return { ...record, fields: normalizedFields as FetchedObservation['fields'] };
+};
+
 export const submitObservationReport = async (form: ObservationForm, images: AttachmentData[], configOverride?: AirtableConfigOverride): Promise<boolean> => {
   const baseId = configOverride?.baseId || AIRTABLE_CONFIG.BASE_ID;
   const apiKey = configOverride?.apiKey || AIRTABLE_CONFIG.API_KEY;
   const tableName = AIRTABLE_CONFIG.TABLES.OBSERVATIONS;
   const url = `https://api.airtable.com/v0/${baseId}/${encodeURIComponent(tableName)}`;
   
-  const fields = {
-    "Name": form.name,
-    "Role / Position": form.role,
-    "Site / Location": form.site,
-    "Observation Type": form.category,
-    "Observation": form.observation,
-    "Action taken": form.actionTaken || '',
-    "Assigned To": form.assignedTo || '',
-    "Location": form.location || '',
-    "Open observations": images.map(img => ({ url: img.url, filename: img.filename }))
-  };
+  const fields: Record<string, any> = {};
+  
+  // Only include fields that exist in Airtable "Observation Reports" table
+  // Confirmed fields: Name, Role / Position, Site / Location, Observation Type, 
+  // Observation, Action Taken, Assigned To, Closed By, Location, Open observations, Closed observations
+  if (form.name?.trim()) fields["Name"] = form.name;
+  if (form.role?.trim()) fields["Role / Position"] = form.role;
+  if (form.site?.trim()) fields["Site / Location"] = form.site;
+  if (form.category?.trim()) fields["Observation Type"] = form.category;
+  if (form.observation?.trim()) fields["Observation"] = form.observation;
+  if (form.actionTaken?.trim()) fields["Action Taken"] = form.actionTaken;
+  if (form.assignedTo?.trim()) fields["Assigned To"] = form.assignedTo;
+  if (form.closedBy?.trim()) fields["Closed By"] = form.closedBy;
+  if (form.location?.trim()) fields["Location"] = form.location;
+  
+  // Include initial observation images in "Open observations" field
+  if (images && images.length > 0) {
+    fields["Open observations"] = images.map(img => ({ url: img.url, filename: img.filename }));
+  }
+
+  console.log("📤 SUBMITTING TO AIRTABLE - Field Names:", Object.keys(fields));
+  console.log("📤 SUBMITTING TO AIRTABLE - Full Payload:", JSON.stringify({ fields }, null, 2));
 
   await fetchWithRetry(url, {
     method: 'POST',
@@ -171,7 +208,8 @@ export const getAllReports = async (configOverride?: AirtableConfigOverride): Pr
   const apiKey = configOverride?.apiKey || AIRTABLE_CONFIG.API_KEY;
   const tableName = AIRTABLE_CONFIG.TABLES.OBSERVATIONS;
   const url = `https://api.airtable.com/v0/${baseId}/${encodeURIComponent(tableName)}`;
-  return await fetchAllPaginatedRecords<FetchedObservation>(url, apiKey, { baseId, tableName });
+  const records = await fetchAllPaginatedRecords<FetchedObservation>(url, apiKey, { baseId, tableName });
+  return records.map(normalizeObservationRecord);
 };
 
 export const updateIncident = async (recordId: string, fields: object, configOverride?: AirtableConfigOverride): Promise<boolean> => {
@@ -206,9 +244,10 @@ export const getAssignedCriticalObservations = async (userName: string, configOv
   const baseId = configOverride?.baseId || AIRTABLE_CONFIG.BASE_ID;
   const apiKey = configOverride?.apiKey || AIRTABLE_CONFIG.API_KEY;
   const tableName = AIRTABLE_CONFIG.TABLES.OBSERVATIONS;
-  const filter = `AND({Assigned To}='${userName}', {Action taken}='')`;
+  const filter = `AND({Assigned To}='${userName}', {Action Taken}='')`;
   const url = `https://api.airtable.com/v0/${baseId}/${encodeURIComponent(tableName)}?filterByFormula=${encodeURIComponent(filter)}`;
-  return await fetchAllPaginatedRecords<FetchedObservation>(url, apiKey, { baseId, tableName });
+  const records = await fetchAllPaginatedRecords<FetchedObservation>(url, apiKey, { baseId, tableName });
+  return records.map(normalizeObservationRecord);
 };
 
 export const getAllCraneChecklists = async (configOverride?: AirtableConfigOverride): Promise<FetchedCraneChecklist[]> => {

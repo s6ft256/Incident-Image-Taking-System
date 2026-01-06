@@ -7,6 +7,7 @@ import { updateProfile, deleteProfile } from '../services/profileService';
 import { InputField } from './InputField';
 import { ROLES, SITES, STORAGE_KEYS } from '../constants';
 import { requestNotificationPermission, sendToast } from '../services/notificationService';
+import { useEdgeSwipeBack } from '../hooks/useSwipeGesture';
 
 interface UserProfileProps {
   onBack: () => void;
@@ -14,6 +15,9 @@ interface UserProfileProps {
 }
 
 export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
+  // Enable swipe from left edge to go back
+  useEdgeSwipeBack(onBack);
+
   const [profile, setProfile] = useState<UserProfileType>({ name: '', role: '', site: '', email: '', profileImageUrl: '' });
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [isUploading, setIsUploading] = useState(false);
