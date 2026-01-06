@@ -21,7 +21,7 @@ export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ appTheme
   const [annotatingImage, setAnnotatingImage] = useState<UploadedImage | null>(null);
 
   // Enable swipe from left edge to go back
-  useEdgeSwipeBack(onBack);
+  useEdgeSwipeBack();
 
   const personnelNames = useMemo(() => {
     return state.personnel.map(p => p.name).sort();

@@ -21,7 +21,7 @@ const BG_IMAGE = 'https://images.unsplash.com/photo-1504307651254-35680f3366d4?a
 
 export const TrainingManagement: React.FC<TrainingManagementProps> = ({ appTheme, onBack }) => {
   // Enable swipe from left edge to go back
-  useEdgeSwipeBack(onBack);
+  useEdgeSwipeBack();
 
   const isLight = appTheme === 'light';
   

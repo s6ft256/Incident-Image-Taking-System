@@ -24,8 +24,8 @@ interface AISuggestion {
 }
 
 export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBack, appTheme = 'dark' }) => {
-  // Enable swipe from left edge to go back
-  useEdgeSwipeBack(onBack);
+  // Enable swipe from left edge to go back (uses browser history)
+  useEdgeSwipeBack();
 
   const {
     formData,

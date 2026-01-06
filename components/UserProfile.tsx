@@ -16,7 +16,7 @@ interface UserProfileProps {
 
 export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
   // Enable swipe from left edge to go back
-  useEdgeSwipeBack(onBack);
+  useEdgeSwipeBack();
 
   const [profile, setProfile] = useState<UserProfileType>({ name: '', role: '', site: '', email: '', profileImageUrl: '' });
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');

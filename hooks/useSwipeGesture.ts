@@ -122,8 +122,9 @@ export const useSwipeGesture = <T extends HTMLElement = HTMLElement>(config: Swi
 /**
  * Hook for detecting edge swipe to go back (like iOS gesture)
  * Works reliably on mobile devices
+ * Uses browser history.back() to navigate to the previous view in the application
  */
-export const useEdgeSwipeBack = (onBack: () => void) => {
+export const useEdgeSwipeBack = (_onBack?: () => void) => {
   useEffect(() => {
     let startX = 0;
     let startY = 0;
@@ -171,7 +172,8 @@ export const useEdgeSwipeBack = (onBack: () => void) => {
       // - mostly horizontal (not diagonal)
       // - quick enough (increased timeout for better UX)
       if (deltaX > swipeThreshold && deltaY < deltaX * 0.6 && deltaTime < 500) {
-        onBack();
+        // Use browser history to go to the previous window/view
+        window.history.back();
       }
 
       isTracking = false;
@@ -194,7 +196,7 @@ export const useEdgeSwipeBack = (onBack: () => void) => {
       document.removeEventListener('touchend', handleTouchEnd);
       document.removeEventListener('touchcancel', handleTouchCancel);
     };
-  }, [onBack]);
+  }, []);
 };
 
 /**

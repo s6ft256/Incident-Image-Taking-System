@@ -34,7 +34,7 @@ const CHECK_ITEMS = [
 
 export const CraneChecklistForm: React.FC<CraneChecklistFormProps> = ({ appTheme, onBack }) => {
   // Enable swipe from left edge to go back
-  useEdgeSwipeBack(onBack);
+  useEdgeSwipeBack();
 
   const isLight = appTheme === 'light';
   const today = new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' });

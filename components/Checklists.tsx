@@ -38,7 +38,7 @@ const EQUIP_ITEMS = [
 
 export const Checklists: React.FC<ChecklistsProps> = ({ appTheme = 'dark', onBack, onOpenInspection, onOpenCrane, onOpenEquipment }) => {
   // Enable swipe from left edge to go back
-  useEdgeSwipeBack(onBack);
+  useEdgeSwipeBack();
 
   const isLight = appTheme === 'light';
   const [activeTab, setActiveTab] = useState<Tab>('inventory');

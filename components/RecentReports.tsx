@@ -46,7 +46,7 @@ const DataField: React.FC<DataFieldProps> = ({ label, value, icon, isLight }) =>
 
 export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, appTheme = 'dark', filterAssignee, onPrint }) => {
   // Enable swipe from left edge to go back
-  useEdgeSwipeBack(onBack);
+  useEdgeSwipeBack();
   
   const { state, refetchData } = useAppContext();
   const { allReports, allIncidents, isLoading: loading } = state;
