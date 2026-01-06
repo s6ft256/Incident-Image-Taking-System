@@ -8,6 +8,7 @@ import { getAllProfiles } from '../services/profileService';
 import { UserProfile } from '../types';
 import { sendNotification } from '../services/notificationService';
 import { GoogleGenAI, Type } from "@google/genai";
+import { handleError } from '../utils/errorHandler';
 
 interface CreateReportFormProps {
   baseId: string;
@@ -55,7 +56,7 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
         const profiles = await getAllProfiles();
         setTeamMembers(profiles.map(p => p.name));
       } catch (err) {
-        console.error("Failed to load team members", err);
+        handleError(err, { operation: 'fetch-team-members' }, { silent: true });
       }
     };
     fetchTeam();
@@ -102,7 +103,8 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
         setAiResult(result);
       }
     } catch (e) {
-      console.error("AI Text Analysis failed", e);
+      // Silent fail for AI - it's an enhancement, not critical
+      handleError(e, { operation: 'ai-text-analysis' }, { silent: true });
     } finally {
       setIsAnalyzingText(false);
     }

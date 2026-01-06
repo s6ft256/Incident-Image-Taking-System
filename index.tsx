@@ -2,6 +2,26 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import { AppProvider } from './context/AppContext';
+import { ErrorBoundary } from './components/ErrorBoundary';
+import { handleError } from './utils/errorHandler';
+
+// Global error handlers for uncaught errors
+window.addEventListener('error', (event) => {
+  handleError(event.error || event.message, {
+    type: 'uncaught-error',
+    filename: event.filename,
+    lineno: event.lineno,
+    colno: event.colno
+  });
+});
+
+window.addEventListener('unhandledrejection', (event) => {
+  handleError(event.reason, {
+    type: 'unhandled-promise-rejection'
+  });
+  // Prevent default console error
+  event.preventDefault();
+});
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -43,8 +63,10 @@ initServiceWorker();
 const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
-    <AppProvider>
-      <App />
-    </AppProvider>
+    <ErrorBoundary>
+      <AppProvider>
+        <App />
+      </AppProvider>
+    </ErrorBoundary>
   </React.StrictMode>
 );

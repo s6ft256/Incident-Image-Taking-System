@@ -7,8 +7,10 @@ import { uploadImageToStorage } from '../services/storageService';
 import { compressImage } from '../utils/imageCompression';
 import { getAddress } from '../services/weatherService';
 import { sendNotification, sendToast } from '../services/notificationService';
+import { getPositionWithRefinement } from '../utils/geolocation';
+import { saveOfflineIncident } from '../services/offlineStorage';
 
-export type SubmitStatus = 'idle' | 'submitting' | 'success' | 'error';
+export type SubmitStatus = 'idle' | 'submitting' | 'success' | 'error' | 'offline-saved';
 
 export const useIncidentReportForm = () => {
   const [formData, setFormData] = useState<IncidentForm>({
@@ -62,6 +64,14 @@ export const useIncidentReportForm = () => {
         console.error("Profile load fail", e);
       }
     }
+
+    const handleStatus = () => setIsOnline(navigator.onLine);
+    window.addEventListener('online', handleStatus);
+    window.addEventListener('offline', handleStatus);
+    return () => {
+      window.removeEventListener('online', handleStatus);
+      window.removeEventListener('offline', handleStatus);
+    };
   }, []);
 
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -75,31 +85,36 @@ export const useIncidentReportForm = () => {
       return;
     }
     setIsLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const { latitude, longitude } = position.coords;
-        try {
-          const streetAddress = await getAddress(latitude, longitude);
-          setFormData(prev => ({ 
-            ...prev, 
-            location: `${streetAddress} (${latitude.toFixed(6)}, ${longitude.toFixed(6)})` 
+    void (async () => {
+      try {
+        await getPositionWithRefinement(async (position) => {
+          const { latitude, longitude, accuracy } = position.coords;
+          const coords = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+
+          // Set something immediately (fast path), then try reverse-geocoding.
+          setFormData(prev => ({
+            ...prev,
+            location: `GPS: ${coords}${Number.isFinite(accuracy) ? ` (±${Math.round(accuracy)}m)` : ''}`
           }));
-        } catch (e) {
-          setFormData(prev => ({ 
-            ...prev, 
-            location: `GPS: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}` 
-          }));
-        } finally {
-          setIsLocating(false);
-          sendToast("GPS Lock Established", "success");
-        }
-      },
-      () => {
+
+          try {
+            const streetAddress = await getAddress(latitude, longitude);
+            setFormData(prev => ({
+              ...prev,
+              location: `${streetAddress} (${coords})${Number.isFinite(accuracy) ? ` (±${Math.round(accuracy)}m)` : ''}`
+            }));
+          } catch {
+            // keep GPS coords if reverse geocode fails
+          }
+        });
+
+        sendToast("GPS Lock Established", "success");
+      } catch {
         sendToast("Could not acquire GPS signal.", "warning");
+      } finally {
         setIsLocating(false);
-      },
-      { enableHighAccuracy: true, timeout: 15000 }
-    );
+      }
+    })();
   }, []);
   
   const processImageUpload = useCallback(async (img: UploadedImage) => {
@@ -169,6 +184,18 @@ export const useIncidentReportForm = () => {
 
     setSubmitStatus('submitting');
     
+    if (!isOnline) {
+      try {
+        await saveOfflineIncident(formData, images);
+        setSubmitStatus('offline-saved');
+        sendToast('Offline: Incident queued for sync', 'info');
+      } catch (error: any) {
+        setSubmitStatus('error');
+        setErrorMessage(error?.message || 'Offline storage fault.');
+      }
+      return;
+    }
+
     try {
       const attachments = images
         .filter(img => img.status === 'success' && img.serverUrl)

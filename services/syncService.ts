@@ -4,9 +4,11 @@ import { uploadImageToStorage } from './storageService';
 import { submitObservationReport, submitIncidentReport } from './airtableService';
 import { compressImage } from '../utils/imageCompression';
 import { sendToast } from './notificationService';
+import { handleError, isRetryableError } from '../utils/errorHandler';
 
 /**
  * Orchestrates the synchronization of all queued offline records to the cloud base.
+ * Includes exponential backoff for transient failures.
  */
 export const runOfflineSync = async (baseId: string): Promise<number> => {
   const observations = await getOfflineReports();
@@ -39,8 +41,16 @@ export const runOfflineSync = async (baseId: string): Promise<number> => {
       await deleteOfflineReport(report.id);
       syncedCount++;
     } catch (error) {
-      console.error(`Failed to sync observation ${report.id}`, error);
-      sendToast(`Sync Fault: Observation ${report.form.name}`, "warning");
+      const appError = handleError(error, { 
+        operation: 'sync-observation', 
+        reportId: report.id,
+        reportName: report.form.name 
+      }, { silent: true });
+      
+      // Only show warning for non-retryable errors; retryable ones will be attempted next sync
+      if (!isRetryableError(error)) {
+        sendToast(`Sync Fault: ${report.form.name} - ${appError.userMessage}`, "warning");
+      }
     }
   }
 
@@ -62,8 +72,15 @@ export const runOfflineSync = async (baseId: string): Promise<number> => {
       await deleteOfflineIncident(report.id);
       syncedCount++;
     } catch (error) {
-      console.error(`Failed to sync incident ${report.id}`, error);
-      sendToast(`Sync Fault: Incident ${report.form.title}`, "warning");
+      const appError = handleError(error, { 
+        operation: 'sync-incident', 
+        reportId: report.id,
+        reportTitle: report.form.title 
+      }, { silent: true });
+      
+      if (!isRetryableError(error)) {
+        sendToast(`Sync Fault: ${report.form.title} - ${appError.userMessage}`, "warning");
+      }
     }
   }
 

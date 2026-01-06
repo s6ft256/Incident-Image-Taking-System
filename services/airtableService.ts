@@ -125,6 +125,7 @@ export const submitIncidentReport = async (form: IncidentForm, images: Attachmen
     "Location": form.location,
     "Department": form.department,
     "Site / Project": form.site,
+    "Device Metadata": form.deviceMetadata || '',
     "Status": INCIDENT_STATUS.PENDING_REVIEW,
     "Severity": form.severityScore,
     "Likelihood": form.likelihoodScore,
@@ -133,6 +134,8 @@ export const submitIncidentReport = async (form: IncidentForm, images: Attachmen
     "Persons Involved": form.involvedParties,
     "Equipment Involved": form.equipmentInvolved,
     "Witnesses": form.witnesses,
+    "Root Cause": form.rootCause || '',
+    "Recommended Controls": form.recommendedControls || '',
     "Attachments": images.map(img => ({ url: img.url, filename: img.filename })),
     // Workflow Mapping
     "Reviewer": form.reviewer,
@@ -185,6 +188,20 @@ export const updateIncident = async (recordId: string, fields: object, configOve
   return true;
 };
 
+export const updateObservation = async (recordId: string, fields: object, configOverride?: AirtableConfigOverride): Promise<boolean> => {
+  const baseId = configOverride?.baseId || AIRTABLE_CONFIG.BASE_ID;
+  const apiKey = configOverride?.apiKey || AIRTABLE_CONFIG.API_KEY;
+  const tableName = AIRTABLE_CONFIG.TABLES.OBSERVATIONS;
+  const url = `https://api.airtable.com/v0/${baseId}/${encodeURIComponent(tableName)}/${recordId}`;
+
+  await fetchWithRetry(url, {
+    method: 'PATCH',
+    headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fields, typecast: true })
+  }, { baseId, tableName });
+  return true;
+};
+
 export const getAssignedCriticalObservations = async (userName: string, configOverride?: AirtableConfigOverride): Promise<FetchedObservation[]> => {
   const baseId = configOverride?.baseId || AIRTABLE_CONFIG.BASE_ID;
   const apiKey = configOverride?.apiKey || AIRTABLE_CONFIG.API_KEY;
@@ -217,6 +234,19 @@ export const submitCraneChecklist = async (craneType: string, metadata: any, che
   const url = `https://api.airtable.com/v0/${baseId}/${encodeURIComponent(tableName)}`;
   
   const hasFail = Object.values(checks).some(v => v === 'fail');
+  // Build a human-readable Critical Failures summary from the failed check keys and remarks
+  const failureEntries: string[] = [];
+  Object.keys(checks).forEach((k) => {
+    if ((checks as any)[k] === 'fail') {
+      const m = k.match(/(.+)-([DN])$/);
+      const item = m ? m[1] : k;
+      const shift = m ? m[2] : '';
+      const remark = (remarks && (remarks as any)[item]) ? `: ${(remarks as any)[item]}` : '';
+      failureEntries.push(`${item}${shift ? ` (${shift})` : ''}${remark}`);
+    }
+  });
+  const criticalFailures = failureEntries.length ? failureEntries.join('; ') : 'None';
+
   const fields = {
     "Inspection Date": metadata.date,
     "Inspector Name": metadata.inspector,
@@ -225,6 +255,7 @@ export const submitCraneChecklist = async (craneType: string, metadata: any, che
     "Make and Model": metadata.make,
     "Status": hasFail ? "Grounded" : "Operational",
     "Inspection Data": JSON.stringify({ checks, remarks }),
+    "Critical Failures": criticalFailures,
     "Image": images.map(img => ({ url: img.url, filename: img.filename }))
   };
 
@@ -242,6 +273,19 @@ export const submitEquipmentChecklist = async (equipmentType: string, metadata: 
   const url = `https://api.airtable.com/v0/${baseId}/${encodeURIComponent(tableName)}`;
   
   const hasFail = Object.values(checks).some(v => v === 'fail');
+  // Build a human-readable Critical Failures summary from the failed check keys and remarks
+  const failureEntries: string[] = [];
+  Object.keys(checks).forEach((k) => {
+    if ((checks as any)[k] === 'fail') {
+      const m = k.match(/(.+)-([DN])$/);
+      const item = m ? m[1] : k;
+      const shift = m ? m[2] : '';
+      const remark = (remarks && (remarks as any)[item]) ? `: ${(remarks as any)[item]}` : '';
+      failureEntries.push(`${item}${shift ? ` (${shift})` : ''}${remark}`);
+    }
+  });
+  const criticalFailures = failureEntries.length ? failureEntries.join('; ') : 'None';
+
   const fields = {
     "Inspection Date": metadata.date,
     "Inspector Name": metadata.inspector,
@@ -250,6 +294,7 @@ export const submitEquipmentChecklist = async (equipmentType: string, metadata: 
     "Make and Model": metadata.make,
     "Status": hasFail ? "Grounded" : "Operational",
     "Inspection Data": JSON.stringify({ checks, remarks }),
+    "Critical Failures": criticalFailures,
     "Image": images.map(img => ({ url: img.url, filename: img.filename }))
   };
 

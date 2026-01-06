@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { getPositionWithRefinement } from '../utils/geolocation';
 
 interface LocationPromptProps {
   appTheme?: 'dark' | 'light';
@@ -32,18 +33,17 @@ export const LocationPrompt: React.FC<LocationPromptProps> = ({ appTheme = 'dark
 
   const requestGPS = () => {
     setIsSyncing(true);
-    navigator.geolocation.getCurrentPosition(
-      () => {
+    void (async () => {
+      try {
+        await getPositionWithRefinement();
         setStatus('granted');
-        setIsSyncing(false);
         onPermissionGranted();
-      },
-      () => {
+      } catch {
+        // If denied/unavailable, we keep the prompt but maybe show extra help
+      } finally {
         setIsSyncing(false);
-        // If denied, we keep the prompt but maybe show extra help
-      },
-      { enableHighAccuracy: true, timeout: 5000 }
-    );
+      }
+    })();
   };
 
   if (status === 'granted' || status === 'loading') return null;

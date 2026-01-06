@@ -1,8 +1,15 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
 import { FetchedObservation, UserProfile, FetchedIncident } from '../types';
-import { ARCHIVE_ACCESS_KEY, INCIDENT_STATUS, getRiskLevel, SEVERITY_LEVELS, LIKELIHOOD_LEVELS } from '../constants';
+import { ARCHIVE_ACCESS_KEY, INCIDENT_STATUS, getRiskLevel, SEVERITY_LEVELS, LIKELIHOOD_LEVELS, STORAGE_KEYS, INCIDENT_TYPES, DEPARTMENTS, SITES } from '../constants';
 import { useAppContext } from '../context/AppContext';
+import { ShareModal } from './ShareModal';
+import { ReportComments } from './ReportComments';
+import { getAssignedReports } from '../services/sharingService';
+import { updateIncident, updateObservation } from '../services/airtableService';
+import { sendToast } from '../services/notificationService';
+import { uploadImageToStorage } from '../services/storageService';
+import { compressImage } from '../utils/imageCompression';
 
 interface RecentReportsProps {
   baseId: string;
@@ -37,7 +44,7 @@ const DataField: React.FC<DataFieldProps> = ({ label, value, icon, isLight }) =>
 );
 
 export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, appTheme = 'dark', filterAssignee, onPrint }) => {
-  const { state } = useAppContext();
+  const { state, refetchData } = useAppContext();
   const { allReports, allIncidents, isLoading: loading } = state;
   
   const [activeTab, setActiveTab] = useState<Tab>(filterAssignee ? 'assigned' : 'incidents');
@@ -51,7 +58,70 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
   const isLight = appTheme === 'light';
   const isMyTasksMode = !!filterAssignee;
 
+  const localAssignedObservationIds = useMemo(() => {
+    if (!filterAssignee) return new Set<string>();
+    const assigned = getAssignedReports(filterAssignee)
+      .filter(a => a.reportType === 'observation')
+      .map(a => a.reportId);
+    return new Set<string>(assigned);
+  }, [filterAssignee]);
+
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [actionDrafts, setActionDrafts] = useState<Record<string, string>>({});
+  const [isUpdatingObservation, setIsUpdatingObservation] = useState<Record<string, boolean>>({});
+
+  const [incidentEdits, setIncidentEdits] = useState<Record<string, Partial<{
+    // Core fields
+    title: string;
+    description: string;
+    category: string;
+    site: string;
+    department: string;
+    location: string;
+    severity: number;
+    likelihood: number;
+    // Personnel
+    personsInvolved: string;
+    equipmentInvolved: string;
+    witnesses: string;
+    // Analysis
+    rootCause: string;
+    recommendedControls: string;
+    // Workflow
+    reviewer: string;
+    reviewComments: string;
+    reviewDate: string;
+    actionAssignedTo: string;
+    actionDueDate: string;
+    correctiveAction: string;
+    verificationComments: string;
+    closedBy: string;
+    closureDate: string;
+  }>>>({}); 
+  const [isUpdatingIncident, setIsUpdatingIncident] = useState<Record<string, boolean>>({});
+  const [isUploadingVerificationPhotos, setIsUploadingVerificationPhotos] = useState<Record<string, boolean>>({});
+  const [showFullFormEdit, setShowFullFormEdit] = useState<Record<string, boolean>>({});
+  
+  // Share modal state
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [shareTarget, setShareTarget] = useState<{ id: string; type: 'incident' | 'observation'; title: string } | null>(null);
+  
+  // Get current user for comments
+  const currentUserName = useMemo(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.PROFILE);
+      if (saved) {
+        const profile = JSON.parse(saved);
+        return profile.name || '';
+      }
+    } catch {}
+    return '';
+  }, []);
+
+  const openShareModal = (reportId: string, reportType: 'incident' | 'observation', title: string) => {
+    setShareTarget({ id: reportId, type: reportType, title });
+    setShareModalOpen(true);
+  };
 
   const handleUnlockArchive = (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,12 +138,281 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
     setExpandedId(prev => (prev === id ? null : id));
   };
 
+  const normalizeAssignees = (value: string) => {
+    return value
+      .split(/[,;]+/)
+      .map(s => s.trim().toLowerCase())
+      .filter(Boolean);
+  };
+
+  const setIncidentEdit = (id: string, patch: Partial<(typeof incidentEdits)[string]>) => {
+    setIncidentEdits(prev => ({ ...prev, [id]: { ...prev[id], ...patch } }));
+  };
+
+  const todayDate = () => new Date().toISOString().slice(0, 10);
+
+  const toDateInputValue = (value: any): string => {
+    if (!value) return '';
+    if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+    try {
+      const d = new Date(value);
+      if (Number.isNaN(d.getTime())) return '';
+      return d.toISOString().slice(0, 10);
+    } catch {
+      return '';
+    }
+  };
+
+  const handleReviewerSendToAssignee = async (incidentId: string, reviewerName: string, existingFields: any) => {
+    const edits = incidentEdits[incidentId] || {};
+    const assignedTo = String(edits.actionAssignedTo ?? existingFields["Action Assigned To"] ?? '').trim();
+    if (!assignedTo) {
+      sendToast('Select an assignee before sending.', 'warning');
+      return;
+    }
+
+    setIsUpdatingIncident(prev => ({ ...prev, [incidentId]: true }));
+    try {
+      const reviewComments = String(edits.reviewComments ?? existingFields["Review Comments"] ?? '').trim();
+      const dueDate = String(edits.actionDueDate ?? existingFields["Action Due Date"] ?? '').trim();
+      const reviewDate = existingFields["Review Date"] ? undefined : `${todayDate()}T00:00:00.000Z`;
+
+      await updateIncident(incidentId, {
+        "Reviewer": existingFields["Reviewer"] || reviewerName,
+        ...(reviewDate ? { "Review Date": reviewDate } : {}),
+        "Review Comments": reviewComments,
+        "Action Assigned To": assignedTo,
+        "Action Due Date": dueDate || undefined,
+        "Status": INCIDENT_STATUS.ACTION_PENDING,
+      });
+
+      sendToast('Incident sent to assignee.', 'success');
+      refetchData();
+    } catch (e: any) {
+      sendToast(e?.message || 'Failed to send incident to assignee.', 'critical');
+    } finally {
+      setIsUpdatingIncident(prev => ({ ...prev, [incidentId]: false }));
+    }
+  };
+
+  const handleAssigneeSubmitAction = async (incidentId: string, assigneeName: string, existingFields: any) => {
+    const edits = incidentEdits[incidentId] || {};
+    const correctiveAction = String(edits.correctiveAction ?? existingFields["Corrective Action"] ?? '').trim();
+    if (correctiveAction.length < 3) {
+      sendToast('Enter corrective action details before submitting.', 'warning');
+      return;
+    }
+
+    setIsUpdatingIncident(prev => ({ ...prev, [incidentId]: true }));
+    try {
+      await updateIncident(incidentId, {
+        "Corrective Action": correctiveAction,
+        "Status": INCIDENT_STATUS.VERIFICATION_PENDING,
+      });
+      sendToast('Corrective action submitted for verification.', 'success');
+      refetchData();
+    } catch (e: any) {
+      sendToast(e?.message || 'Failed to submit corrective action.', 'critical');
+    } finally {
+      setIsUpdatingIncident(prev => ({ ...prev, [incidentId]: false }));
+    }
+  };
+
+  const handleUploadVerificationPhotos = async (incidentId: string, files: FileList, existingFields: any) => {
+    const list = Array.from(files || []).filter(f => f.type.startsWith('image/'));
+    if (list.length === 0) return;
+
+    setIsUploadingVerificationPhotos(prev => ({ ...prev, [incidentId]: true }));
+    try {
+      const uploaded: Array<{ url: string; filename: string }> = [];
+      for (const f of list) {
+        const compressed = await compressImage(f);
+        const url = await uploadImageToStorage(compressed, 'incident_evidence');
+        uploaded.push({ url, filename: f.name });
+      }
+
+      const existing = Array.isArray(existingFields["Verification Photos"]) ? existingFields["Verification Photos"] : [];
+      await updateIncident(incidentId, {
+        "Verification Photos": [...existing, ...uploaded],
+      });
+
+      sendToast('Verification photos uploaded.', 'success');
+      refetchData();
+    } catch (e: any) {
+      sendToast(e?.message || 'Failed to upload verification photos.', 'critical');
+    } finally {
+      setIsUploadingVerificationPhotos(prev => ({ ...prev, [incidentId]: false }));
+    }
+  };
+
+  const handleReviewerCloseIncident = async (incidentId: string, reviewerName: string, existingFields: any) => {
+    const edits = incidentEdits[incidentId] || {};
+    const verificationComments = String(edits.verificationComments ?? existingFields["Verification Comments"] ?? '').trim();
+    const closedBy = String(edits.closedBy ?? existingFields["Closed By"] ?? reviewerName).trim();
+    const closureDate = String((edits.closureDate ?? toDateInputValue(existingFields["Closure Date"])) || todayDate()).trim();
+
+    setIsUpdatingIncident(prev => ({ ...prev, [incidentId]: true }));
+    try {
+      await updateIncident(incidentId, {
+        "Verification Comments": verificationComments,
+        "Closed By": closedBy,
+        "Closure Date": closureDate ? `${closureDate}T00:00:00.000Z` : undefined,
+        "Status": INCIDENT_STATUS.CLOSED,
+      });
+      sendToast('Incident closed.', 'success');
+      refetchData();
+    } catch (e: any) {
+      sendToast(e?.message || 'Failed to close incident.', 'critical');
+    } finally {
+      setIsUpdatingIncident(prev => ({ ...prev, [incidentId]: false }));
+    }
+  };
+
+  const handleSaveIncidentEdits = async (incidentId: string, existingFields: any, nextStatus?: string) => {
+    const edits = incidentEdits[incidentId] || {};
+    setIsUpdatingIncident(prev => ({ ...prev, [incidentId]: true }));
+    try {
+      const patch: Record<string, any> = {};
+
+      // Core fields
+      if (edits.title !== undefined) patch["Title"] = edits.title;
+      if (edits.description !== undefined) patch["Description"] = edits.description;
+      if (edits.category !== undefined) patch["Category"] = edits.category;
+      if (edits.site !== undefined) patch["Site / Project"] = edits.site;
+      if (edits.department !== undefined) patch["Department"] = edits.department;
+      if (edits.location !== undefined) patch["Location"] = edits.location;
+      if (edits.severity !== undefined) patch["Severity"] = edits.severity;
+      if (edits.likelihood !== undefined) patch["Likelihood"] = edits.likelihood;
+
+      // Personnel
+      if (edits.personsInvolved !== undefined) patch["Persons Involved"] = edits.personsInvolved;
+      if (edits.equipmentInvolved !== undefined) patch["Equipment Involved"] = edits.equipmentInvolved;
+      if (edits.witnesses !== undefined) patch["Witnesses"] = edits.witnesses;
+
+      // Analysis
+      if (edits.rootCause !== undefined) patch["Root Cause"] = edits.rootCause;
+      if (edits.recommendedControls !== undefined) patch["Recommended Controls"] = edits.recommendedControls;
+
+      // Workflow
+      if (edits.reviewer !== undefined) patch["Reviewer"] = edits.reviewer;
+      if (edits.reviewComments !== undefined) patch["Review Comments"] = edits.reviewComments;
+      // Auto-set Review Date if reviewer edits review comments and date not already set
+      if ((edits.reviewComments !== undefined || edits.reviewer !== undefined) && !existingFields["Review Date"] && !edits.reviewDate) {
+        patch["Review Date"] = `${todayDate()}T00:00:00.000Z`;
+      } else if (edits.reviewDate !== undefined && edits.reviewDate) {
+        patch["Review Date"] = `${edits.reviewDate}T00:00:00.000Z`;
+      }
+      if (edits.actionAssignedTo !== undefined) patch["Action Assigned To"] = edits.actionAssignedTo;
+      if (edits.actionDueDate !== undefined && edits.actionDueDate) patch["Action Due Date"] = edits.actionDueDate;
+      if (edits.correctiveAction !== undefined) patch["Corrective Action"] = edits.correctiveAction;
+      if (edits.verificationComments !== undefined) patch["Verification Comments"] = edits.verificationComments;
+      if (edits.closedBy !== undefined) patch["Closed By"] = edits.closedBy;
+      // Auto-set Closure Date if closedBy is set and date not already set
+      if ((edits.closedBy !== undefined || edits.verificationComments !== undefined) && !existingFields["Closure Date"] && !edits.closureDate) {
+        // Only auto-set closure date if status is being closed or already verification pending
+        const currentStatus = String(existingFields["Status"] || '');
+        if (currentStatus === INCIDENT_STATUS.VERIFICATION_PENDING || nextStatus === INCIDENT_STATUS.CLOSED) {
+          patch["Closure Date"] = `${todayDate()}T00:00:00.000Z`;
+        }
+      } else if (edits.closureDate !== undefined && edits.closureDate) {
+        patch["Closure Date"] = `${edits.closureDate}T00:00:00.000Z`;
+      }
+
+      if (nextStatus) patch["Status"] = nextStatus;
+
+      if (Object.keys(patch).length === 0) {
+        sendToast('No changes to save.', 'info');
+        return;
+      }
+
+      await updateIncident(incidentId, patch);
+      sendToast('Incident updated.', 'success');
+      setIncidentEdits(prev => ({ ...prev, [incidentId]: {} }));
+      refetchData();
+    } catch (e: any) {
+      sendToast(e?.message || 'Failed to update incident.', 'critical');
+    } finally {
+      setIsUpdatingIncident(prev => ({ ...prev, [incidentId]: false }));
+    }
+  };
+
+  const handleResubmitObservation = async (reportId: string, assigneeName: string) => {
+    const draft = String(actionDrafts[reportId] ?? '').trim();
+    if (draft.length < 3) {
+      sendToast('Please enter an action/update before resubmitting.', 'warning');
+      return;
+    }
+    setIsUpdatingObservation(prev => ({ ...prev, [reportId]: true }));
+    try {
+      await updateObservation(reportId, {
+        "Action taken": draft,
+        "Closed by": assigneeName,
+      });
+      sendToast('Update submitted successfully.', 'success');
+      refetchData();
+    } catch (e: any) {
+      sendToast(e?.message || 'Failed to resubmit update.', 'critical');
+    } finally {
+      setIsUpdatingObservation(prev => ({ ...prev, [reportId]: false }));
+    }
+  };
+
   const toggleRawMetadata = (id: string) => {
     setShowRawMetadata(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
   const tabFilteredReports = useMemo(() => {
     const query = searchTerm.toLowerCase().trim();
+
+    if (isMyTasksMode && filterAssignee) {
+      const normalizedAssignee = filterAssignee.trim().toLowerCase();
+
+      const incidentTasks = allIncidents.filter((inc) => {
+        const fields: any = inc.fields;
+        const status = String(fields["Status"] || INCIDENT_STATUS.PENDING_REVIEW);
+        if (status === INCIDENT_STATUS.CLOSED) return false;
+
+        const title = String(fields["Title"] || '').toLowerCase();
+        const desc = String(fields["Description"] || '').toLowerCase();
+        const matchesSearch = !query || title.includes(query) || desc.includes(query);
+        if (!matchesSearch) return false;
+
+        const reviewerTokens = normalizeAssignees(String(fields["Reviewer"] || ''));
+        const actionTokens = normalizeAssignees(String(fields["Action Assigned To"] || ''));
+
+        const isReviewer = reviewerTokens.includes(normalizedAssignee);
+        const isActionAssignee = actionTokens.includes(normalizedAssignee);
+
+        if (status === INCIDENT_STATUS.PENDING_REVIEW) return isReviewer;
+        if (status === INCIDENT_STATUS.ACTION_PENDING) return isActionAssignee;
+        if (status === INCIDENT_STATUS.VERIFICATION_PENDING) return isReviewer;
+        return false;
+      });
+
+      const observationTasks = allReports.filter((report) => {
+        const actionTaken = String(report.fields["Action taken"] || '').trim();
+        const isClosed = actionTaken.length > 0;
+        if (isClosed) return false;
+
+        const assignedToRaw = String(report.fields["Assigned To"] || '').trim();
+        const assignedTokens = normalizeAssignees(assignedToRaw);
+
+        const obsText = String(report.fields["Observation"] || '').toLowerCase();
+        const nameText = String(report.fields["Name"] || '').toLowerCase();
+        const matchesSearch = !query || obsText.includes(query) || nameText.includes(query);
+        if (!matchesSearch) return false;
+
+        const matchesAssignee = assignedTokens.includes(normalizedAssignee) || assignedToRaw.toLowerCase() === normalizedAssignee;
+        const isLocallyAssignedToMe = localAssignedObservationIds.has(report.id);
+        return (matchesAssignee || isLocallyAssignedToMe);
+      });
+
+      return [...incidentTasks, ...observationTasks].sort((a: any, b: any) => {
+        const at = new Date(a.createdTime || 0).getTime();
+        const bt = new Date(b.createdTime || 0).getTime();
+        return bt - at;
+      });
+    }
     
     if (activeTab === 'incidents') {
       return allIncidents.filter(inc => {
@@ -86,19 +425,22 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
     return allReports.filter(report => {
       const actionTaken = String(report.fields["Action taken"] || "").trim();
       const isClosed = actionTaken.length > 0;
-      const assignedTo = String(report.fields["Assigned To"] || "").trim();
+      const assignedToRaw = String(report.fields["Assigned To"] || "").trim();
+      const assignedTokens = normalizeAssignees(assignedToRaw);
       
       const obsText = String(report.fields["Observation"] || "").toLowerCase();
       const nameText = String(report.fields["Name"] || "").toLowerCase();
       const matchesSearch = !query || obsText.includes(query) || nameText.includes(query);
       
-      const matchesAssignee = !filterAssignee || assignedTo === filterAssignee;
+      const normalizedAssignee = (filterAssignee || '').trim().toLowerCase();
+      const matchesAssignee = !filterAssignee || assignedTokens.includes(normalizedAssignee) || assignedToRaw.toLowerCase() === normalizedAssignee;
+      const isLocallyAssignedToMe = !!filterAssignee && localAssignedObservationIds.has(report.id);
 
       if (activeTab === 'closed') return isClosed && matchesSearch && matchesAssignee;
-      if (activeTab === 'assigned') return !isClosed && assignedTo && matchesSearch && matchesAssignee;
-      return !isClosed && !assignedTo && matchesSearch && matchesAssignee;
+      if (activeTab === 'assigned') return !isClosed && (assignedTokens.length > 0 || isLocallyAssignedToMe) && matchesSearch && (matchesAssignee || isLocallyAssignedToMe);
+      return !isClosed && assignedTokens.length === 0 && matchesSearch && matchesAssignee;
     });
-  }, [allReports, allIncidents, activeTab, searchTerm, filterAssignee]);
+  }, [allReports, allIncidents, activeTab, searchTerm, filterAssignee, localAssignedObservationIds]);
 
   return (
     <div className="animate-in slide-in-from-right duration-300 pb-24 max-w-7xl mx-auto">
@@ -203,6 +545,482 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
                        {isIncident ? (
                          <>
                            <WorkflowTimeline status={fields["Status"]} isLight={isLight} />
+
+                           {isMyTasksMode && filterAssignee && (() => {
+                             const normalizedAssignee = filterAssignee.trim().toLowerCase();
+                             const status = String(fields["Status"] || INCIDENT_STATUS.PENDING_REVIEW);
+                             const reviewerTokens = normalizeAssignees(String(fields["Reviewer"] || ''));
+                             const actionTokens = normalizeAssignees(String(fields["Action Assigned To"] || ''));
+                             const isReviewer = reviewerTokens.includes(normalizedAssignee);
+                             const isActionAssignee = actionTokens.includes(normalizedAssignee);
+
+                             const edits = incidentEdits[report.id] || {};
+                             const busy = !!isUpdatingIncident[report.id];
+                             const uploading = !!isUploadingVerificationPhotos[report.id];
+                             const isFullFormOpen = !!showFullFormEdit[report.id];
+                             const reviewerNames = (state.personnel || []).map((p: any) => p.name).sort();
+
+                             // Full-form editor available to both Reviewer and Assignee in any workflow stage
+                             const renderFullFormEditor = () => (
+                               <div className={`mb-6 p-6 rounded-[2rem] border ${isLight ? 'bg-slate-100 border-slate-300' : 'bg-black/30 border-white/10'}`}>
+                                 <button
+                                   onClick={() => setShowFullFormEdit(prev => ({ ...prev, [report.id]: !prev[report.id] }))}
+                                   className={`w-full flex items-center justify-between text-left p-4 rounded-2xl border transition-all ${
+                                     isLight ? 'bg-white border-slate-200 hover:border-blue-500' : 'bg-black/40 border-white/10 hover:border-blue-500'
+                                   }`}
+                                 >
+                                   <div>
+                                     <span className="text-[10px] font-black text-purple-500 uppercase tracking-[0.3em]">Edit All Fields</span>
+                                     <span className="block text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">Expand to modify any incident data</span>
+                                   </div>
+                                   <span className={`text-2xl font-black transition-transform ${isFullFormOpen ? 'rotate-45' : ''} ${isLight ? 'text-slate-400' : 'text-white/50'}`}>+</span>
+                                 </button>
+
+                                 {isFullFormOpen && (
+                                   <div className="mt-5 space-y-8 animate-in fade-in slide-in-from-top-2 duration-300">
+                                     {/* Section 1: Event Identification */}
+                                     <div>
+                                       <h4 className="text-[10px] font-black text-blue-500 uppercase tracking-[0.3em] mb-4">Event Identification</h4>
+                                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                         <div className="md:col-span-2">
+                                           <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Title</label>
+                                           <input
+                                             value={String(edits.title ?? fields["Title"] ?? '')}
+                                             onChange={(e) => setIncidentEdit(report.id, { title: e.target.value })}
+                                             placeholder="Incident title"
+                                             className={`w-full p-4 rounded-2xl border text-sm font-bold outline-none transition-all ${
+                                               isLight ? 'bg-white border-slate-200 focus:border-blue-500' : 'bg-black/30 border-white/10 focus:border-blue-500 text-white'
+                                             }`}
+                                           />
+                                         </div>
+                                         <div>
+                                           <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Category</label>
+                                           <input
+                                             list={`incident-${report.id}-categories`}
+                                             value={String(edits.category ?? fields["Category"] ?? '')}
+                                             onChange={(e) => setIncidentEdit(report.id, { category: e.target.value })}
+                                             placeholder="Select category"
+                                             className={`w-full p-4 rounded-2xl border text-sm font-bold outline-none transition-all ${
+                                               isLight ? 'bg-white border-slate-200 focus:border-blue-500' : 'bg-black/30 border-white/10 focus:border-blue-500 text-white'
+                                             }`}
+                                           />
+                                           <datalist id={`incident-${report.id}-categories`}>
+                                             {INCIDENT_TYPES.map(t => <option key={t} value={t} />)}
+                                           </datalist>
+                                         </div>
+                                         <div>
+                                           <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Site / Project</label>
+                                           <input
+                                             list={`incident-${report.id}-sites`}
+                                             value={String(edits.site ?? fields["Site / Project"] ?? '')}
+                                             onChange={(e) => setIncidentEdit(report.id, { site: e.target.value })}
+                                             placeholder="Select site"
+                                             className={`w-full p-4 rounded-2xl border text-sm font-bold outline-none transition-all ${
+                                               isLight ? 'bg-white border-slate-200 focus:border-blue-500' : 'bg-black/30 border-white/10 focus:border-blue-500 text-white'
+                                             }`}
+                                           />
+                                           <datalist id={`incident-${report.id}-sites`}>
+                                             {SITES.map(s => <option key={s} value={s} />)}
+                                           </datalist>
+                                         </div>
+                                         <div>
+                                           <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Department</label>
+                                           <input
+                                             list={`incident-${report.id}-depts`}
+                                             value={String(edits.department ?? fields["Department"] ?? '')}
+                                             onChange={(e) => setIncidentEdit(report.id, { department: e.target.value })}
+                                             placeholder="Select department"
+                                             className={`w-full p-4 rounded-2xl border text-sm font-bold outline-none transition-all ${
+                                               isLight ? 'bg-white border-slate-200 focus:border-blue-500' : 'bg-black/30 border-white/10 focus:border-blue-500 text-white'
+                                             }`}
+                                           />
+                                           <datalist id={`incident-${report.id}-depts`}>
+                                             {DEPARTMENTS.map(d => <option key={d} value={d} />)}
+                                           </datalist>
+                                         </div>
+                                         <div>
+                                           <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Location / Coordinates</label>
+                                           <input
+                                             value={String(edits.location ?? fields["Location"] ?? '')}
+                                             onChange={(e) => setIncidentEdit(report.id, { location: e.target.value })}
+                                             placeholder="GPS or description"
+                                             className={`w-full p-4 rounded-2xl border text-sm font-bold outline-none transition-all ${
+                                               isLight ? 'bg-white border-slate-200 focus:border-blue-500' : 'bg-black/30 border-white/10 focus:border-blue-500 text-white'
+                                             }`}
+                                           />
+                                         </div>
+                                       </div>
+                                     </div>
+
+                                     {/* Section 2: Narrative */}
+                                     <div>
+                                       <h4 className="text-[10px] font-black text-blue-500 uppercase tracking-[0.3em] mb-4">Narrative</h4>
+                                       <div>
+                                         <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Description</label>
+                                         <textarea
+                                           value={String(edits.description ?? fields["Description"] ?? '')}
+                                           onChange={(e) => setIncidentEdit(report.id, { description: e.target.value })}
+                                           rows={5}
+                                           placeholder="Detailed description of what happened..."
+                                           className={`w-full p-4 rounded-2xl border text-sm font-bold outline-none resize-none transition-all ${
+                                             isLight ? 'bg-white border-slate-200 focus:border-blue-500' : 'bg-black/30 border-white/10 focus:border-blue-500 text-white'
+                                           }`}
+                                         />
+                                       </div>
+                                     </div>
+
+                                     {/* Section 3: Personnel & Equipment */}
+                                     <div>
+                                       <h4 className="text-[10px] font-black text-blue-500 uppercase tracking-[0.3em] mb-4">Personnel & Equipment</h4>
+                                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                         <div>
+                                           <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Persons Involved</label>
+                                           <input
+                                             value={String(edits.personsInvolved ?? fields["Persons Involved"] ?? '')}
+                                             onChange={(e) => setIncidentEdit(report.id, { personsInvolved: e.target.value })}
+                                             placeholder="Names..."
+                                             className={`w-full p-4 rounded-2xl border text-sm font-bold outline-none transition-all ${
+                                               isLight ? 'bg-white border-slate-200 focus:border-blue-500' : 'bg-black/30 border-white/10 focus:border-blue-500 text-white'
+                                             }`}
+                                           />
+                                         </div>
+                                         <div>
+                                           <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Equipment Involved</label>
+                                           <input
+                                             value={String(edits.equipmentInvolved ?? fields["Equipment Involved"] ?? '')}
+                                             onChange={(e) => setIncidentEdit(report.id, { equipmentInvolved: e.target.value })}
+                                             placeholder="Equipment..."
+                                             className={`w-full p-4 rounded-2xl border text-sm font-bold outline-none transition-all ${
+                                               isLight ? 'bg-white border-slate-200 focus:border-blue-500' : 'bg-black/30 border-white/10 focus:border-blue-500 text-white'
+                                             }`}
+                                           />
+                                         </div>
+                                         <div>
+                                           <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Witnesses</label>
+                                           <input
+                                             value={String(edits.witnesses ?? fields["Witnesses"] ?? '')}
+                                             onChange={(e) => setIncidentEdit(report.id, { witnesses: e.target.value })}
+                                             placeholder="Witness names..."
+                                             className={`w-full p-4 rounded-2xl border text-sm font-bold outline-none transition-all ${
+                                               isLight ? 'bg-white border-slate-200 focus:border-blue-500' : 'bg-black/30 border-white/10 focus:border-blue-500 text-white'
+                                             }`}
+                                           />
+                                         </div>
+                                       </div>
+                                     </div>
+
+                                     {/* Section 4: Risk & Analysis */}
+                                     <div>
+                                       <h4 className="text-[10px] font-black text-blue-500 uppercase tracking-[0.3em] mb-4">Risk & Analysis</h4>
+                                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                         <div>
+                                           <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Severity (1-5)</label>
+                                           <input
+                                             type="number" min={1} max={5}
+                                             value={Number(edits.severity ?? fields["Severity"] ?? 1)}
+                                             onChange={(e) => setIncidentEdit(report.id, { severity: Number(e.target.value) })}
+                                             className={`w-full p-4 rounded-2xl border text-sm font-bold outline-none transition-all ${
+                                               isLight ? 'bg-white border-slate-200 focus:border-blue-500' : 'bg-black/30 border-white/10 focus:border-blue-500 text-white'
+                                             }`}
+                                           />
+                                         </div>
+                                         <div>
+                                           <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Likelihood (1-5)</label>
+                                           <input
+                                             type="number" min={1} max={5}
+                                             value={Number(edits.likelihood ?? fields["Likelihood"] ?? 1)}
+                                             onChange={(e) => setIncidentEdit(report.id, { likelihood: Number(e.target.value) })}
+                                             className={`w-full p-4 rounded-2xl border text-sm font-bold outline-none transition-all ${
+                                               isLight ? 'bg-white border-slate-200 focus:border-blue-500' : 'bg-black/30 border-white/10 focus:border-blue-500 text-white'
+                                             }`}
+                                           />
+                                         </div>
+                                         <div className="md:col-span-2">
+                                           <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Root Cause</label>
+                                           <textarea
+                                             value={String(edits.rootCause ?? fields["Root Cause"] ?? '')}
+                                             onChange={(e) => setIncidentEdit(report.id, { rootCause: e.target.value })}
+                                             rows={3}
+                                             placeholder="Underlying cause..."
+                                             className={`w-full p-4 rounded-2xl border text-sm font-bold outline-none resize-none transition-all ${
+                                               isLight ? 'bg-white border-slate-200 focus:border-blue-500' : 'bg-black/30 border-white/10 focus:border-blue-500 text-white'
+                                             }`}
+                                           />
+                                         </div>
+                                         <div className="md:col-span-2">
+                                           <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Recommended Controls</label>
+                                           <textarea
+                                             value={String(edits.recommendedControls ?? fields["Recommended Controls"] ?? '')}
+                                             onChange={(e) => setIncidentEdit(report.id, { recommendedControls: e.target.value })}
+                                             rows={3}
+                                             placeholder="Suggested controls / preventative measures..."
+                                             className={`w-full p-4 rounded-2xl border text-sm font-bold outline-none resize-none transition-all ${
+                                               isLight ? 'bg-white border-slate-200 focus:border-blue-500' : 'bg-black/30 border-white/10 focus:border-blue-500 text-white'
+                                             }`}
+                                           />
+                                         </div>
+                                       </div>
+                                     </div>
+
+                                     {/* Section 5: Workflow Assignments */}
+                                     <div>
+                                       <h4 className="text-[10px] font-black text-blue-500 uppercase tracking-[0.3em] mb-4">Workflow Assignments</h4>
+                                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                         <div>
+                                           <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Reviewer</label>
+                                           <input
+                                             list={`incident-${report.id}-reviewers`}
+                                             value={String(edits.reviewer ?? fields["Reviewer"] ?? '')}
+                                             onChange={(e) => setIncidentEdit(report.id, { reviewer: e.target.value })}
+                                             placeholder="Select reviewer"
+                                             className={`w-full p-4 rounded-2xl border text-sm font-bold outline-none transition-all ${
+                                               isLight ? 'bg-white border-slate-200 focus:border-blue-500' : 'bg-black/30 border-white/10 focus:border-blue-500 text-white'
+                                             }`}
+                                           />
+                                           <datalist id={`incident-${report.id}-reviewers`}>
+                                             {reviewerNames.map((n: string) => <option key={n} value={n} />)}
+                                           </datalist>
+                                         </div>
+                                         <div>
+                                           <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Action Assigned To</label>
+                                           <input
+                                             list={`incident-${report.id}-assignees`}
+                                             value={String(edits.actionAssignedTo ?? fields["Action Assigned To"] ?? '')}
+                                             onChange={(e) => setIncidentEdit(report.id, { actionAssignedTo: e.target.value })}
+                                             placeholder="Select assignee"
+                                             className={`w-full p-4 rounded-2xl border text-sm font-bold outline-none transition-all ${
+                                               isLight ? 'bg-white border-slate-200 focus:border-blue-500' : 'bg-black/30 border-white/10 focus:border-blue-500 text-white'
+                                             }`}
+                                           />
+                                           <datalist id={`incident-${report.id}-assignees`}>
+                                             {reviewerNames.map((n: string) => <option key={n} value={n} />)}
+                                           </datalist>
+                                         </div>
+                                         <div>
+                                           <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Action Due Date</label>
+                                           <input
+                                             type="date"
+                                             value={String(edits.actionDueDate ?? toDateInputValue(fields["Action Due Date"]))}
+                                             onChange={(e) => setIncidentEdit(report.id, { actionDueDate: e.target.value })}
+                                             className={`w-full p-4 rounded-2xl border text-sm font-bold outline-none transition-all ${
+                                               isLight ? 'bg-white border-slate-200 focus:border-blue-500' : 'bg-black/30 border-white/10 focus:border-blue-500 text-white'
+                                             }`}
+                                           />
+                                         </div>
+                                       </div>
+                                     </div>
+
+                                     {/* Save Button */}
+                                     <div className="flex justify-end gap-3">
+                                       <button
+                                         onClick={() => setShowFullFormEdit(prev => ({ ...prev, [report.id]: false }))}
+                                         className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 border ${
+                                           isLight ? 'bg-white border-slate-300 text-slate-600 hover:bg-slate-50' : 'bg-black/40 border-white/10 text-white/70 hover:border-white/20'
+                                         }`}
+                                       >
+                                         Cancel
+                                       </button>
+                                       <button
+                                         disabled={busy}
+                                         onClick={() => handleSaveIncidentEdits(report.id, filterAssignee, fields)}
+                                         className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 border ${
+                                           isLight ? 'bg-purple-600 text-white border-purple-600 hover:bg-purple-500' : 'bg-purple-600 text-white border-purple-500/20 hover:bg-purple-500'
+                                         } ${busy ? 'opacity-60 cursor-not-allowed' : ''}`}
+                                       >
+                                         {busy ? 'Saving…' : 'Save All Changes'}
+                                       </button>
+                                     </div>
+                                   </div>
+                                 )}
+                               </div>
+                             );
+
+                             if (status === INCIDENT_STATUS.PENDING_REVIEW && isReviewer) {
+                               return (
+                                 <>
+                                 {renderFullFormEditor()}
+                                 <div className={`p-6 rounded-[2rem] border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-black/40 border-white/10'}`}>
+                                   <div className="text-[10px] font-black text-blue-500 uppercase tracking-[0.3em]">Reviewer Actions</div>
+                                   <div className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">Assign and send to action owner</div>
+
+                                   <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-5">
+                                     <div className="md:col-span-2">
+                                       <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Review Comments</label>
+                                       <textarea
+                                         value={String(edits.reviewComments ?? fields["Review Comments"] ?? '')}
+                                         onChange={(e) => setIncidentEdit(report.id, { reviewComments: e.target.value })}
+                                         rows={4}
+                                         placeholder="Review notes / immediate actions..."
+                                         className={`w-full p-4 rounded-2xl border text-sm font-bold outline-none resize-none transition-all ${
+                                           isLight ? 'bg-white border-slate-200 focus:border-blue-500' : 'bg-black/30 border-white/10 focus:border-blue-500 text-white'
+                                         }`}
+                                       />
+                                     </div>
+
+                                     <div>
+                                       <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Action Assigned To</label>
+                                       <input
+                                         value={String(edits.actionAssignedTo ?? fields["Action Assigned To"] ?? '')}
+                                         onChange={(e) => setIncidentEdit(report.id, { actionAssignedTo: e.target.value })}
+                                         list={`incident-${report.id}-assignees`}
+                                         placeholder="Select assignee"
+                                         className={`w-full p-4 rounded-2xl border text-sm font-bold outline-none transition-all ${
+                                           isLight ? 'bg-white border-slate-200 focus:border-blue-500' : 'bg-black/30 border-white/10 focus:border-blue-500 text-white'
+                                         }`}
+                                       />
+                                       <datalist id={`incident-${report.id}-assignees`}>
+                                         {reviewerNames.map((n: string) => <option key={n} value={n} />)}
+                                       </datalist>
+                                     </div>
+
+                                     <div>
+                                       <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Action Due Date</label>
+                                       <input
+                                         type="date"
+                                         value={String(edits.actionDueDate ?? toDateInputValue(fields["Action Due Date"]))}
+                                         onChange={(e) => setIncidentEdit(report.id, { actionDueDate: e.target.value })}
+                                         className={`w-full p-4 rounded-2xl border text-sm font-bold outline-none transition-all ${
+                                           isLight ? 'bg-white border-slate-200 focus:border-blue-500' : 'bg-black/30 border-white/10 focus:border-blue-500 text-white'
+                                         }`}
+                                       />
+                                     </div>
+                                   </div>
+
+                                   <div className="flex justify-end mt-5">
+                                     <button
+                                       disabled={busy}
+                                       onClick={() => handleReviewerSendToAssignee(report.id, filterAssignee, fields)}
+                                       className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 border ${
+                                         isLight ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-500' : 'bg-blue-600 text-white border-blue-500/20 hover:bg-blue-500'
+                                       } ${busy ? 'opacity-60 cursor-not-allowed' : ''}`}
+                                     >
+                                       {busy ? 'Sending…' : 'Send to Assignee'}
+                                     </button>
+                                   </div>
+                                 </div>
+                                 </>
+                               );
+                             }
+
+                             if (status === INCIDENT_STATUS.ACTION_PENDING && isActionAssignee) {
+                               return (
+                                 <>
+                                 {renderFullFormEditor()}
+                                 <div className={`p-6 rounded-[2rem] border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-black/40 border-white/10'}`}>
+                                   <div className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.3em]">Assignee Actions</div>
+                                   <div className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">Submit corrective action for verification</div>
+                                   <div className="mt-5">
+                                     <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Corrective Action</label>
+                                     <textarea
+                                       value={String(edits.correctiveAction ?? fields["Corrective Action"] ?? '')}
+                                       onChange={(e) => setIncidentEdit(report.id, { correctiveAction: e.target.value })}
+                                       rows={5}
+                                       placeholder="Describe corrective action completed / controls implemented..."
+                                       className={`w-full p-4 rounded-2xl border text-sm font-bold outline-none resize-none transition-all ${
+                                         isLight ? 'bg-white border-slate-200 focus:border-blue-500' : 'bg-black/30 border-white/10 focus:border-blue-500 text-white'
+                                       }`}
+                                     />
+                                   </div>
+                                   <div className="flex justify-end mt-5">
+                                     <button
+                                       disabled={busy}
+                                       onClick={() => handleAssigneeSubmitAction(report.id, filterAssignee, fields)}
+                                       className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 border ${
+                                         isLight ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-500' : 'bg-blue-600 text-white border-blue-500/20 hover:bg-blue-500'
+                                       } ${busy ? 'opacity-60 cursor-not-allowed' : ''}`}
+                                     >
+                                       {busy ? 'Submitting…' : 'Submit for Verification'}
+                                     </button>
+                                   </div>
+                                 </div>
+                                 </>
+                               );
+                             }
+
+                             if (status === INCIDENT_STATUS.VERIFICATION_PENDING && isReviewer) {
+                               return (
+                                 <>
+                                 {renderFullFormEditor()}
+                                 <div className={`p-6 rounded-[2rem] border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-black/40 border-white/10'}`}>
+                                   <div className="text-[10px] font-black text-amber-500 uppercase tracking-[0.3em]">Verification & Closure</div>
+                                   <div className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">Upload verification evidence and close</div>
+
+                                   <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-5">
+                                     <div className="md:col-span-2">
+                                       <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Verification Comments</label>
+                                       <textarea
+                                         value={String(edits.verificationComments ?? fields["Verification Comments"] ?? '')}
+                                         onChange={(e) => setIncidentEdit(report.id, { verificationComments: e.target.value })}
+                                         rows={4}
+                                         placeholder="Verification notes and findings..."
+                                         className={`w-full p-4 rounded-2xl border text-sm font-bold outline-none resize-none transition-all ${
+                                           isLight ? 'bg-white border-slate-200 focus:border-blue-500' : 'bg-black/30 border-white/10 focus:border-blue-500 text-white'
+                                         }`}
+                                       />
+                                     </div>
+
+                                     <div className="md:col-span-2">
+                                       <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Verification Photos (Airtable)</label>
+                                       <input
+                                         type="file"
+                                         accept="image/*"
+                                         multiple
+                                         disabled={uploading}
+                                         onChange={(e) => {
+                                           if (e.target.files) void handleUploadVerificationPhotos(report.id, e.target.files, fields);
+                                         }}
+                                         className={`w-full p-4 rounded-2xl border text-sm font-bold outline-none transition-all ${
+                                           isLight ? 'bg-white border-slate-200' : 'bg-black/30 border-white/10 text-white'
+                                         } ${uploading ? 'opacity-60 cursor-not-allowed' : ''}`}
+                                       />
+                                       <div className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-2">
+                                         {uploading ? 'Uploading…' : 'Uploads to Supabase then writes into Airtable “Verification Photos”.'}
+                                       </div>
+                                     </div>
+
+                                     <div>
+                                       <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Closed By</label>
+                                       <input
+                                         value={String(edits.closedBy ?? fields["Closed By"] ?? filterAssignee)}
+                                         onChange={(e) => setIncidentEdit(report.id, { closedBy: e.target.value })}
+                                         placeholder="Name"
+                                         className={`w-full p-4 rounded-2xl border text-sm font-bold outline-none transition-all ${
+                                           isLight ? 'bg-white border-slate-200 focus:border-blue-500' : 'bg-black/30 border-white/10 focus:border-blue-500 text-white'
+                                         }`}
+                                       />
+                                     </div>
+
+                                     <div>
+                                       <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Closure Date</label>
+                                       <input
+                                         type="date"
+                                         value={String((edits.closureDate ?? toDateInputValue(fields["Closure Date"])) || todayDate())}
+                                         onChange={(e) => setIncidentEdit(report.id, { closureDate: e.target.value })}
+                                         className={`w-full p-4 rounded-2xl border text-sm font-bold outline-none transition-all ${
+                                           isLight ? 'bg-white border-slate-200 focus:border-blue-500' : 'bg-black/30 border-white/10 focus:border-blue-500 text-white'
+                                         }`}
+                                       />
+                                     </div>
+                                   </div>
+
+                                   <div className="flex justify-end mt-5">
+                                     <button
+                                       disabled={busy}
+                                       onClick={() => handleReviewerCloseIncident(report.id, filterAssignee, fields)}
+                                       className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 border ${
+                                         isLight ? 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-500' : 'bg-emerald-600 text-white border-emerald-500/20 hover:bg-emerald-500'
+                                       } ${busy ? 'opacity-60 cursor-not-allowed' : ''}`}
+                                     >
+                                       {busy ? 'Closing…' : 'Close Incident'}
+                                     </button>
+                                   </div>
+                                 </div>
+                                 </>
+                               );
+                             }
+
+                             return null;
+                           })()}
                            
                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 p-6 rounded-[2rem] bg-black/20 border border-white/5">
                              <div className="space-y-6">
@@ -262,6 +1080,18 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
 
                            <div className="flex justify-end gap-4 items-center">
                             <button
+                              onClick={() => openShareModal(report.id, 'incident', fields["Title"])}
+                              className={`flex items-center gap-2 px-6 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 border ${
+                                isLight ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100' : 'bg-blue-500/10 text-blue-400 border-blue-500/20 hover:bg-blue-500/20'
+                              }`}
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                                <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+                                <path d="m8.59 13.51 6.83 3.98M15.41 6.51l-6.82 3.98"/>
+                              </svg>
+                              Share Report
+                            </button>
+                            <button
                               onClick={() => onPrint(report as FetchedIncident)}
                               className={`flex items-center gap-2 px-6 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 border ${
                                 isLight ? 'bg-slate-100 text-slate-700 border-slate-200' : 'bg-white/5 text-slate-300 border-white/10'
@@ -270,6 +1100,15 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
                               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="6 9 6 2 18 2 18 9" /><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" /><rect x="6" y="14" width="12" height="8" /></svg>
                               Export Audit Document
                             </button>
+                          </div>
+                          
+                          {/* Team Comments Section */}
+                          <div className="mt-8">
+                            <ReportComments 
+                              reportId={report.id} 
+                              currentUserName={currentUserName}
+                              appTheme={appTheme}
+                            />
                           </div>
                          </>
                        ) : (
@@ -290,6 +1129,48 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
                                <DataField label="Action Taken" value={fields["Action taken"]} isLight={isLight} />
                                <DataField label="Closed By" value={fields["Closed by"]} isLight={isLight} />
                                <DataField label="Root Cause" value={fields["Root Cause"]} isLight={isLight} />
+
+                               {isMyTasksMode && filterAssignee && (() => {
+                                 const assignedToRaw = String(fields["Assigned To"] || "").trim();
+                                 const assignedTokens = normalizeAssignees(assignedToRaw);
+                                 const normalizedAssignee = filterAssignee.trim().toLowerCase();
+                                 const isAssignedToMe = assignedTokens.includes(normalizedAssignee) || localAssignedObservationIds.has(report.id);
+                                 if (!isAssignedToMe) return null;
+
+                                 const draft = actionDrafts[report.id] ?? String(fields["Action taken"] || '');
+                                 const isBusy = !!isUpdatingObservation[report.id];
+
+                                 return (
+                                   <div className={`mt-6 p-5 rounded-2xl border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'}`}>
+                                     <div className="flex items-center justify-between gap-3 mb-3">
+                                       <div>
+                                         <div className="text-[10px] font-black text-blue-500 uppercase tracking-[0.3em]">Assigned Action Update</div>
+                                         <div className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">Edit and resubmit (optional)</div>
+                                       </div>
+                                     </div>
+                                     <textarea
+                                       value={draft}
+                                       onChange={(e) => setActionDrafts(prev => ({ ...prev, [report.id]: e.target.value }))}
+                                       rows={4}
+                                       placeholder="Describe the action taken / update..."
+                                       className={`w-full p-4 rounded-2xl border text-sm font-bold outline-none resize-none transition-all ${
+                                         isLight ? 'bg-white border-slate-200 focus:border-blue-500' : 'bg-black/30 border-white/10 focus:border-blue-500 text-white'
+                                       }`}
+                                     />
+                                     <div className="flex justify-end mt-4">
+                                       <button
+                                         disabled={isBusy}
+                                         onClick={() => handleResubmitObservation(report.id, filterAssignee)}
+                                         className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 border ${
+                                           isLight ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-500' : 'bg-blue-600 text-white border-blue-500/20 hover:bg-blue-500'
+                                         } ${isBusy ? 'opacity-60 cursor-not-allowed' : ''}`}
+                                       >
+                                         {isBusy ? 'Submitting…' : 'Resubmit Update'}
+                                       </button>
+                                     </div>
+                                   </div>
+                                 );
+                               })()}
                                
                                <button 
                                  onClick={() => toggleRawMetadata(report.id)}
@@ -305,6 +1186,31 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
                                 ))}
                               </div>
                             )}
+                            
+                            {/* Share Button for Observations */}
+                            <div className="md:col-span-2 flex justify-end gap-4 mt-4">
+                              <button
+                                onClick={() => openShareModal(report.id, 'observation', fields["Observation"]?.slice(0, 50) + '...')}
+                                className={`flex items-center gap-2 px-6 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 border ${
+                                  isLight ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100' : 'bg-blue-500/10 text-blue-400 border-blue-500/20 hover:bg-blue-500/20'
+                                }`}
+                              >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                                  <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+                                  <path d="m8.59 13.51 6.83 3.98M15.41 6.51l-6.82 3.98"/>
+                                </svg>
+                                Share Observation
+                              </button>
+                            </div>
+                            
+                            {/* Team Comments Section for Observations */}
+                            <div className="md:col-span-2 mt-4">
+                              <ReportComments 
+                                reportId={report.id} 
+                                currentUserName={currentUserName}
+                                appTheme={appTheme}
+                              />
+                            </div>
                          </div>
                        )}
 
@@ -347,6 +1253,17 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
               );
           })}
         </div>
+      )}
+      {/* Share Modal */}
+      {shareTarget && (
+        <ShareModal
+          isOpen={shareModalOpen}
+          onClose={() => { setShareModalOpen(false); setShareTarget(null); }}
+          reportId={shareTarget.id}
+          reportType={shareTarget.type}
+          reportTitle={shareTarget.title}
+          appTheme={appTheme}
+        />
       )}
     </div>
   );

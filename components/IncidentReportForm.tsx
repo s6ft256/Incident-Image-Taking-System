@@ -7,6 +7,7 @@ import { UploadedImage } from '../types';
 import { useIncidentReportForm } from '../hooks/useIncidentReportForm';
 import { ImageAnnotator } from './ImageAnnotator';
 import { useAppContext } from '../context/AppContext';
+import { sendToast } from '../services/notificationService';
 
 interface IncidentReportFormProps {
   appTheme: 'dark' | 'light';
@@ -58,15 +59,18 @@ export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ appTheme
   const riskInfo = getRiskLevel(riskScore);
   const isAnnotationMissing = images.length > 0 && !images.some(img => img.isAnnotated);
 
-  if (submitStatus === 'success') {
+  if (submitStatus === 'success' || submitStatus === 'offline-saved') {
+    const isOfflineSaved = submitStatus === 'offline-saved';
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center animate-in zoom-in duration-500">
          <div className="w-24 h-24 bg-emerald-500 rounded-full flex items-center justify-center mb-8 shadow-[0_0_40px_rgba(16,185,129,0.3)]">
             <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4"><polyline points="20 6 9 17 4 12"/></svg>
          </div>
-         <h2 className={`text-4xl font-black tracking-tight mb-4 ${isLight ? 'text-slate-900' : 'text-white'}`}>INCIDENT LOGGED</h2>
+         <h2 className={`text-4xl font-black tracking-tight mb-4 ${isLight ? 'text-slate-900' : 'text-white'}`}>{isOfflineSaved ? 'INCIDENT QUEUED' : 'INCIDENT LOGGED'}</h2>
          <p className="text-slate-500 uppercase tracking-widest text-[10px] font-black mb-10 max-w-xs leading-relaxed">
-            Record successfully serialized and synced to cloud grid. Audit trail initiated.
+            {isOfflineSaved
+              ? 'Record serialized to local ledger. It will sync to cloud grid when connectivity returns.'
+              : 'Record successfully serialized and synced to cloud grid. Audit trail initiated.'}
          </p>
          <button onClick={onBack} className="px-12 py-5 bg-blue-600 text-white rounded-[2rem] font-black uppercase text-xs tracking-widest shadow-xl hover:bg-blue-500 transition-all border border-blue-400/20">Return to Grid</button>
       </div>
@@ -155,7 +159,17 @@ export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ appTheme
                 </div>
               </div>
             </section>
-
+            {/* 3b. Root Cause Analysis */}
+            <section className="pt-8 border-t border-white/5">
+              <h3 className="text-[10px] font-black text-amber-500 uppercase tracking-[0.2em] px-1 mb-6 flex items-center gap-2">
+                 <div className="w-1.5 h-1.5 bg-amber-500 rounded-full"></div>
+                 Root Cause Analysis
+              </h3>
+              <div className="space-y-6">
+                <InputField id="rootCause" label="Root Cause" type="textarea" value={formData.rootCause} onChange={handleInputChange} placeholder="Identify the underlying cause(s) of the incident..." />
+                <InputField id="recommendedControls" label="Recommended Controls" type="textarea" value={formData.recommendedControls} onChange={handleInputChange} placeholder="Propose preventative measures and controls..." />
+              </div>
+            </section>
             {/* 4. Evidence */}
             <section className="pt-8 border-t border-white/5">
               <h3 className="text-[10px] font-black text-blue-500 uppercase tracking-[0.2em] px-1 mb-6 flex items-center gap-2">
@@ -233,7 +247,7 @@ export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ appTheme
                <div className="w-5 h-5 border-2 border-slate-500 border-t-white rounded-full animate-spin"></div>
                <span>Serializing & Syncing...</span>
             </div>
-          ) : "Dispatch Unified Incident Record"}
+          ) : (formData.reviewer?.trim() ? 'Send to Reviewer' : 'Dispatch Unified Incident Record')}
         </button>
       </form>
     </div>

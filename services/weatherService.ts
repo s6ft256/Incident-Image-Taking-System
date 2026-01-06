@@ -9,19 +9,59 @@ export interface WeatherData {
   preciseLocation?: string;
 }
 
+const withTimeout = async <T>(promise: Promise<T>, timeoutMs: number, timeoutMessage: string): Promise<T> => {
+  let timeoutId: number | undefined;
+  const timeoutPromise = new Promise<T>((_, reject) => {
+    timeoutId = window.setTimeout(() => reject(new Error(timeoutMessage)), timeoutMs);
+  });
+
+  try {
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    if (timeoutId !== undefined) window.clearTimeout(timeoutId);
+  }
+};
+
+const roundCoord = (value: number, decimals: number) => {
+  const p = Math.pow(10, decimals);
+  return Math.round(value * p) / p;
+};
+
+const safeJsonParse = <T>(value: string | null): T | null => {
+  if (!value) return null;
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return null;
+  }
+};
+
 /**
  * Reverse geocodes coordinates to a human-readable address.
  * Focuses on extracting Street/Road level details.
  */
 export const getAddress = async (lat: number, lon: number): Promise<string> => {
   try {
-    const geoUrl = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`;
-    const geoRes = await fetch(geoUrl, {
-      headers: { 
-        'Accept-Language': 'en', 
-        'User-Agent': 'HSE-Guardian/1.0 (mailto:niwamanyaelius95@gmail.com)' 
-      }
-    });
+    // Cache by rounding coordinates to reduce unnecessary reverse-geocoding calls.
+    const cacheKey = `geo_addr_${roundCoord(lat, 4)}_${roundCoord(lon, 4)}`;
+    const cached = safeJsonParse<{ v: string; t: number }>(localStorage.getItem(cacheKey));
+    if (cached && Date.now() - cached.t < 7 * 24 * 60 * 60 * 1000) {
+      return cached.v;
+    }
+
+    const geoUrl = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&zoom=18&addressdetails=1`;
+    const controller = new AbortController();
+    const geoRes = await withTimeout(
+      fetch(geoUrl, {
+        signal: controller.signal,
+        headers: {
+          'Accept-Language': 'en',
+          'User-Agent': 'HSE-Guardian/1.0 (mailto:niwamanyaelius95@gmail.com)'
+        }
+      }),
+      8000,
+      'Geocoding timeout'
+    );
     const geoJson = await geoRes.json();
     
     if (!geoJson.address) return "Site Coordinates Only";
@@ -33,7 +73,13 @@ export const getAddress = async (lat: number, lon: number): Promise<string> => {
     const city = addr.city || addr.town || addr.state || "";
 
     const parts = [street, suburb, city].filter(p => p.length > 0);
-    return parts.join(', ') || "Exact Site Location";
+    const value = parts.join(', ') || "Exact Site Location";
+    try {
+      localStorage.setItem(cacheKey, JSON.stringify({ v: value, t: Date.now() }));
+    } catch {
+      // ignore storage issues
+    }
+    return value;
   } catch (e) {
     return "GPS Verified Area";
   }
@@ -54,14 +100,22 @@ export const getLocalWeather = async (): Promise<WeatherData> => {
         const { latitude, longitude } = position.coords;
 
         try {
+          const cacheKey = `weather_${roundCoord(latitude, 3)}_${roundCoord(longitude, 3)}`;
+          const cached = safeJsonParse<{ v: WeatherData; t: number }>(localStorage.getItem(cacheKey));
+          if (cached && Date.now() - cached.t < 10 * 60 * 1000) {
+            resolve(cached.v);
+            return;
+          }
+
           const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,is_day,weather_code,wind_speed_10m&timezone=auto`;
-          const weatherRes = await fetch(weatherUrl);
+          const controller = new AbortController();
+          const weatherRes = await withTimeout(fetch(weatherUrl, { signal: controller.signal }), 10000, 'Weather fetch timeout');
           const weatherJson = await weatherRes.json();
 
           const fullAddr = await getAddress(latitude, longitude);
           const current = weatherJson.current;
-          
-          resolve({
+
+          const result: WeatherData = {
             temp: Math.round(current.temperature_2m),
             condition: getWeatherDescription(current.weather_code),
             conditionCode: current.weather_code,
@@ -70,14 +124,28 @@ export const getLocalWeather = async (): Promise<WeatherData> => {
             isDay: current.is_day === 1,
             windSpeed: current.wind_speed_10m,
             humidity: current.relative_humidity_2m
-          });
+          };
+
+          try {
+            localStorage.setItem(cacheKey, JSON.stringify({ v: result, t: Date.now() }));
+            localStorage.setItem('weather_last', JSON.stringify({ v: result, t: Date.now() }));
+          } catch {
+            // ignore storage issues
+          }
+
+          resolve(result);
         } catch (err) {
+          const last = safeJsonParse<{ v: WeatherData; t: number }>(localStorage.getItem('weather_last'));
+          if (last) {
+            resolve(last.v);
+            return;
+          }
           reject(new Error("Satellite Link Error. Check connection."));
         }
       }, (err) => {
         // Fallback Strategy: If high accuracy fails or times out, try standard accuracy
         if (options.enableHighAccuracy) {
-          tryGetPosition({ enableHighAccuracy: false, timeout: 15000, maximumAge: 60000 });
+          tryGetPosition({ enableHighAccuracy: false, timeout: 7000, maximumAge: 10 * 60 * 1000 });
         } else {
           let msg = "GPS Access Denied.";
           if (err.code === err.TIMEOUT) msg = "Satellite Sync Timeout.";
@@ -90,7 +158,7 @@ export const getLocalWeather = async (): Promise<WeatherData> => {
     // Initial attempt: High accuracy, increased to 45s for cold start locks
     tryGetPosition({ 
       enableHighAccuracy: true, 
-      timeout: 45000, 
+      timeout: 20000, 
       maximumAge: 0 
     });
   });

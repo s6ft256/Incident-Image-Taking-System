@@ -26,5 +26,18 @@ Use the built-in professional sync script which handles staging, semantic commit
 npm run git-sync
 ```
 
+## Optional: Python Analytics for Dashboard
+
+The dashboard can optionally display offline-generated analytics (JSON + PNG charts) produced with Python (pandas / scikit-learn / matplotlib).
+
+1. Install Python deps: `pip install -r python/requirements.txt`
+2. Provide CSV exports (defaults):
+    - `data/observations.csv`
+    - `data/incidents.csv`
+3. Generate assets into the web app: `python3 python/generate_dashboard_assets.py --outdir public/dashboard-assets`
+
+If `public/dashboard-assets/summary.json` exists, the app will render an "Analytics Snapshot" section on the main dashboard. If it does not exist, nothing changes.
+
 ## Developed by
 @Elius - Senior Safety Systems Architect
+

@@ -9,6 +9,7 @@ import { getAddress } from '../services/weatherService';
 import { fileToBase64 } from '../utils/fileToBase64';
 import { GoogleGenAI, Type } from "@google/genai";
 import { sendToast } from '../services/notificationService';
+import { getPositionWithRefinement } from '../utils/geolocation';
 
 export type SubmitStatus = 'idle' | 'success' | 'error' | 'offline-saved';
 
@@ -89,43 +90,36 @@ export const useObservationReport = (baseId: string) => {
     setIsLocating(true);
     setErrorMessage('');
 
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const { latitude, longitude } = position.coords;
-        try {
-          const streetAddress = await getAddress(latitude, longitude);
+    void (async () => {
+      try {
+        await getPositionWithRefinement(async (position) => {
+          const { latitude, longitude, accuracy } = position.coords;
           const coords = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
-          const locationStr = `${streetAddress} | GPS: ${coords}`;
-          setFormData(prev => ({ ...prev, location: locationStr }));
-          setErrorMessage(''); // Clear errors on success
-        } catch (e) {
-          const fallbackStr = `GPS: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
-          setFormData(prev => ({ ...prev, location: fallbackStr }));
-        } finally {
-          setIsLocating(false);
-        }
-      },
-      (error) => {
+          setFormData(prev => ({
+            ...prev,
+            location: `GPS: ${coords}${Number.isFinite(accuracy) ? ` (±${Math.round(accuracy)}m)` : ''}`,
+          }));
+
+          try {
+            const streetAddress = await getAddress(latitude, longitude);
+            const locationStr = `${streetAddress} | GPS: ${coords}${Number.isFinite(accuracy) ? ` (±${Math.round(accuracy)}m)` : ''}`;
+            setFormData(prev => ({ ...prev, location: locationStr }));
+            setErrorMessage('');
+          } catch {
+            // keep GPS coords if reverse geocode fails
+          }
+        });
+      } catch (error: any) {
+        const code = error?.code;
         let msg = "Geolocation protocol failed.";
-        switch (error.code) {
-          case error.PERMISSION_DENIED:
-            msg = "GPS Access Denied. Please enable location permissions in your browser or device settings to map this hazard.";
-            break;
-          case error.POSITION_UNAVAILABLE:
-            msg = "Site Signal Failure. Unable to establish a stable satellite link. Please move to an outdoor area with a clear sky view.";
-            break;
-          case error.TIMEOUT:
-            msg = "GPS Sync Timeout. The system could not acquire your precise coordinates in time. Please try again or enter the location manually.";
-            break;
-          default:
-            msg = "Geolocation Error: An unexpected issue occurred with the site mapping protocol.";
-            break;
-        }
+        if (code === 1) msg = "GPS Access Denied. Please enable location permissions in your browser or device settings to map this hazard.";
+        if (code === 2) msg = "Site Signal Failure. Unable to establish a stable satellite link. Please move to an outdoor area with a clear sky view.";
+        if (code === 3) msg = "GPS Sync Timeout. The system could not acquire your precise coordinates in time. Please try again or enter the location manually.";
         setErrorMessage(msg);
+      } finally {
         setIsLocating(false);
-      },
-      { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
-    );
+      }
+    })();
   }, []);
   
   const analyzeImageWithAI = useCallback(async (image: UploadedImage) => {

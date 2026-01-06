@@ -11,6 +11,19 @@ interface DashboardProps {
   appTheme?: 'dark' | 'light';
 }
 
+type PythonAnalyticsSummary = {
+  generatedAt?: string;
+  sources?: { observations?: string; incidents?: string };
+  observations?: { rows?: number; total?: number; open?: number; closed?: number; note?: string };
+  incidents?: { rows?: number; note?: string };
+  model?: { enabled?: boolean; accuracy?: number };
+  assets?: {
+    observationsByType?: string;
+    observationsBySite?: string;
+    incidentsOverTime?: string;
+  };
+};
+
 const SEVERITY_MAP: Record<string, number> = {
   'Fire Risk': 10,
   'Chemical Spill': 9,
@@ -31,8 +44,28 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
   const [locationRefreshKey, setLocationRefreshKey] = useState(0);
   const [activeCategory, setActiveCategory] = useState<'operations' | 'management'>('operations');
   const [systemTime, setSystemTime] = useState(new Date().toLocaleTimeString());
+  const [pythonAnalytics, setPythonAnalytics] = useState<PythonAnalyticsSummary | null>(null);
 
   const isLight = appTheme === 'light';
+
+  useEffect(() => {
+    let cancelled = false;
+    // Load optional, pre-generated assets produced by python/generate_dashboard_assets.py
+    // If the file is missing, we silently skip rendering.
+    void (async () => {
+      try {
+        const res = await fetch('/dashboard-assets/summary.json', { cache: 'no-store' });
+        if (!res.ok) return;
+        const json = (await res.json()) as PythonAnalyticsSummary;
+        if (!cancelled) setPythonAnalytics(json);
+      } catch {
+        // ignore
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     isMounted.current = true;
@@ -88,26 +121,101 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
   return (
     <div className="space-y-6 pb-12 animate-in fade-in duration-700">
       <div className={`flex items-center justify-between px-6 py-3 rounded-2xl border backdrop-blur-md overflow-hidden ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-blue-950/20 border-blue-500/20 shadow-xl'}`}>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_#10b981]"></div>
-            <span className={`text-[9px] font-black uppercase tracking-widest ${isLight ? 'text-slate-600' : 'text-blue-400'}`}>Protocol Active</span>
-          </div>
-          <div className="flex items-center gap-2 border-l border-white/10 pl-4">
-             <span className={`text-[9px] font-black uppercase text-slate-500`}>UTC:</span>
-             <span className={`text-[10px] font-mono font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>{systemTime}</span>
-          </div>
+        <div className="flex items-center gap-2 min-w-[140px]">
+          <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_#10b981]"></div>
+          <span className={`text-[9px] font-black uppercase tracking-widest ${isLight ? 'text-slate-700' : 'text-slate-200'}`}>System Nominal</span>
         </div>
-        <div className="hidden sm:flex items-center gap-6">
-           <div className="flex items-center gap-2">
-              <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Status:</span>
-              <span className={`text-[10px] font-mono font-black text-emerald-500 uppercase`}>Cloud Verified</span>
-           </div>
+
+        <div className="flex items-center gap-2">
+          <span className={`text-[9px] font-black uppercase tracking-widest ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>UTC Sync:</span>
+          <span className={`text-[10px] font-mono font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>{systemTime}</span>
         </div>
+
+        <div className="flex items-center gap-3 min-w-[160px] justify-end">
+          <div className="hidden sm:flex items-center gap-2">
+            <span className={`text-[9px] font-black uppercase tracking-widest ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Grid ID:</span>
+            <span className={`text-[10px] font-mono font-black ${isLight ? 'text-blue-600' : 'text-blue-400'}`}>HSE-G-2.5</span>
+          </div>
+          <span className={`px-3 py-1 rounded-full border text-[9px] font-black uppercase tracking-widest ${isLight ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300'}`}>
+            Authorized
+          </span>
+        </div>
+      </div>
+
+      <div className={`relative px-6 sm:px-10 py-10 sm:py-14 rounded-[3rem] border shadow-2xl overflow-hidden ${isLight ? 'bg-white border-blue-200' : 'bg-slate-900/20 border-blue-500/20 backdrop-blur-md'}`}>
+        <div className="flex items-center justify-center gap-4 mb-10">
+          <div className={`h-px w-10 sm:w-12 ${isLight ? 'bg-blue-600/30' : 'bg-blue-400/30'}`} />
+          <span className={`text-[10px] font-black uppercase tracking-[0.35em] ${isLight ? 'text-blue-600' : 'text-blue-400'}`}>HSEGUARDIAN CORE</span>
+          <div className={`h-px w-10 sm:w-12 ${isLight ? 'bg-blue-600/30' : 'bg-blue-400/30'}`} />
+        </div>
+
+        <h1 className={`text-center text-2xl sm:text-4xl font-black tracking-tight leading-snug ${isLight ? 'text-slate-900' : 'text-white'}`}>
+          HSEGUARDIAN ISN'T JUST SOFTWARE. IT'S YOUR PROACTIVE SAFETY
+          NERVE CENTER. A UNIFIED SYSTEM CAPTURING AND MANAGING ALL
+          SAFETY OBSERVATIONS AND DATA IN REAL TIME.
+        </h1>
+
+        <p className={`text-center mt-6 text-sm sm:text-base font-semibold ${isLight ? 'text-slate-500' : 'text-slate-300'}`}>
+          Consolidating real time telemetry from work sites into a unified command grid. Ensure
+          zero harm through high integrity data acquisition and remediation.
+        </p>
       </div>
 
       <LocationPrompt appTheme={appTheme} onPermissionGranted={() => setLocationRefreshKey(prev => prev + 1)} />
       <WeatherWidget key={locationRefreshKey} appTheme={appTheme} />
+
+      {pythonAnalytics && (
+        <div className={`p-8 rounded-[2.5rem] border shadow-2xl ${isLight ? 'bg-white border-slate-200' : 'bg-slate-900/40 border-white/5 backdrop-blur-md'}`}>
+          <div className="flex items-center justify-between gap-4 mb-6">
+            <div>
+              <h3 className={`text-xl font-black tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>Analytics Snapshot</h3>
+              <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mt-1">Generated offline (pandas / sklearn / matplotlib)</p>
+            </div>
+            {pythonAnalytics?.generatedAt && (
+              <span className={`text-[9px] font-mono font-black ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>{new Date(pythonAnalytics.generatedAt).toLocaleString()}</span>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div className={`p-5 rounded-2xl border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'}`}>
+              <div className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Observations</div>
+              <div className={`text-2xl font-black mt-2 ${isLight ? 'text-slate-900' : 'text-white'}`}>{pythonAnalytics?.observations?.total ?? pythonAnalytics?.observations?.rows ?? 0}</div>
+              <div className="text-[9px] font-black text-slate-500 uppercase tracking-widest mt-2">Open: {pythonAnalytics?.observations?.open ?? 0} • Closed: {pythonAnalytics?.observations?.closed ?? 0}</div>
+            </div>
+            <div className={`p-5 rounded-2xl border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'}`}>
+              <div className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Incidents</div>
+              <div className={`text-2xl font-black mt-2 ${isLight ? 'text-slate-900' : 'text-white'}`}>{pythonAnalytics?.incidents?.rows ?? 0}</div>
+              <div className="text-[9px] font-black text-slate-500 uppercase tracking-widest mt-2">Model: {pythonAnalytics?.model?.enabled ? `Accuracy ${(pythonAnalytics?.model?.accuracy * 100).toFixed(0)}%` : 'Not enough data'}</div>
+            </div>
+            <div className={`p-5 rounded-2xl border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'}`}>
+              <div className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Sources</div>
+              <div className={`text-[10px] font-mono font-black mt-2 break-words ${isLight ? 'text-slate-800' : 'text-slate-200'}`}>{pythonAnalytics?.sources?.observations ?? ''}</div>
+              <div className={`text-[10px] font-mono font-black mt-2 break-words ${isLight ? 'text-slate-800' : 'text-slate-200'}`}>{pythonAnalytics?.sources?.incidents ?? ''}</div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {pythonAnalytics?.assets?.observationsByType && (
+              <div className={`p-5 rounded-2xl border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'}`}>
+                <div className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-3">Observations by type</div>
+                <img src={pythonAnalytics.assets.observationsByType} alt="Observations by type" className="w-full rounded-xl" loading="lazy" />
+              </div>
+            )}
+            {pythonAnalytics?.assets?.observationsBySite && (
+              <div className={`p-5 rounded-2xl border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'}`}>
+                <div className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-3">Observations by site</div>
+                <img src={pythonAnalytics.assets.observationsBySite} alt="Observations by site" className="w-full rounded-xl" loading="lazy" />
+              </div>
+            )}
+            {pythonAnalytics?.assets?.incidentsOverTime && (
+              <div className={`p-5 rounded-2xl border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'}`}>
+                <div className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-3">Incidents over time</div>
+                <img src={pythonAnalytics.assets.incidentsOverTime} alt="Incidents over time" className="w-full rounded-xl" loading="lazy" />
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div className={`lg:col-span-8 p-8 rounded-[2.5rem] border shadow-2xl flex flex-col relative overflow-hidden min-h-[350px] ${isLight ? 'bg-white border-slate-200' : 'bg-slate-900/40 border-white/5 backdrop-blur-md'}`}>

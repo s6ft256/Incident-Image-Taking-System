@@ -9,6 +9,7 @@ import { saveTrainingRoster, getTrainingHistory, TrainingSessionData } from '../
 import { submitTrainingRoster } from '../services/airtableService';
 import { sendToast } from '../services/notificationService';
 import { MAX_IMAGES } from '../constants';
+import { getPositionWithRefinement } from '../utils/geolocation';
 
 interface TrainingManagementProps {
   appTheme: 'dark' | 'light';
@@ -60,18 +61,24 @@ export const TrainingManagement: React.FC<TrainingManagementProps> = ({ appTheme
         setLocation("GPS Hardware Not Detected");
         return;
       }
-      navigator.geolocation.getCurrentPosition(
-        async (pos) => {
-          try {
-            const addr = await getAddress(pos.coords.latitude, pos.coords.longitude);
-            setLocation(`${addr} (${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)})`);
-          } catch (e) {
-            setLocation(`${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`);
-          }
-        },
-        () => setLocation("GPS Signal Unavailable"),
-        { timeout: 10000 }
-      );
+
+      void (async () => {
+        try {
+          await getPositionWithRefinement(async (pos) => {
+            const { latitude, longitude, accuracy } = pos.coords;
+            const coords = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+            setLocation(`GPS: ${coords}${Number.isFinite(accuracy) ? ` (±${Math.round(accuracy)}m)` : ''}`);
+            try {
+              const addr = await getAddress(latitude, longitude);
+              setLocation(`${addr} (${coords})${Number.isFinite(accuracy) ? ` (±${Math.round(accuracy)}m)` : ''}`);
+            } catch {
+              // keep coords
+            }
+          });
+        } catch {
+          setLocation("GPS Signal Unavailable");
+        }
+      })();
     }
   }, [view]);
 
