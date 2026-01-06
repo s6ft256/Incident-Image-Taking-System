@@ -4,7 +4,6 @@ import { WeatherWidget } from './WeatherWidget';
 import { LocationPrompt } from './LocationPrompt';
 import { BarChart, Bar, Cell, ResponsiveContainer, XAxis, YAxis } from 'recharts';
 import { useAppContext } from '../context/AppContext';
-import { getSystemGitStatus, GitStatus } from '../services/githubService';
 
 interface DashboardProps {
   baseId: string;
@@ -30,11 +29,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
 
   const isMounted = useRef(true);
   const [locationRefreshKey, setLocationRefreshKey] = useState(0);
-  const [activeCategory, setActiveCategory] = useState<'operations' | 'management' | 'deployment'>('operations');
+  const [activeCategory, setActiveCategory] = useState<'operations' | 'management'>('operations');
   const [systemTime, setSystemTime] = useState(new Date().toLocaleTimeString());
-  const [gitStatus, setGitStatus] = useState<GitStatus | null>(null);
-  const [isPushing, setIsPushing] = useState(false);
-  const [pushLogs, setPushLogs] = useState<string[]>([]);
 
   const isLight = appTheme === 'light';
 
@@ -44,46 +40,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
       if (isMounted.current) setSystemTime(new Date().toLocaleTimeString());
     }, 1000);
     
-    getSystemGitStatus().then(status => {
-      if (isMounted.current) setGitStatus(status);
-    });
-
     return () => {
       isMounted.current = false;
       clearInterval(timer);
     };
   }, []);
-
-  const handleManualPush = async () => {
-    setIsPushing(true);
-    setPushLogs([]);
-    const messages = [
-      "> Initializing Git Sync Protocol...",
-      "> Scanning local safety assets...",
-      "> Bundling evidence acquisition logs...",
-      "> Verifying Airtable Base Handshake...",
-      "> Connecting to remote origin...",
-      "> Pushing local state to main...",
-      "> Deployment Successful. System Live."
-    ];
-
-    for (const msg of messages) {
-      if (!isMounted.current) return;
-      setPushLogs(prev => [...prev, msg]);
-      await new Promise(r => setTimeout(r, 600));
-    }
-    
-    if (!isMounted.current) return;
-    
-    setTimeout(() => {
-      if (isMounted.current) {
-        setIsPushing(false);
-        window.dispatchEvent(new CustomEvent('app-toast', { 
-          detail: { message: "Safety Grid Synced to Cloud", type: 'success' } 
-        }));
-      }
-    }, 1000);
-  };
 
   const stats = useMemo(() => {
     if (!Array.isArray(reports)) return { total: 0, open: 0, closed: 0 };
@@ -130,7 +91,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_#10b981]"></div>
-            <span className={`text-[9px] font-black uppercase tracking-widest ${isLight ? 'text-slate-600' : 'text-blue-400'}`}>Cloud Protocol Active</span>
+            <span className={`text-[9px] font-black uppercase tracking-widest ${isLight ? 'text-slate-600' : 'text-blue-400'}`}>Protocol Active</span>
           </div>
           <div className="flex items-center gap-2 border-l border-white/10 pl-4">
              <span className={`text-[9px] font-black uppercase text-slate-500`}>UTC:</span>
@@ -139,8 +100,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
         </div>
         <div className="hidden sm:flex items-center gap-6">
            <div className="flex items-center gap-2">
-              <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Git Status:</span>
-              <span className={`text-[10px] font-mono font-black text-emerald-500`}>{gitStatus?.branch || 'main'} • {gitStatus?.lastCommit || '8f2a1c'}</span>
+              <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Status:</span>
+              <span className={`text-[10px] font-mono font-black text-emerald-500 uppercase`}>Cloud Verified</span>
            </div>
         </div>
       </div>
@@ -188,71 +149,35 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
           <div className="flex justify-between items-center mb-6 px-2">
              <div className="flex flex-col">
                <h3 className={`text-xl font-black tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>Control Terminal</h3>
-               <p className="text-[9px] font-black text-blue-500 uppercase tracking-widest">Execute Cloud Protocols</p>
+               <p className="text-[9px] font-black text-blue-500 uppercase tracking-widest">Execute Operational Protocols</p>
              </div>
              <div className={`p-1 rounded-2xl border flex items-center shadow-lg ${isLight ? 'bg-slate-100 border-slate-200' : 'bg-white/5 border-white/10'}`}>
-                {(['operations', 'management', 'deployment'] as const).map(c => (
+                {(['operations', 'management'] as const).map(c => (
                   <button key={c} onClick={() => setActiveCategory(c)} className={`px-5 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${activeCategory === c ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}>{c}</button>
                 ))}
              </div>
           </div>
 
-          <div className={`relative p-8 rounded-[3rem] border-2 transition-all duration-500 overflow-hidden ${activeCategory === 'deployment' ? 'bg-slate-950 border-emerald-500/30 shadow-[0_0_50px_rgba(16,185,129,0.1)]' : 'bg-[#0f172a]/40 border-blue-400/30'}`}>
-             {activeCategory === 'deployment' ? (
-               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center min-h-[250px]">
-                  <div className="space-y-6">
-                     <div className="space-y-2">
-                        <h4 className="text-emerald-500 font-black text-lg tracking-tight uppercase">GitHub Deployment Bridge</h4>
-                        <p className="text-slate-500 text-xs font-bold leading-relaxed">Direct tunnel to Safety Grid Repository. Securely synchronization local evidence acquisition logs, and database schema mappings.</p>
-                     </div>
-                     <button 
-                        onClick={handleManualPush}
-                        disabled={isPushing}
-                        className={`w-full sm:w-auto px-10 py-5 rounded-[2rem] font-black uppercase text-xs tracking-[0.3em] shadow-2xl transition-all active:scale-95 border ${isPushing ? 'bg-slate-800 text-slate-500 border-white/5' : 'bg-emerald-600 text-white border-emerald-400/20 hover:bg-emerald-500'}`}
-                     >
-                        {isPushing ? 'Push in Progress...' : 'Initialize Cloud Sync'}
-                     </button>
-                  </div>
-                  <div className="bg-black/40 rounded-3xl p-6 border border-white/5 font-mono text-[10px] h-[180px] overflow-y-auto scrollbar-hide shadow-inner">
-                     <div className="flex items-center gap-2 mb-4 border-b border-white/5 pb-2">
-                        <div className="w-2 h-2 rounded-full bg-rose-500"></div>
-                        <div className="w-2 h-2 rounded-full bg-amber-500"></div>
-                        <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-                        <span className="ml-2 text-slate-600 uppercase font-black tracking-widest">Git Terminal</span>
-                     </div>
-                     {pushLogs.length === 0 ? (
-                       <span className="text-slate-700 animate-pulse">Waiting for synchronization trigger...</span>
-                     ) : (
-                       pushLogs.map((log, i) => (
-                        <div key={i} className={`mb-1 animate-in slide-in-from-left-2 ${log.includes('Successful') ? 'text-emerald-400 font-black' : 'text-slate-400'}`}>
-                          {log}
-                        </div>
-                       ))
-                     )}
-                     {isPushing && <div className="w-1.5 h-4 bg-emerald-500 animate-pulse inline-block ml-1 align-middle"></div>}
-                  </div>
-               </div>
-             ) : (
-               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-                  {activeCategory === 'operations' ? (
-                     <>
-                       <TerminalButton onClick={() => onNavigate('incident-report')} icon="alert" label="Incident" color="rose" isLight={isLight} />
-                       <TerminalButton onClick={() => onNavigate('create')} icon="plus" label="Observation" color="blue" isLight={isLight} />
-                       <TerminalButton onClick={() => onNavigate('my-tasks')} icon="user" label="My Tasks" color="emerald" count={myTaskCount} isLight={isLight} />
-                       <TerminalButton onClick={() => onNavigate('recent')} icon="list" label="Registry" color="slate" isLight={isLight} />
-                       <TerminalButton onClick={() => onNavigate('checklists')} icon="check" label="Inspect" color="amber" isLight={isLight} />
-                       <TerminalButton onClick={() => onNavigate('personnel')} icon="users" label="Personnel" color="indigo" isLight={isLight} />
-                     </>
-                  ) : (
-                    <>
-                      <TerminalButton onClick={() => onNavigate('risk-assessment')} icon="shield" label="Risk RA" color="rose" isLight={isLight} />
-                      <TerminalButton onClick={() => onNavigate('training-management')} icon="book" label="Training" color="violet" isLight={isLight} />
-                      <TerminalButton onClick={() => onNavigate('compliance-tracker')} icon="award" label="Compliance" color="cyan" isLight={isLight} />
-                      <TerminalButton onClick={() => onNavigate('audit-trail')} icon="history" label="Audit" color="zinc" isLight={isLight} />
-                    </>
-                  )}
-               </div>
-             )}
+          <div className={`relative p-8 rounded-[3rem] border-2 transition-all duration-500 overflow-hidden bg-[#0f172a]/40 border-blue-400/30`}>
+             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+                {activeCategory === 'operations' ? (
+                   <>
+                     <TerminalButton onClick={() => onNavigate('incident-report')} icon="alert" label="Incident" color="rose" isLight={isLight} />
+                     <TerminalButton onClick={() => onNavigate('create')} icon="plus" label="Observation" color="blue" isLight={isLight} />
+                     <TerminalButton onClick={() => onNavigate('my-tasks')} icon="user" label="My Tasks" color="emerald" count={myTaskCount} isLight={isLight} />
+                     <TerminalButton onClick={() => onNavigate('recent')} icon="list" label="Registry" color="slate" isLight={isLight} />
+                     <TerminalButton onClick={() => onNavigate('checklists')} icon="check" label="Inspect" color="amber" isLight={isLight} />
+                     <TerminalButton onClick={() => onNavigate('personnel')} icon="users" label="Personnel" color="indigo" isLight={isLight} />
+                   </>
+                ) : (
+                  <>
+                    <TerminalButton onClick={() => onNavigate('risk-assessment')} icon="shield" label="Risk RA" color="rose" isLight={isLight} />
+                    <TerminalButton onClick={() => onNavigate('training-management')} icon="book" label="Training" color="violet" isLight={isLight} />
+                    <TerminalButton onClick={() => onNavigate('compliance-tracker')} icon="award" label="Compliance" color="cyan" isLight={isLight} />
+                    <TerminalButton onClick={() => onNavigate('audit-trail')} icon="history" label="Audit" color="zinc" isLight={isLight} />
+                  </>
+                )}
+             </div>
           </div>
       </div>
     </div>
