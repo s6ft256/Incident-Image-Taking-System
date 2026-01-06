@@ -276,18 +276,6 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
             />
           </div>
 
-          <div className="pt-4 border-t border-white/5">
-            <InputField 
-              id="rootCause" 
-              label="Root Cause (Optional)" 
-              value={formData.rootCause || ''} 
-              onChange={handleInputChange} 
-              type="textarea"
-              rows={2}
-              placeholder="Identify the underlying cause if known..."
-            />
-          </div>
-
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-white/5">
             <InputField 
               id="name" 

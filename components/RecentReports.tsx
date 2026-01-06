@@ -1266,11 +1266,16 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
                              <div>
                                 <h4 className="text-[10px] font-black text-rose-500 uppercase tracking-[0.2em] mb-4">Initial Acquisition (Detection)</h4>
                                 <div className="grid grid-cols-2 gap-4">
-                                   {fields.Attachments?.map((att: any, i: number) => (
+                                   {(isIncident ? fields.Attachments : fields["Open observations"])?.map((att: any, i: number) => (
                                      <a href={att.url} target="_blank" rel="noopener noreferrer" key={i} className="group/img aspect-video rounded-2xl overflow-hidden border-2 border-white/5 shadow-xl transition-all hover:border-blue-500/50">
                                         <img src={att.url} className="w-full h-full object-cover transition-transform duration-700 group-hover/img:scale-110" alt="evidence" />
                                      </a>
                                    ))}
+                                   {!(isIncident ? fields.Attachments : fields["Open observations"])?.length && (
+                                     <div className="aspect-video rounded-2xl border-2 border-dashed border-white/5 flex flex-col items-center justify-center opacity-20 bg-white/5">
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                                     </div>
+                                   )}
                                 </div>
                              </div>
                              <div>
