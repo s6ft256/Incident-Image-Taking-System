@@ -1,12 +1,20 @@
 export interface WeatherData {
   temp: number;
+  feelsLike: number;
   condition: string;
   conditionCode: number;
   city: string;
   isDay: boolean;
   windSpeed: number;
+  windDirection: number;
   humidity: number;
+  uvIndex: number;
+  visibility: number;
+  pressure: number;
   preciseLocation?: string;
+  coordinates?: { lat: number; lon: number };
+  accuracy?: number;
+  timestamp: number;
 }
 
 const withTimeout = async <T>(promise: Promise<T>, timeoutMs: number, timeoutMessage: string): Promise<T> => {
@@ -107,7 +115,7 @@ export const getLocalWeather = async (): Promise<WeatherData> => {
             return;
           }
 
-          const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,is_day,weather_code,wind_speed_10m&timezone=auto`;
+          const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,apparent_temperature,relative_humidity_2m,is_day,weather_code,wind_speed_10m,wind_direction_10m,surface_pressure,uv_index&hourly=visibility&timezone=auto&forecast_days=1`;
           const controller = new AbortController();
           const weatherRes = await withTimeout(fetch(weatherUrl, { signal: controller.signal }), 10000, 'Weather fetch timeout');
           const weatherJson = await weatherRes.json();
@@ -117,13 +125,21 @@ export const getLocalWeather = async (): Promise<WeatherData> => {
 
           const result: WeatherData = {
             temp: Math.round(current.temperature_2m),
+            feelsLike: Math.round(current.apparent_temperature ?? current.temperature_2m),
             condition: getWeatherDescription(current.weather_code),
             conditionCode: current.weather_code,
             city: fullAddr.split(',')[0] || "Current Site",
             preciseLocation: fullAddr,
             isDay: current.is_day === 1,
-            windSpeed: current.wind_speed_10m,
-            humidity: current.relative_humidity_2m
+            windSpeed: Math.round(current.wind_speed_10m),
+            windDirection: current.wind_direction_10m ?? 0,
+            humidity: current.relative_humidity_2m,
+            uvIndex: Math.round(current.uv_index ?? 0),
+            visibility: weatherJson.hourly?.visibility?.[0] ? Math.round(weatherJson.hourly.visibility[0] / 1000) : 10,
+            pressure: Math.round(current.surface_pressure ?? 1013),
+            coordinates: { lat: latitude, lon: longitude },
+            accuracy: position.coords.accuracy,
+            timestamp: Date.now()
           };
 
           try {
@@ -177,10 +193,33 @@ const getWeatherDescription = (code: number): string => {
 };
 
 export const getWeatherSafetyTip = (data: WeatherData): string => {
-  if (data.temp > 35) return "CRITICAL HEAT: Implement mandatory hydration breaks.";
-  if (data.temp < 5) return "COLD RISK: Ensure thermal PPE and monitor for fatigue.";
-  if (data.conditionCode >= 51 && data.conditionCode <= 67) return "SLIP HAZARD: Wet surfaces detected. Exercise caution on scaffolding.";
-  if (data.conditionCode >= 95) return "LIGHTNING RISK: Stop all outdoor high-altitude work immediately.";
-  if (data.windSpeed > 30) return "WIND ALERT: High-altitude crane operations restricted.";
-  return "Standard site conditions. Maintain situational awareness.";
+  // Critical conditions first
+  if (data.conditionCode >= 95) return "⚡ LIGHTNING RISK: Stop all outdoor high-altitude work immediately.";
+  if (data.uvIndex >= 8) return "☀️ EXTREME UV: Mandatory shade breaks, sunscreen, and eye protection.";
+  if (data.temp > 40 || data.feelsLike > 45) return "🔥 EXTREME HEAT: All outdoor work suspended. Heat stroke risk.";
+  if (data.temp > 35 || data.feelsLike > 38) return "🌡️ CRITICAL HEAT: Implement mandatory hydration breaks every 30 min.";
+  if (data.windSpeed > 50) return "🌪️ SEVERE WIND: All crane and elevated work suspended.";
+  if (data.windSpeed > 30) return "💨 WIND ALERT: High-altitude crane operations restricted.";
+  if (data.visibility < 1) return "🌫️ VISIBILITY CRITICAL: Suspend vehicle operations, use spotters.";
+  if (data.visibility < 5) return "🌫️ LOW VISIBILITY: Reduce vehicle speed, increase lighting.";
+  if (data.temp < 0) return "❄️ FREEZING: Black ice risk. Check surface conditions before work.";
+  if (data.temp < 5) return "🥶 COLD RISK: Ensure thermal PPE and monitor for fatigue.";
+  if (data.conditionCode >= 51 && data.conditionCode <= 67) return "💧 SLIP HAZARD: Wet surfaces detected. Exercise caution on scaffolding.";
+  if (data.uvIndex >= 6) return "☀️ HIGH UV: Apply sunscreen. Limit direct sun exposure.";
+  if (data.humidity > 85 && data.temp > 30) return "💦 HEAT STRESS: High humidity increases heat illness risk.";
+  return "✅ Standard site conditions. Maintain situational awareness.";
+};
+
+export const getWindDirection = (degrees: number): string => {
+  const directions = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
+  const index = Math.round(degrees / 22.5) % 16;
+  return directions[index];
+};
+
+export const getUVRiskLevel = (uvIndex: number): { level: string; color: string } => {
+  if (uvIndex <= 2) return { level: 'Low', color: 'green' };
+  if (uvIndex <= 5) return { level: 'Moderate', color: 'yellow' };
+  if (uvIndex <= 7) return { level: 'High', color: 'orange' };
+  if (uvIndex <= 10) return { level: 'Very High', color: 'red' };
+  return { level: 'Extreme', color: 'purple' };
 };
