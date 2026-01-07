@@ -348,6 +348,27 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
     }
   };
 
+  const handleSaveObservationEdits = async (observationId: string, _assigneeName: string, updates: { assignedTo?: string }) => {
+    setIsUpdatingObservation(prev => ({ ...prev, [observationId]: true }));
+    try {
+      const patch: Record<string, any> = {};
+      if (updates.assignedTo !== undefined) patch["Assigned To"] = updates.assignedTo;
+      
+      if (Object.keys(patch).length === 0) {
+        sendToast('No changes to save.', 'info');
+        return;
+      }
+      
+      await updateObservation(observationId, patch);
+      sendToast('Observation updated.', 'success');
+      refetchData();
+    } catch (e: any) {
+      sendToast(e?.message || 'Failed to update observation.', 'critical');
+    } finally {
+      setIsUpdatingObservation(prev => ({ ...prev, [observationId]: false }));
+    }
+  };
+
   const handleResubmitObservation = async (reportId: string, assigneeName: string, closureImages?: FileList, existingFields?: any) => {
     const draft = String(actionDrafts[reportId] ?? '').trim();
     if (draft.length < 3) {
@@ -1195,6 +1216,8 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
                                             isLight={isLight}
                                             helperText={pendingClosureFiles[report.id] ? `${pendingClosureFiles[report.id]?.length} file(s) selected` : "Upload evidence of correction"}
                                             onFilesSelected={(files) => setPendingClosureFiles(prev => ({ ...prev, [report.id]: files }))}
+                                            selectedFiles={pendingClosureFiles[report.id]}
+                                            showPreview={true}
                                          />
                                      </div>
 

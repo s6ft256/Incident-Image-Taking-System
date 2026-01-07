@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useEffect, useMemo } from 'react';
 
 interface ImageUploadZoneProps {
   onFilesSelected: (files: FileList) => void;
@@ -6,6 +6,8 @@ interface ImageUploadZoneProps {
   isLight?: boolean;
   label?: string;
   helperText?: string;
+  selectedFiles?: FileList | null;
+  showPreview?: boolean;
 }
 
 export const ImageUploadZone: React.FC<ImageUploadZoneProps> = ({ 
@@ -13,9 +15,41 @@ export const ImageUploadZone: React.FC<ImageUploadZoneProps> = ({
   isUploading, 
   isLight = false, 
   label = "Upload Evidence",
-  helperText = "Supports: JPG, PNG, WEBP"
+  helperText = "Supports: JPG, PNG, WEBP",
+  selectedFiles = null,
+  showPreview = true
 }) => {
   const [isDragging, setIsDragging] = useState(false);
+  const [previewUrls, setPreviewUrls] = useState<string[]>([]);
+
+  // Generate preview URLs when selectedFiles change
+  useEffect(() => {
+    if (!selectedFiles || selectedFiles.length === 0 || !showPreview) {
+      setPreviewUrls([]);
+      return;
+    }
+    
+    const urls: string[] = [];
+    const fileList = Array.from(selectedFiles).filter(f => f.type.startsWith('image/'));
+    
+    fileList.forEach(file => {
+      const url = URL.createObjectURL(file);
+      urls.push(url);
+    });
+    
+    setPreviewUrls(urls);
+    
+    // Cleanup URLs on unmount or when files change
+    return () => {
+      urls.forEach(url => URL.revokeObjectURL(url));
+    };
+  }, [selectedFiles, showPreview]);
+
+  // File names for display
+  const fileNames = useMemo(() => {
+    if (!selectedFiles || selectedFiles.length === 0) return [];
+    return Array.from(selectedFiles).filter(f => f.type.startsWith('image/')).map(f => f.name);
+  }, [selectedFiles]);
 
   const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -100,6 +134,36 @@ export const ImageUploadZone: React.FC<ImageUploadZoneProps> = ({
           )}
         </div>
       </div>
+      
+      {/* Image Preview Grid */}
+      {showPreview && previewUrls.length > 0 && (
+        <div className="mt-4">
+          <div className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">
+            Preview ({previewUrls.length} {previewUrls.length === 1 ? 'image' : 'images'})
+          </div>
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
+            {previewUrls.map((url, index) => (
+              <div 
+                key={index}
+                className={`relative aspect-square rounded-xl overflow-hidden border-2 ${
+                  isLight ? 'border-slate-200 bg-slate-100' : 'border-white/10 bg-black/30'
+                }`}
+              >
+                <img 
+                  src={url} 
+                  alt={fileNames[index] || `Preview ${index + 1}`}
+                  className="w-full h-full object-cover"
+                />
+                <div className={`absolute inset-x-0 bottom-0 px-1 py-0.5 text-[8px] font-bold truncate ${
+                  isLight ? 'bg-white/90 text-slate-700' : 'bg-black/70 text-white'
+                }`}>
+                  {fileNames[index]?.slice(0, 15) || `Image ${index + 1}`}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
