@@ -17,6 +17,7 @@
 3.  **Environment Variables**:
     *   Create a `.env` file in the root directory.
     *   Fill in your specific API keys for Airtable, Supabase, and Google Gemini.
+    *   *See `AIRTABLE_SETUP_GUIDE.md` for specific database schema requirements.*
 4.  **Run**: `npm run dev`
 
 ## Deployment & GitHub Workflow
