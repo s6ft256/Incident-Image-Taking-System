@@ -7,6 +7,12 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react()],
+    // Fix CORS issues for manifest.json in Codespaces
+    server: {
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+      },
+    },
     define: {
       // Ensure process and process.env exist in the browser to prevent crashes
       'process.env': JSON.stringify({}),

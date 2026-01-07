@@ -31,7 +31,7 @@ export const AIRTABLE_CONFIG = {
   TABLES: {
     // Using the specific Table ID provided by the user for Incident Reports for guaranteed linkage
     OBSERVATIONS: 'Observation Reports', 
-    INCIDENTS: 'Incident Reports', // Reset to standard name for new base setup
+    INCIDENTS: 'tbl71CMWMa1qDm8I7', // Table ID required for this specific Airtable Base
     CRANE_CHECKS: 'Crane Checklists',
     EQUIPMENT_CHECKS: 'Equipment Checklists',
     TRAINING: 'Training Roster'
