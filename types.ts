@@ -164,6 +164,10 @@ export interface ObservationRecord {
       url: string; 
       filename?: string; 
     }>;
+    "Open observations"?: Array<{ 
+      url: string; 
+      filename?: string; 
+    }>;
     "Closed observations"?: Array<{ 
       url: string; 
       filename?: string; 
@@ -190,6 +194,14 @@ export interface FetchedObservation {
     "Location"?: string; 
     "Root Cause"?: string;
     "Attachments"?: Array<{ 
+      url: string; 
+      filename: string;
+      thumbnails?: {
+        small: { url: string; width: number; height: number };
+        large: { url: string; width: number; height: number };
+      };
+    }>;
+    "Open observations"?: Array<{ 
       url: string; 
       filename: string;
       thumbnails?: {

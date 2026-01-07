@@ -4,6 +4,7 @@ import { FetchedObservation, UserProfile, FetchedIncident } from '../types';
 import { ARCHIVE_ACCESS_KEY, INCIDENT_STATUS, getRiskLevel, SEVERITY_LEVELS, LIKELIHOOD_LEVELS, STORAGE_KEYS, INCIDENT_TYPES, DEPARTMENTS, SITES } from '../constants';
 import { useAppContext } from '../context/AppContext';
 import { ShareModal } from './ShareModal';
+import { ImageGallery } from './ImageGallery';
 import { ReportComments } from './ReportComments';
 import { getAssignedReports } from '../services/sharingService';
 import { updateIncident, updateObservation } from '../services/airtableService';
@@ -50,6 +51,10 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
   
   const { state, refetchData } = useAppContext();
   const { allReports, allIncidents, isLoading: loading } = state;
+  
+  const personnelNames = useMemo(() => {
+    return state.personnel.map(p => p.name).sort();
+  }, [state.personnel]);
   
   const [activeTab, setActiveTab] = useState<Tab>(filterAssignee ? 'assigned' : 'incidents');
   const [searchTerm, setSearchTerm] = useState('');
@@ -463,6 +468,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
 
       if (activeTab === 'closed') return isClosed && matchesSearch && matchesAssignee;
       if (activeTab === 'assigned') return !isClosed && (assignedTokens.length > 0 || isLocallyAssignedToMe) && matchesSearch && (matchesAssignee || isLocallyAssignedToMe);
+      // Open tab: Only show unassigned and active reports (assigned ones go to "Assigned" or "My Tasks")
       return !isClosed && assignedTokens.length === 0 && matchesSearch && matchesAssignee;
     });
   }, [allReports, allIncidents, activeTab, searchTerm, filterAssignee, localAssignedObservationIds]);
@@ -1155,14 +1161,15 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
                                <DataField label="Closed By" value={fields["Closed by"]} isLight={isLight} />
                                <DataField label="Root Cause" value={fields["Root Cause"]} isLight={isLight} />
 
-                               {isMyTasksMode && filterAssignee && (() => {
-                                 const assignedToRaw = String(fields["Assigned To"] || "").trim();
-                                 const assignedTokens = normalizeAssignees(assignedToRaw);
-                                 const normalizedAssignee = filterAssignee.trim().toLowerCase();
-                                 const isAssignedToMe = assignedTokens.includes(normalizedAssignee) || localAssignedObservationIds.has(report.id);
-                                 if (!isAssignedToMe) return null;
+                               {/* Allow editing if "Action Taken" is empty (i.e., Unclosed/Open) */}
+                               {(() => {
+                                 const actionTaken = String(fields["Action taken"] || "").trim();
+                                 const isClosed = actionTaken.length > 0;
+                                 
+                                 // HIDE if already closed
+                                 if (isClosed) return null;
 
-                                 const draft = actionDrafts[report.id] ?? String(fields["Action taken"] || '');
+                                 const draft = actionDrafts[report.id] ?? "";
                                  const isBusy = !!isUpdatingObservation[report.id];
                                  const isUploadingImages = !!isUploadingClosureImages[report.id];
 
@@ -1170,10 +1177,12 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
                                    <div className={`mt-6 p-5 rounded-2xl border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'}`}>
                                      <div className="flex items-center justify-between gap-3 mb-3">
                                        <div>
-                                         <div className="text-[10px] font-black text-blue-500 uppercase tracking-[0.3em]">Assigned Action Update</div>
-                                         <div className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">Fill action taken and upload closure images</div>
+                                         <div className="text-[10px] font-black text-blue-500 uppercase tracking-[0.3em]">Action & Closure</div>
+                                         <div className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">Update action taken to close this observation</div>
                                        </div>
                                      </div>
+                                     
+                                     {/* Action Taken Input */}
                                      <textarea
                                        value={draft}
                                        onChange={(e) => setActionDrafts(prev => ({ ...prev, [report.id]: e.target.value }))}
@@ -1183,6 +1192,8 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
                                          isLight ? 'bg-white border-slate-200 focus:border-blue-500' : 'bg-black/30 border-white/10 focus:border-blue-500 text-white'
                                        }`}
                                      />
+                                     
+                                     {/* Closure Images Input */}
                                      <div className="mt-4">
                                        <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 block">
                                          Closure Images (Optional)
@@ -1197,11 +1208,42 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
                                          }`}
                                        />
                                      </div>
+
+                                     {/* Assignment Edit (Optional - to allow assigning if unassigned) */}
+                                     <div className="mt-4">
+                                        <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 block">
+                                          Assign To (Optional)
+                                        </label>
+                                        <input
+                                          defaultValue={String(fields["Assigned To"] || "")}
+                                          onBlur={(e) => {
+                                            const newVal = e.target.value;
+                                            if (newVal !== String(fields["Assigned To"] || "")) {
+                                              handleSaveObservationEdits(report.id, filterAssignee || '', { assignedTo: newVal });
+                                            }
+                                          }}
+                                          list={`obs-${report.id}-assignees`}
+                                          placeholder="Assign this observation..."
+                                          className={`w-full p-3 rounded-2xl border text-sm font-bold outline-none transition-all ${
+                                            isLight ? 'bg-white border-slate-200' : 'bg-black/30 border-white/10 text-white'
+                                          }`}
+                                        />
+                                         <datalist id={`obs-${report.id}-assignees`}>
+                                            {personnelNames.map((n) => <option key={n} value={n} />)}
+                                         </datalist>
+                                     </div>
+                                     
                                      <div className="flex justify-end mt-4">
                                        <button
                                          disabled={isBusy || isUploadingImages}
                                          onClick={() => {
                                            const fileInput = document.getElementById(`closure-images-${report.id}`) as HTMLInputElement;
+                                           // If action taken is provided, submit it.
+                                           // We pass the new action taken as override to fields for the function
+                                           if (!draft.trim()) {
+                                              sendToast("Please describe the action taken.", "error"); // Use standard error toast
+                                              return;
+                                           }
                                            handleResubmitObservation(report.id, filterAssignee, fileInput?.files || undefined, fields);
                                          }}
                                          className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 border ${
@@ -1257,44 +1299,12 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
                          </div>
                        )}
 
-                       <div className="space-y-8 pt-8 border-t border-white/5">
-                          <h3 className="text-[11px] font-black text-white uppercase tracking-widest flex items-center gap-2">
-                             <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
-                             Photographic Evidence Repository
-                          </h3>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                             <div>
-                                <h4 className="text-[10px] font-black text-rose-500 uppercase tracking-[0.2em] mb-4">Initial Acquisition (Detection)</h4>
-                                <div className="grid grid-cols-2 gap-4">
-                                   {(isIncident ? fields.Attachments : fields["Open observations"])?.map((att: any, i: number) => (
-                                     <a href={att.url} target="_blank" rel="noopener noreferrer" key={i} className="group/img aspect-video rounded-2xl overflow-hidden border-2 border-white/5 shadow-xl transition-all hover:border-blue-500/50">
-                                        <img src={att.url} className="w-full h-full object-cover transition-transform duration-700 group-hover/img:scale-110" alt="evidence" />
-                                     </a>
-                                   ))}
-                                   {!(isIncident ? fields.Attachments : fields["Open observations"])?.length && (
-                                     <div className="aspect-video rounded-2xl border-2 border-dashed border-white/5 flex flex-col items-center justify-center opacity-20 bg-white/5">
-                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-                                     </div>
-                                   )}
-                                </div>
-                             </div>
-                             <div>
-                                <h4 className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.2em] mb-4">Verification Acquisition (Resolution)</h4>
-                                <div className="grid grid-cols-2 gap-4">
-                                   {(isIncident ? fields["Verification Photos"] : fields["Closed observations"])?.map((att: any, i: number) => (
-                                     <a href={att.url} target="_blank" rel="noopener noreferrer" key={i} className="group/img aspect-video rounded-2xl overflow-hidden border-2 border-white/5 shadow-xl transition-all hover:border-blue-500/50">
-                                        <img src={att.url} className="w-full h-full object-cover transition-transform duration-700 group-hover/img:scale-110" alt="resolution" />
-                                     </a>
-                                   ))}
-                                   {!(isIncident ? fields["Verification Photos"] : fields["Closed observations"])?.length && (
-                                     <div className="aspect-video rounded-2xl border-2 border-dashed border-white/5 flex flex-col items-center justify-center opacity-20 bg-white/5">
-                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-                                     </div>
-                                   )}
-                                </div>
-                             </div>
-                          </div>
-                       </div>
+                       {/* Extracted Image Gallery */}
+                       <ImageGallery 
+                          reportType={report.reportType} 
+                          fields={fields} 
+                          isLight={isLight} 
+                       />
                     </div>
                   )}
                 </div>
