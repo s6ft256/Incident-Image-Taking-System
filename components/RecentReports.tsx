@@ -5,6 +5,7 @@ import { ARCHIVE_ACCESS_KEY, INCIDENT_STATUS, getRiskLevel, SEVERITY_LEVELS, LIK
 import { useAppContext } from '../context/AppContext';
 import { ShareModal } from './ShareModal';
 import { ImageGallery } from './ImageGallery';
+import { ImageUploadZone } from './ImageUploadZone';
 import { ReportComments } from './ReportComments';
 import { getAssignedReports } from '../services/sharingService';
 import { updateIncident, updateObservation } from '../services/airtableService';
@@ -77,6 +78,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
 
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [actionDrafts, setActionDrafts] = useState<Record<string, string>>({});
+  const [pendingClosureFiles, setPendingClosureFiles] = useState<Record<string, FileList | null>>({});
   const [isUpdatingObservation, setIsUpdatingObservation] = useState<Record<string, boolean>>({});
   const [isUploadingClosureImages, setIsUploadingClosureImages] = useState<Record<string, boolean>>({});
 
@@ -378,6 +380,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
 
       await updateObservation(reportId, updateData);
       sendToast('Update submitted successfully.', 'success');
+      setPendingClosureFiles(prev => ({ ...prev, [reportId]: null }));
       refetchData();
     } catch (e: any) {
       sendToast(e?.message || 'Failed to resubmit update.', 'critical');
@@ -991,22 +994,13 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
                                      </div>
 
                                      <div className="md:col-span-2">
-                                       <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Verification Photos (Airtable)</label>
-                                       <input
-                                         type="file"
-                                         accept="image/*"
-                                         multiple
-                                         disabled={uploading}
-                                         onChange={(e) => {
-                                           if (e.target.files) void handleUploadVerificationPhotos(report.id, e.target.files, fields);
-                                         }}
-                                         className={`w-full p-4 rounded-2xl border text-sm font-bold outline-none transition-all ${
-                                           isLight ? 'bg-white border-slate-200' : 'bg-black/30 border-white/10 text-white'
-                                         } ${uploading ? 'opacity-60 cursor-not-allowed' : ''}`}
-                                       />
-                                       <div className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-2">
-                                         {uploading ? 'Uploading…' : 'Uploads to Supabase then writes into Airtable “Verification Photos”.'}
-                                       </div>
+                                       <ImageUploadZone 
+                                           label="Verification Photos (Airtable)"
+                                           isUploading={uploading}
+                                           isLight={isLight}
+                                           helperText="Uploads to Supabase then writes into Airtable."
+                                           onFilesSelected={(files) => handleUploadVerificationPhotos(report.id, files, fields)}
+                                        />
                                      </div>
 
                                      <div>
@@ -1195,18 +1189,13 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
                                      
                                      {/* Closure Images Input */}
                                      <div className="mt-4">
-                                       <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 block">
-                                         Closure Images (Optional)
-                                       </label>
-                                       <input
-                                         id={`closure-images-${report.id}`}
-                                         type="file"
-                                         multiple
-                                         accept="image/*"
-                                         className={`w-full p-3 rounded-2xl border text-sm font-bold outline-none transition-all ${
-                                           isLight ? 'bg-white border-slate-200' : 'bg-black/30 border-white/10 text-white'
-                                         }`}
-                                       />
+                                         <ImageUploadZone 
+                                            label="Closure Images (Optional)"
+                                            isUploading={isUploadingImages}
+                                            isLight={isLight}
+                                            helperText={pendingClosureFiles[report.id] ? `${pendingClosureFiles[report.id]?.length} file(s) selected` : "Upload evidence of correction"}
+                                            onFilesSelected={(files) => setPendingClosureFiles(prev => ({ ...prev, [report.id]: files }))}
+                                         />
                                      </div>
 
                                      {/* Assignment Edit (Optional - to allow assigning if unassigned) */}
@@ -1237,14 +1226,13 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
                                        <button
                                          disabled={isBusy || isUploadingImages}
                                          onClick={() => {
-                                           const fileInput = document.getElementById(`closure-images-${report.id}`) as HTMLInputElement;
                                            // If action taken is provided, submit it.
                                            // We pass the new action taken as override to fields for the function
                                            if (!draft.trim()) {
                                               sendToast("Please describe the action taken.", "error"); // Use standard error toast
                                               return;
                                            }
-                                           handleResubmitObservation(report.id, filterAssignee, fileInput?.files || undefined, fields);
+                                           handleResubmitObservation(report.id, filterAssignee, pendingClosureFiles[report.id] || undefined, fields);
                                          }}
                                          className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 border ${
                                            isLight ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-500' : 'bg-blue-600 text-white border-blue-500/20 hover:bg-blue-500'
