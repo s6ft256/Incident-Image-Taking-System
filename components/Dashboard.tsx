@@ -142,24 +142,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
         </div>
       </div>
 
-      <div className={`relative px-6 sm:px-10 py-10 sm:py-14 rounded-[3rem] border shadow-2xl overflow-hidden ${isLight ? 'bg-white border-blue-200' : 'bg-slate-900/20 border-blue-500/20 backdrop-blur-md'}`}>
-        <div className="flex items-center justify-center gap-4 mb-10">
-          <div className={`h-px w-10 sm:w-12 ${isLight ? 'bg-blue-600/30' : 'bg-blue-400/30'}`} />
-          <span className={`text-[10px] font-black uppercase tracking-[0.35em] ${isLight ? 'text-blue-600' : 'text-blue-400'}`}>HSEGUARDIAN CORE</span>
-          <div className={`h-px w-10 sm:w-12 ${isLight ? 'bg-blue-600/30' : 'bg-blue-400/30'}`} />
-        </div>
 
-        <h1 className={`text-center text-2xl sm:text-4xl font-black tracking-tight leading-snug ${isLight ? 'text-slate-900' : 'text-white'}`}>
-          HSEGUARDIAN ISN'T JUST SOFTWARE. IT'S YOUR PROACTIVE SAFETY
-          NERVE CENTER. A UNIFIED SYSTEM CAPTURING AND MANAGING ALL
-          SAFETY OBSERVATIONS AND DATA IN REAL TIME.
-        </h1>
-
-        <p className={`text-center mt-6 text-sm sm:text-base font-semibold ${isLight ? 'text-slate-500' : 'text-slate-300'}`}>
-          Consolidating real time telemetry from work sites into a unified command grid. Ensure
-          zero harm through high integrity data acquisition and remediation.
-        </p>
-      </div>
 
       <LocationPrompt appTheme={appTheme} onPermissionGranted={() => setLocationRefreshKey(prev => prev + 1)} />
       <WeatherWidget key={locationRefreshKey} appTheme={appTheme} />

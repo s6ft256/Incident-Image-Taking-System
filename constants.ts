@@ -7,6 +7,11 @@ export const MAX_IMAGES = 5;
 
 // Robust environment variable access with fallbacks
 const getEnv = (key: string, fallback: string): string => {
+  // Check Vite's import.meta.env (standard for this project)
+  if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env[key]) {
+    return import.meta.env[key] as string;
+  }
+  // Check Node's process.env (fallback for non-Vite contexts)
   if (typeof process !== 'undefined' && process.env && process.env[key]) {
     return process.env[key] as string;
   }
@@ -14,7 +19,7 @@ const getEnv = (key: string, fallback: string): string => {
 };
 
 // Robustly extract Base ID even if a full URL or "base/table" format is provided
-const rawAirtableBaseId = getEnv('VITE_AIRTABLE_BASE_ID', 'appRNHMjdLKpotlNB/tbl71CMWMa1qDm8I7');
+const rawAirtableBaseId = getEnv('VITE_AIRTABLE_BASE_ID', '');
 const extractBaseId = (input: string): string => {
   // Regex to find "app" followed by alphanumeric characters (standard Airtable Base ID format)
   const match = input.match(/app[a-zA-Z0-9]{14,}/);
@@ -32,12 +37,12 @@ export const AIRTABLE_CONFIG = {
     TRAINING: 'Training Roster'
   },
   // Updated with the provided Airtable Personal Access Token
-  API_KEY: getEnv('VITE_AIRTABLE_API_KEY', 'patFuLFp4mxndHLfc.47c01513351507ff561150bb79dd452895ca7f0eef1d27ae7731d52dd1f5c73a'),
+  API_KEY: getEnv('VITE_AIRTABLE_API_KEY', ''),
 };
 
 export const SUPABASE_CONFIG = {
-  URL: getEnv('VITE_SUPABASE_URL', 'https://irsjpzbbpqsgrqdhanbz.supabase.co').trim(),
-  ANON_KEY: getEnv('VITE_SUPABASE_ANON_KEY', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imlyc2pwemJicHFzZ3JxZGhhbmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU5MzQ4NDEsImV4cCI6MjA4MTUxMDg0MX0.jIMFwX6z-AoMnEk3oqROHMhEGwjbMG5-q8HGkIIXvBw').trim(),
+  URL: getEnv('VITE_SUPABASE_URL', '').trim(),
+  ANON_KEY: getEnv('VITE_SUPABASE_ANON_KEY', '').trim(),
   BUCKET_NAME: getEnv('VITE_SUPABASE_BUCKET', 'incident-images'),
 };
 
@@ -49,7 +54,7 @@ export const STORAGE_KEYS = {
   COOKIES_ACCEPTED: 'hse_guardian_cookies_accepted'
 };
 
-export const ARCHIVE_ACCESS_KEY = getEnv('VITE_ARCHIVE_ACCESS_KEY', 'HSE2025');
+export const ARCHIVE_ACCESS_KEY = getEnv('VITE_ARCHIVE_ACCESS_KEY', '');
 export const SYSTEM_LOGO_URL = 'https://www.multiply-marketing.com/trojan-wp/wp-content/uploads/2020/08/tgc-logo-300x300.png';
 
 export const INCIDENT_STATUS = {

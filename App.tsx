@@ -139,6 +139,11 @@ export default function App() {
     if (!userProfile?.name || !isOnline) return;
     const monitorSafetyStatus = async () => {
       if (!navigator.onLine) return;
+      // Skip if Airtable is not configured (prevents silent failures)
+      if (!baseId || !AIRTABLE_CONFIG.API_KEY) {
+        console.warn('Notification Monitor: Airtable credentials not configured. Skipping task sync.');
+        return;
+      }
       try {
         const tasks = await getAssignedCriticalObservations(userProfile.name, { baseId });
         const allReports = await getAllReports({ baseId });
