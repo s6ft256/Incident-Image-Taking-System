@@ -274,6 +274,12 @@ export const useObservationReport = (baseId: string) => {
       const attachments = successfulImages.map(img => ({ url: img.serverUrl!, filename: img.file.name }));
       await submitObservationReport(formData, attachments, { baseId });
       setSubmitStatus('success');
+      // Notify app that a new report was submitted so UI can refresh and show it in Open tab
+      try {
+        window.dispatchEvent(new CustomEvent('report:submitted', { detail: { type: 'observation', baseId } }));
+      } catch (e) {
+        // ignore
+      }
     } catch (error: any) {
       setSubmitStatus('error');
       setErrorMessage(error.message || "Transmission interrupted. Please check your connection and try again.");

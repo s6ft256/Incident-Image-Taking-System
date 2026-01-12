@@ -68,6 +68,23 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
   const isLight = appTheme === 'light';
   const isMyTasksMode = !!filterAssignee;
 
+  // Listen for immediate report submissions and switch to Open tab + refresh data
+  React.useEffect(() => {
+    const handler = (ev: Event) => {
+      try {
+        setActiveTab('open');
+        refetchData();
+        // brief visual nudge: collapse any expanded item
+        setExpandedId(null);
+      } catch (e) {
+        // ignore
+      }
+    };
+
+    window.addEventListener('report:submitted', handler as EventListener);
+    return () => window.removeEventListener('report:submitted', handler as EventListener);
+  }, [refetchData]);
+
   const localAssignedObservationIds = useMemo(() => {
     if (!filterAssignee) return new Set<string>();
     const assigned = getAssignedReports(filterAssignee)
