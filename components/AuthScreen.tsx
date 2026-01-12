@@ -6,6 +6,7 @@ import { uploadImageToStorage } from '../services/storageService';
 import { compressImage } from '../utils/imageCompression';
 import { InputField } from './InputField';
 import { PolicyModal } from './PolicyModal';
+import { COOKIE_CONSENT_KEY } from './CookieBanner';
 
 interface AuthScreenProps {
   onAuthComplete: (profile: UserProfile) => void;
@@ -53,6 +54,17 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
   const [imageConsent, setImageConsent] = useState(false);
   const [cookieConsent, setCookieConsent] = useState(false);
   const [showComplianceModal, setShowComplianceModal] = useState(false);
+  // which tab to show when opening the PolicyModal from this component
+  const [policyInitialTab, setPolicyInitialTab] = useState<'privacy' | 'cookies' | 'agreement'>('privacy');
+
+  useEffect(() => {
+    const accepted = localStorage.getItem(COOKIE_CONSENT_KEY);
+    if (accepted) setCookieConsent(true);
+
+    const handler = () => setCookieConsent(true);
+    window.addEventListener('hse_cookie_consent_changed', handler);
+    return () => window.removeEventListener('hse_cookie_consent_changed', handler);
+  }, []);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [previewUrl, setPreviewUrl] = useState('');
@@ -225,7 +237,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
                    <div className="flex items-start gap-3 px-1">
                       <input type="checkbox" id="privacyConsent" checked={privacyConsent} onChange={(e) => setPrivacyConsent(e.target.checked)} className="mt-0.5 w-4 h-4 rounded border-slate-700 bg-slate-900 text-blue-600 focus:ring-blue-500" />
                       <label htmlFor="privacyConsent" className={`text-[7px] font-black uppercase tracking-widest leading-relaxed ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
-                        I agree to the <button type="button" onClick={() => setShowComplianceModal(true)} className="text-blue-500 underline">User Agreement</button>.
+                        I agree to the <button type="button" onClick={() => { setPolicyInitialTab('agreement'); setShowComplianceModal(true); }} className="text-blue-500 underline">User Agreement</button>.
                       </label>
                    </div>
                    <div className="flex items-start gap-3 px-1">
@@ -234,6 +246,12 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
                         I authorize evidence image collection.
                       </label>
                    </div>
+                   <div className="flex items-start gap-3 px-1">
+                      <input type="checkbox" id="cookieConsent" checked={cookieConsent} onChange={(e) => { setCookieConsent(e.target.checked); if (e.target.checked) localStorage.setItem(COOKIE_CONSENT_KEY, 'true'); else localStorage.removeItem(COOKIE_CONSENT_KEY); }} className="mt-0.5 w-4 h-4 rounded border-slate-700 bg-slate-900 text-blue-600 focus:ring-blue-500" />
+                      <label htmlFor="cookieConsent" className={`text-[7px] font-black uppercase tracking-widest leading-relaxed ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+                        I acknowledge the <button type="button" onClick={() => { setPolicyInitialTab('cookies'); setShowComplianceModal(true); }} className="text-blue-500 underline">Cookie Handshake</button>.
+                      </label>
+                   </div> 
                 </div>
               )}
 
@@ -246,7 +264,23 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
         </AuthCard>
       )}
 
-      {showComplianceModal && <PolicyModal onClose={() => setShowComplianceModal(false)} initialTab="privacy" showAcceptButton onAccept={() => { setPrivacyConsent(true); setShowComplianceModal(false); }} appTheme={appTheme} />}
+      {showComplianceModal && (
+        <PolicyModal
+          onClose={() => setShowComplianceModal(false)}
+          initialTab={policyInitialTab === 'cookies' ? 'cookies' : (policyInitialTab === 'agreement' ? 'agreement' : 'privacy')}
+          showAcceptButton={policyInitialTab === 'cookies' || policyInitialTab === 'agreement'}
+          onAccept={() => {
+            if (policyInitialTab === 'cookies') {
+              setCookieConsent(true);
+              localStorage.setItem(COOKIE_CONSENT_KEY, 'true');
+            } else if (policyInitialTab === 'agreement') {
+              setPrivacyConsent(true);
+            }
+            setShowComplianceModal(false);
+          }}
+          appTheme={appTheme}
+        />
+      )}
     </div>
   );
 };

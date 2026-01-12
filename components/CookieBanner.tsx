@@ -6,7 +6,7 @@ interface CookieBannerProps {
   onViewDetails: () => void;
 }
 
-const COOKIE_CONSENT_KEY = 'hse_guardian_cookies_accepted';
+export const COOKIE_CONSENT_KEY = 'hse_guardian_cookies_accepted';
 
 export const CookieBanner: React.FC<CookieBannerProps> = ({ appTheme = 'dark', onViewDetails }) => {
   const [isVisible, setIsVisible] = useState(false);
@@ -23,6 +23,8 @@ export const CookieBanner: React.FC<CookieBannerProps> = ({ appTheme = 'dark', o
   const handleAccept = () => {
     localStorage.setItem(COOKIE_CONSENT_KEY, 'true');
     setIsVisible(false);
+    // notify any listeners in the same window/session that consent was given
+    try { window.dispatchEvent(new Event('hse_cookie_consent_changed')); } catch (e) { /* ignore */ }
   };
 
   if (!isVisible) return null;
