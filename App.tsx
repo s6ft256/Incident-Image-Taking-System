@@ -291,46 +291,47 @@ export default function App() {
   return (
     <>
       {printingIncident && <div className="printable-report-container"><PrintableIncidentReport incident={printingIncident} /></div>}
-      <div className={`printable-hidden min-h-screen transition-colors duration-300 relative selection:bg-blue-500/30 overflow-x-hidden flex flex-col ${appTheme === 'dark' ? 'bg-[#020617]' : 'bg-white'}`}>
+      <div className={`printable-hidden min-h-screen transition-colors duration-500 relative selection:bg-blue-500/30 overflow-x-hidden flex flex-col font-sans ${appTheme === 'dark' ? 'bg-gradient-to-br from-[#18181b] via-[#020617] to-[#1e293b]' : 'bg-gradient-to-br from-white via-slate-100 to-blue-50'}`}>
         <NotificationSystem appTheme={appTheme} onViewTask={(id) => { setView('recent'); window.location.hash = `view-report-${id}`; }} />
         <div className={`relative z-10 flex flex-col flex-grow ${view === 'inspection-viewer' ? 'h-auto overflow-visible' : ''}`}>
-          <header className={`sticky top-0 z-40 backdrop-blur-2xl border-b transition-all duration-300 ${appTheme === 'dark' ? 'bg-[#020617]/90 border-white/5 shadow-xl' : 'bg-white border-slate-200 shadow-sm'} ${(view === 'auth' || view === 'inspection-viewer') ? 'hidden' : ''}`}>
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
+          <header className={`sticky top-0 z-40 backdrop-blur-2xl border-b transition-all duration-500 ${appTheme === 'dark' ? 'bg-[#18181b]/90 border-white/10 shadow-2xl' : 'bg-white/90 border-slate-200 shadow-lg'} ${(view === 'auth' || view === 'inspection-viewer') ? 'hidden' : ''}`}>
+            <div className="max-w-7xl mx-auto px-4 sm:px-8 py-4 flex items-center justify-between gap-6">
                <div className="flex-1 flex justify-start">
-                 <div onClick={() => setView('dashboard')} className="group cursor-pointer">
-                   <img src={SYSTEM_LOGO_URL} alt="Logo" className="h-20 sm:h-32 w-auto object-contain drop-shadow-2xl transition-all duration-500 group-hover:scale-110 origin-left" />
+                 <div onClick={() => setView('dashboard')} className="group cursor-pointer rounded-xl hover:bg-blue-50/30 dark:hover:bg-white/5 p-2 transition-all duration-300">
+                   <img src={SYSTEM_LOGO_URL} alt="HSE Guardian Logo" className="h-20 sm:h-32 w-auto object-contain drop-shadow-2xl transition-all duration-500 group-hover:scale-110 origin-left" />
                  </div>
                </div>
                <div className="flex flex-[4] flex-col items-center group cursor-pointer" onClick={() => setView('dashboard')}>
-                  <h1 className="text-3xl sm:text-4xl font-black tracking-tighter text-center">
-                    <span className={appTheme === 'dark' ? 'text-white' : 'text-slate-900'}>HSE</span><span className="text-blue-500">GUARDIAN</span>
+                  <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-center drop-shadow-lg leading-tight">
+                    <span className={appTheme === 'dark' ? 'text-white' : 'text-slate-900'}>HSE</span><span className="text-blue-500"> Guardian</span>
                   </h1>
-                  <div className="h-1.5 w-24 sm:w-40 bg-red-600 mt-1 rounded-full shadow-[0_0_15px_rgba(220,38,38,0.8)] transition-all duration-500 group-hover:w-32 sm:group-hover:w-48"></div>
+                  <div className="h-2 w-28 sm:w-48 bg-gradient-to-r from-red-600 via-blue-500 to-rose-500 mt-2 rounded-full shadow-lg transition-all duration-500 group-hover:w-36 sm:group-hover:w-56"></div>
+                  <span className={`mt-2 text-base font-medium italic ${appTheme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>Professional Safety Evidence System</span>
                </div>
-               <div className="flex-1 flex justify-end items-center gap-2 sm:gap-6 relative">
+               <div className="flex-1 flex justify-end items-center gap-3 sm:gap-8 relative">
                  {userProfile && (
                    <div ref={notificationsRef} className="relative">
-                     <button onClick={() => setShowNotifications(!showNotifications)} className={`relative p-2.5 rounded-xl transition-all flex items-center justify-center ${isBellShaking ? 'bell-swing-animate' : (activeAlerts.length > 0 ? 'bell-tasks-active' : '')} ${appTheme === 'dark' ? 'hover:bg-white/5 text-slate-400 hover:text-white' : 'hover:bg-slate-100 text-slate-50 hover:text-slate-900'}`}>
+                     <button onClick={() => setShowNotifications(!showNotifications)} className={`relative p-3 rounded-2xl transition-all flex items-center justify-center shadow-lg hover:shadow-xl ${isBellShaking ? 'bell-swing-animate' : (activeAlerts.length > 0 ? 'bell-tasks-active' : '')} ${appTheme === 'dark' ? 'hover:bg-white/10 text-slate-400 hover:text-white' : 'hover:bg-blue-100 text-blue-700 hover:text-blue-900'}`} aria-label="View safety alerts">
                         <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
-                        {activeAlerts.length > 0 && <div className="absolute top-1 right-1 flex h-6 w-6 items-center justify-center rounded-full bg-rose-600 text-[11px] font-black text-white ring-2 ring-[#020617]"><span className="badge-ping-layer" />{activeAlerts.length}</div>}
+                        {activeAlerts.length > 0 && <div className="absolute top-1 right-1 flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-rose-600 to-amber-500 text-[11px] font-black text-white ring-2 ring-blue-500 animate-pulse"><span className="badge-ping-layer" />{activeAlerts.length}</div>}
                      </button>
                      {showNotifications && (
-                       <div className={`absolute top-full right-0 mt-4 w-72 sm:w-80 rounded-[2rem] border shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300 ${appTheme === 'dark' ? 'bg-[#0f172a] border-white/10' : 'bg-white border-slate-200'}`}>
-                          <div className={`px-6 py-4 border-b flex items-center justify-between ${appTheme === 'dark' ? 'bg-white/5 border-white/5' : 'bg-slate-50 border-slate-100'}`}>
-                             <span className={`text-[10px] font-black uppercase tracking-widest ${appTheme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>Safety Alerts</span>
-                             <span className="bg-rose-600/10 text-rose-500 border border-rose-500/20 text-[8px] font-black px-2.5 py-1 rounded-full uppercase">{activeAlerts.length} Active</span>
+                       <div className={`absolute top-full right-0 mt-4 w-80 rounded-3xl border shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300 ${appTheme === 'dark' ? 'bg-[#0f172a] border-white/10' : 'bg-white border-slate-200'}`}>
+                          <div className={`px-8 py-5 border-b flex items-center justify-between ${appTheme === 'dark' ? 'bg-white/10 border-white/10' : 'bg-blue-50 border-slate-100'}`}>
+                             <span className={`text-xs font-bold uppercase tracking-wide ${appTheme === 'dark' ? 'text-slate-400' : 'text-blue-700'}`}>Safety Alerts</span>
+                             <span className="bg-rose-600/10 text-rose-500 border border-rose-500/20 text-xs font-bold px-3 py-1 rounded-full uppercase">{activeAlerts.length} Active</span>
                           </div>
                           <div className="max-h-80 overflow-y-auto scrollbar-hide">
-                             {activeAlerts.length === 0 ? <div className="p-12 text-center opacity-30 flex flex-col items-center gap-3"><p className="text-[10px] font-black uppercase">Zero Threats Detected</p></div> : 
+                             {activeAlerts.length === 0 ? <div className="p-12 text-center opacity-30 flex flex-col items-center gap-3"><p className="text-xs font-bold uppercase">No threats detected. All clear!</p></div> : 
                                activeAlerts.map(alert => (
-                                 <div key={alert.id} onClick={() => { if (alert.type === 'critical-task') setView('my-tasks'); else { setView('recent'); window.location.hash = `view-report-${alert.originalRecord.id}`; } setShowNotifications(false); }} className={`p-5 border-b cursor-pointer transition-all last:border-0 group ${appTheme === 'dark' ? 'border-white/5 hover:bg-white/5' : 'border-slate-100 hover:bg-slate-50'}`}>
+                                 <div key={alert.id} onClick={() => { if (alert.type === 'critical-task') setView('my-tasks'); else { setView('recent'); window.location.hash = `view-report-${alert.originalRecord.id}`; } setShowNotifications(false); }} className={`p-6 border-b cursor-pointer transition-all last:border-0 group rounded-xl ${appTheme === 'dark' ? 'border-white/10 hover:bg-white/10' : 'border-slate-100 hover:bg-blue-50'}`}>
                                    <div className="flex items-start gap-4">
-                                     <div className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 ${alert.type === 'escalated-overdue' ? 'bg-amber-500/10 border-amber-500/20 text-amber-500' : 'bg-rose-500/10 border-rose-500/20 text-rose-500'}`}>
+                                     <div className={`w-12 h-12 rounded-xl border flex items-center justify-center shrink-0 shadow-md ${alert.type === 'escalated-overdue' ? 'bg-amber-500/10 border-amber-500/30 text-amber-500' : 'bg-rose-500/10 border-rose-500/30 text-rose-500'}`}>
                                         {alert.type === 'escalated-overdue' ? <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> : <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>}
                                      </div>
                                      <div className="flex-1 min-w-0">
-                                        <p className={`text-[11px] font-black truncate ${appTheme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{alert.title}</p>
-                                        <span className="text-[8px] font-black text-slate-500">{getRelativeTime(alert.timestamp)}</span>
+                                        <p className={`text-sm font-bold truncate ${appTheme === 'dark' ? 'text-white' : 'text-blue-900'}`}>{alert.title}</p>
+                                        <span className="text-xs font-medium text-slate-500">{getRelativeTime(alert.timestamp)}</span>
                                      </div>
                                    </div>
                                  </div>
@@ -342,32 +343,32 @@ export default function App() {
                  )}
                  <div ref={profileCardRef} className="relative">
                    <div onClick={() => setShowProfileCard(!showProfileCard)} className="cursor-pointer group">
-                      <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full overflow-hidden border-2 transition-all ${showProfileCard ? 'border-blue-500 ring-4 ring-blue-500/20 scale-105' : 'border-slate-700'}`}>
-                        {userProfile?.profileImageUrl ? <img src={userProfile.profileImageUrl} alt="User" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center bg-blue-600 text-white font-black text-xl">{userProfile?.name?.charAt(0)}</div>}
+                      <div className={`w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden border-2 shadow-lg transition-all duration-300 ${showProfileCard ? 'border-blue-500 ring-4 ring-blue-500/20 scale-105' : 'border-slate-700'}`}>
+                        {userProfile?.profileImageUrl ? <img src={userProfile.profileImageUrl} alt="User" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center bg-blue-600 text-white font-black text-2xl">{userProfile?.name?.charAt(0)}</div>}
                       </div>
                    </div>
-                   {showProfileCard && <div className="absolute top-full right-0 mt-4 w-72 z-50 animate-in fade-in slide-in-from-top-2 duration-300"><UserProfile onBack={() => setShowProfileCard(false)} baseId={baseId} /></div>}
+                   {showProfileCard && <div className="absolute top-full right-0 mt-4 w-80 z-50 animate-in fade-in slide-in-from-top-2 duration-300"><UserProfile onBack={() => setShowProfileCard(false)} baseId={baseId} /></div>}
                  </div>
                </div>
             </div>
           </header>
-          <main className={`flex-grow ${view === 'inspection-viewer' ? 'p-0 max-w-none' : 'max-w-7xl mx-auto px-4 sm:px-6 py-6 w-full'}`}>{renderContent()}</main>
-          <footer className={`py-6 px-4 border-t text-center ${appTheme === 'dark' ? 'bg-slate-950/30 border-white/5' : 'bg-slate-50 border-slate-100'} ${view === 'auth' ? 'hidden' : ''}`}>
-            <div className="max-w-7xl mx-auto flex flex-col items-center gap-2">
-              <div className="px-4 py-2 rounded-full border border-red-600/40 text-[9px] font-black uppercase text-red-500 italic">"{quote}"</div>
-              <p className="text-[8px] font-black text-slate-600 uppercase">&copy; ELIUS 2025 \u2022 ACCURACY IN EVIDENCE</p>
+          <main className={`flex-grow ${view === 'inspection-viewer' ? 'p-0 max-w-none' : 'max-w-7xl mx-auto px-6 sm:px-10 py-8 w-full'} font-sans`}>{renderContent()}</main>
+          <footer className={`py-8 px-6 border-t text-center shadow-inner ${appTheme === 'dark' ? 'bg-gradient-to-r from-slate-950/60 via-blue-900/40 to-slate-900/60 border-white/10' : 'bg-gradient-to-r from-blue-50 via-white to-blue-100 border-slate-200'} ${view === 'auth' ? 'hidden' : ''}`}>
+            <div className="max-w-7xl mx-auto flex flex-col items-center gap-3">
+              <div className="px-6 py-3 rounded-full border border-blue-500/30 bg-gradient-to-r from-blue-100 via-white to-blue-200 text-base font-semibold text-blue-600 italic shadow-md">{quote}</div>
+              <p className="text-sm font-medium text-slate-600 tracking-wide">&copy; Elius 2025 &mdash; Accuracy in Evidence</p>
             </div>
           </footer>
         </div>
         {(view !== 'auth' && view !== 'inspection-viewer') && (
-          <div ref={menuRef} className={`fixed bottom-6 right-6 z-50 flex flex-row-reverse items-center gap-3 transition-opacity ${isFabVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-            <button onClick={() => setIsMenuOpen(!isMenuOpen)} className={`w-12 h-12 rounded-full shadow-2xl flex items-center justify-center border-2 transition-transform ${isMenuOpen ? 'bg-rose-600 border-rose-400 rotate-90' : 'bg-blue-600 border-blue-400'} text-white`}>
-              {isMenuOpen ? <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M18 6L6 18M6 6l12 12" /></svg> : <div className="flex flex-col gap-0.5"><div className="w-1 h-1 bg-current rounded-full" /><div className="w-1 h-1 bg-current rounded-full" /><div className="w-1 h-1 bg-current rounded-full" /></div>}
+          <div ref={menuRef} className={`fixed bottom-8 right-8 z-50 flex flex-row-reverse items-center gap-4 transition-opacity ${isFabVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+            <button onClick={() => setIsMenuOpen(!isMenuOpen)} className={`w-14 h-14 rounded-full shadow-2xl flex items-center justify-center border-2 transition-transform duration-300 ${isMenuOpen ? 'bg-rose-600 border-rose-400 rotate-90 scale-110' : 'bg-blue-600 border-blue-400 scale-100'} text-white hover:scale-110`}>
+              {isMenuOpen ? <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M18 6L6 18M6 6l12 12" /></svg> : <div className="flex flex-col gap-1"><div className="w-2 h-2 bg-current rounded-full" /><div className="w-2 h-2 bg-current rounded-full" /><div className="w-2 h-2 bg-current rounded-full" /></div>}
             </button>
-            <div className={`flex flex-row-reverse gap-3 transition-all ${isMenuOpen ? 'scale-100 opacity-100' : 'scale-75 opacity-0 pointer-events-none'}`}>
+            <div className={`flex flex-row-reverse gap-4 transition-all ${isMenuOpen ? 'scale-100 opacity-100' : 'scale-75 opacity-0 pointer-events-none'}`}>
               <FeedbackAssistant appTheme={appTheme} userName={userProfile?.name} />
-              <button onClick={() => { setPolicyInitialTab('environmental'); setShowPolicy(true); setIsMenuOpen(false); }} className={`w-12 h-12 rounded-full border shadow-xl flex items-center justify-center ${appTheme === 'dark' ? 'bg-slate-800 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-700'}`}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><path d="M9 12l2 2 4-4" /></svg>
+              <button onClick={() => { setPolicyInitialTab('environmental'); setShowPolicy(true); setIsMenuOpen(false); }} className={`w-14 h-14 rounded-full border shadow-xl flex items-center justify-center transition-all duration-300 ${appTheme === 'dark' ? 'bg-slate-800 border-white/10 text-white hover:bg-blue-900' : 'bg-white border-slate-200 text-blue-700 hover:bg-blue-100'}`}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><path d="M9 12l2 2 4-4" /></svg>
               </button>
             </div>
           </div>

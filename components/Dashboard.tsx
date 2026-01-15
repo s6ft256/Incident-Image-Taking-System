@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { WeatherWidget } from './WeatherWidget';
 import { LocationPrompt } from './LocationPrompt';
@@ -118,11 +117,29 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
     }).length;
   }, [reports, userProfile?.name]);
 
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good morning';
+    if (hour < 18) return 'Good afternoon';
+    return 'Good evening';
+  };
+
   return (
-    <div className="space-y-6 pb-12 animate-in fade-in duration-700">
-      <div className={`flex items-center justify-between px-6 py-3 rounded-2xl border backdrop-blur-md overflow-hidden ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-blue-950/20 border-blue-500/20 shadow-xl'}`}>
+    <div className="space-y-6 pb-12 animate-in fade-in duration-700" role="main">
+      <div className="px-6 py-4">
+        <h1 className={`text-2xl font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>{getGreeting()}, {userProfile?.name || 'User'}!</h1>
+        <p className="text-sm text-slate-500">Welcome back to your dashboard. Here's what's happening today:</p>
+      </div>
+
+      <div
+        className={`flex items-center justify-between px-6 py-3 rounded-2xl border backdrop-blur-md overflow-hidden ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-blue-950/20 border-blue-500/20 shadow-md'}`}
+        aria-label="System Status"
+      >
         <div className="flex items-center gap-2 min-w-[140px]">
-          <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_#10b981]"></div>
+          <div
+            className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_#10b981]"
+            aria-hidden="true"
+          ></div>
           <span className={`text-[9px] font-black uppercase tracking-widest ${isLight ? 'text-slate-700' : 'text-slate-200'}`}>System Nominal</span>
         </div>
 
@@ -136,19 +153,23 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
             <span className={`text-[9px] font-black uppercase tracking-widest ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Grid ID:</span>
             <span className={`text-[10px] font-mono font-black ${isLight ? 'text-blue-600' : 'text-blue-400'}`}>HSE-G-2.5</span>
           </div>
-          <span className={`px-3 py-1 rounded-full border text-[9px] font-black uppercase tracking-widest ${isLight ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300'}`}>
+          <span
+            className={`px-3 py-1 rounded-full border text-[9px] font-black uppercase tracking-widest ${isLight ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300'}`}
+            role="status"
+          >
             Authorized
           </span>
         </div>
       </div>
 
-
-
-      <LocationPrompt appTheme={appTheme} onPermissionGranted={() => setLocationRefreshKey(prev => prev + 1)} />
+      <LocationPrompt appTheme={appTheme} onPermissionGranted={() => setLocationRefreshKey((prev) => prev + 1)} />
       <WeatherWidget key={locationRefreshKey} appTheme={appTheme} />
 
       {pythonAnalytics && (
-        <div className={`p-8 rounded-[2.5rem] border shadow-2xl ${isLight ? 'bg-white border-slate-200' : 'bg-slate-900/40 border-white/5 backdrop-blur-md'}`}>
+        <div
+          className={`p-8 rounded-[2.5rem] border shadow-md ${isLight ? 'bg-white border-slate-200' : 'bg-slate-900/40 border-white/5 backdrop-blur-md'}`}
+          aria-label="Analytics Snapshot"
+        >
           <div className="flex items-center justify-between gap-4 mb-6">
             <div>
               <h3 className={`text-xl font-black tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>Analytics Snapshot</h3>
@@ -201,7 +222,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <div className={`lg:col-span-8 p-8 rounded-[2.5rem] border shadow-2xl flex flex-col relative overflow-hidden min-h-[350px] ${isLight ? 'bg-white border-slate-200' : 'bg-slate-900/40 border-white/5 backdrop-blur-md'}`}>
+        <div className={`lg:col-span-8 p-8 rounded-[2.5rem] border shadow-md flex flex-col relative overflow-hidden min-h-[350px] ${isLight ? 'bg-white border-slate-200' : 'bg-slate-900/40 border-white/5 backdrop-blur-md'}`}>
            <div className="flex items-center justify-between mb-8">
               <div>
                  <h3 className={`text-xl font-black tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>Site Risk Matrix</h3>
@@ -221,7 +242,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
            </div>
         </div>
 
-        <div className={`lg:col-span-4 p-8 rounded-[2.5rem] border shadow-2xl flex flex-col justify-center items-center relative overflow-hidden ${isLight ? 'bg-white border-slate-200' : 'bg-slate-900/40 border-white/5 backdrop-blur-md'}`}>
+        <div className={`lg:col-span-4 p-8 rounded-[2.5rem] border shadow-md flex flex-col justify-center items-center relative overflow-hidden ${isLight ? 'bg-white border-slate-200' : 'bg-slate-900/40 border-white/5 backdrop-blur-md'}`}>
            <h3 className={`text-xl font-black tracking-tight mb-6 ${isLight ? 'text-slate-900' : 'text-white'}`}>Fleet Health</h3>
            <div className="relative w-40 h-40 flex items-center justify-center">
               <svg className="w-full h-full transform -rotate-90">
@@ -244,7 +265,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
              </div>
              <div className={`p-1 rounded-2xl border flex items-center shadow-lg ${isLight ? 'bg-slate-100 border-slate-200' : 'bg-white/5 border-white/10'}`}>
                 {(['operations', 'management'] as const).map(c => (
-                  <button key={c} onClick={() => setActiveCategory(c)} className={`px-5 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${activeCategory === c ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}>{c}</button>
+                  <button
+                    key={c}
+                    onClick={() => setActiveCategory(c)}
+                    className={`px-5 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${activeCategory === c ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}
+                    aria-label={`Switch to ${c} category`}
+                  >
+                    {c}
+                  </button>
                 ))}
              </div>
           </div>
@@ -305,7 +333,11 @@ const TerminalButton = ({ onClick, icon, label, color, count, isLight }: any) =>
   };
   
   return (
-    <button onClick={onClick} className={`relative h-28 rounded-3xl p-4 flex flex-col items-center justify-center transition-all duration-300 group border ${isLight ? `bg-white/50 border-slate-200` : `bg-black/40 border-white/10 hover:border-white/20`}`}>
+    <button
+      onClick={onClick}
+      className={`relative h-28 rounded-3xl p-4 flex flex-col items-center justify-center transition-all duration-300 group border ${isLight ? `bg-white/50 border-slate-200` : `bg-black/40 border-white/10 hover:border-white/20`}`}
+      aria-label={label}
+    >
       <div className={`w-10 h-10 rounded-2xl flex items-center justify-center text-white mb-2 shadow-xl ${colors[color]}`}>{getIcon(icon)}</div>
       <span className={`text-[9px] font-black uppercase tracking-widest text-center ${isLight ? 'text-slate-900' : 'text-slate-300'}`}>{label}</span>
       {count > 0 && <div className="absolute -top-2 -right-2 w-5 h-5 bg-rose-600 text-white rounded-full flex items-center justify-center text-[10px] font-black shadow-lg">{count}</div>}

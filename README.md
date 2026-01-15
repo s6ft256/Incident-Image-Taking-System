@@ -22,10 +22,7 @@
 
 ## Deployment & GitHub Workflow
 
-Use the built-in professional sync script which handles staging, semantic committing, and pushing in one high-integrity operation:
-```bash
-npm run git-sync
-```
+Release & commit workflows are intentionally unopinionated. Configure your own release automation or use standard Git commands for staging, committing, and pushing. If you'd like, you can add a project-specific `git-sync` script to `package.json` or set up a GitHub Action for release automation.
 
 ## Optional: Python Analytics for Dashboard
 
