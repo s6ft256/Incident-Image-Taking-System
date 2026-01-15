@@ -1,4 +1,4 @@
-import { formatError, isRetryableError } from '../../utils/errorHandler';
+import { formatError, isRetryableError, handleError } from '../../utils/errorHandler';
 
 describe('errorHandler utils', () => {
   test('formatError returns user-friendly structure for TypeError fetch', () => {
@@ -21,5 +21,22 @@ describe('errorHandler utils', () => {
 
     const authErr = new Error('401 Unauthorized');
     expect(isRetryableError(authErr)).toBe(false);
+  });
+
+  describe('handleError', () => {
+    it('should return a default error message for unknown errors', () => {
+      const result = handleError(new Error('Unknown error'));
+      expect(result.userMessage).toBe('An unexpected error occurred. Please try again.');
+    });
+
+    it('should return a specific error message for known errors', () => {
+      const result = handleError({ message: 'Network error' });
+      expect(result.userMessage).toBe('Network error');
+    });
+
+    it('should handle empty error objects gracefully', () => {
+      const result = handleError({});
+      expect(result.userMessage).toBe('An unexpected error occurred. Please try again.');
+    });
   });
 });

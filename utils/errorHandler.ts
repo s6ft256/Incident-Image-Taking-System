@@ -138,23 +138,37 @@ const logError = (appError: AppError): void => {
 /**
  * Main error handler - logs, notifies user, and returns structured error
  */
+// Adjusted handleError to distinguish generic Error objects
 export const handleError = (
   error: unknown, 
   context?: Record<string, unknown>,
   options?: { silent?: boolean; customMessage?: string }
 ): AppError => {
   const appError = formatError(error, context);
-  
+
+  // Use specific error message if available, otherwise default to user-friendly message
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'message' in error &&
+    typeof error.message === 'string' &&
+    !(error instanceof Error) // Exclude generic Error objects
+  ) {
+    appError.userMessage = error.message;
+  } else {
+    appError.userMessage = 'An unexpected error occurred. Please try again.';
+  }
+
   // Always log
   logError(appError);
-  
+
   // Notify user unless silent
   if (!options?.silent) {
     const severity = getSeverity(appError.code);
     const message = options?.customMessage || appError.userMessage;
     sendToast(message, severity);
   }
-  
+
   return appError;
 };
 
