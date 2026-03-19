@@ -91,6 +91,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
 
   const siteStats = useMemo(() => {
     if (!Array.isArray(reports)) return [];
+
     const data = reports.reduce<Record<string, { count: number; severityScore: number }>>((acc, curr) => {
       const site = String(curr.fields["Site / Location"] || 'Other');
       const type = String(curr.fields["Observation Type"] || 'Other');
@@ -100,8 +101,27 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
       acc[site].severityScore += severity;
       return acc;
     }, {});
+
+    const riskScore = (score: number) => {
+      if (score >= 8) return 'Critical';
+      if (score >= 6) return 'High';
+      if (score >= 4) return 'Moderate';
+      return 'Low';
+    };
+
     return Object.keys(data)
-      .map(name => ({ name, criticality: data[name].severityScore }))
+      .map(name => {
+        const count = data[name].count;
+        const avgSeverity = count ? data[name].severityScore / count : 0;
+        return {
+          name,
+          count,
+          criticality: data[name].severityScore,
+          avgSeverity,
+          riskLevel: riskScore(avgSeverity),
+          riskIndex: avgSeverity,
+        };
+      })
       .sort((a, b) => b.criticality - a.criticality)
       .slice(0, 5);
   }, [reports]);
@@ -122,6 +142,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
     if (hour < 12) return 'Good morning';
     if (hour < 18) return 'Good afternoon';
     return 'Good evening';
+  };
+
+  const getRiskColor = (avgSeverity: number) => {
+    if (avgSeverity >= 8) return '#ef4444';
+    if (avgSeverity >= 6) return '#f59e0b';
+    if (avgSeverity >= 4) return '#facc15';
+    return '#22c55e';
   };
 
   return (
@@ -229,16 +256,26 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
                  <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mt-1">Weighted Criticality Index</p>
               </div>
            </div>
-           <div className="flex-1 w-full h-[200px]">
+           <div className="flex-1 w-full h-[220px]">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={siteStats} layout="vertical">
+                <BarChart data={siteStats} layout="vertical" margin={{ top: 10, right: 20, bottom: 10, left: 0 }}>
                    <XAxis type="number" hide />
-                   <YAxis dataKey="name" type="category" stroke={isLight ? "#64748b" : "#94a3b8"} fontSize={10} fontWeight="bold" width={80} axisLine={false} tickLine={false} />
-                   <Bar dataKey="criticality" radius={[0, 8, 8, 0]} barSize={20}>
-                      {siteStats.map((_, index) => <Cell key={`cell-${index}`} fill={index === 0 ? '#f43f5e' : '#3b82f6'} />)}
+                   <YAxis dataKey="name" type="category" stroke={isLight ? "#64748b" : "#94a3b8"} fontSize={10} fontWeight="bold" width={100} axisLine={false} tickLine={false} />
+                   <Bar dataKey="criticality" radius={[0, 8, 8, 0]} barSize={18}>
+                      {siteStats.map((item, index) => (
+                        <Cell key={`cell-${index}`} fill={getRiskColor(item.avgSeverity)} />
+                      ))}
                    </Bar>
                 </BarChart>
               </ResponsiveContainer>
+           </div>
+           <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {siteStats.map(site => (
+                <div key={site.name} className="flex items-center justify-between px-3 py-2 rounded-xl border text-xs font-bold" style={{ borderColor: isLight ? '#cbd5e1' : '#334155', backgroundColor: isLight ? '#f8fafc' : '#0f172a' }}>
+                  <span>{site.name}</span>
+                  <span className={`px-2 py-0.5 rounded-full ${site.riskLevel === 'Critical' ? 'bg-red-600 text-white' : site.riskLevel === 'High' ? 'bg-orange-500 text-white' : site.riskLevel === 'Moderate' ? 'bg-yellow-400 text-black' : 'bg-emerald-500 text-white'}`}>{site.riskLevel}</span>
+                </div>
+              ))}
            </div>
         </div>
 
