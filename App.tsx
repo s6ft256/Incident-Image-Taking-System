@@ -22,11 +22,12 @@ import { EquipmentChecklistForm } from './components/EquipmentChecklistForm';
 import { IncidentReportForm } from './components/IncidentReportForm';
 import { PrintableIncidentReport } from './components/PrintableIncidentReport';
 import { runOfflineSync } from './services/syncService';
+import { useAppContext } from './context/AppContext';
 import { UserProfile as UserProfileType, FetchedObservation, FetchedIncident } from './types';
 import { requestNotificationPermission, sendNotification, sendToast } from './services/notificationService';
 import { getAssignedCriticalObservations, getAllReports } from './services/airtableService';
 
-type ViewState = 'auth' | 'dashboard' | 'create' | 'recent' | 'my-tasks' | 'personnel' | 'checklists' | 'inspection-viewer' | 'risk-assessment' | 'training-management' | 'audit-trail' | 'compliance-tracker' | 'crane-checklist' | 'equipment-checklist' | 'incident-report';
+type ViewState = 'auth' | 'dashboard' | 'create' | 'recent' | 'my-tasks' | 'personnel' | 'checklists' | 'inspection-viewer' | 'risk-assessment' | 'training-management' | 'audit-trail' | 'compliance-tracker' | 'crane-checklist' | 'equipment-checklist' | 'incident-report' | 'observation';
 
 interface SystemAlert {
   id: string;
@@ -66,6 +67,8 @@ export default function App() {
   const [isBadgePinging, setIsBadgePinging] = useState(false);
   const [activeInspectionUrl, setActiveInspectionUrl] = useState('');
   const [printingIncident, setPrintingIncident] = useState<FetchedIncident | null>(null);
+  const [selectedObservationId, setSelectedObservationId] = useState<string | null>(null);
+  const { state } = useAppContext();
   
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isFabVisible, setIsFabVisible] = useState(true);
@@ -81,6 +84,13 @@ export default function App() {
         isNavigatingRef.current = true;
         setView(event.state.view);
         setTimeout(() => { isNavigatingRef.current = false; }, 50);
+      } else {
+        // If state is missing (manual browser back/forward outside app state), default gracefully.
+        if (userProfile) {
+          setView('dashboard');
+        } else {
+          setView('auth');
+        }
       }
     };
 
@@ -89,7 +99,7 @@ export default function App() {
       window.history.replaceState({ view }, '');
     }
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [view]);
+  }, [view, userProfile]);
 
   useEffect(() => {
     if (!isInitialized || isNavigatingRef.current) return;
@@ -258,6 +268,27 @@ export default function App() {
     } catch (e) { console.error("Auto-sync failed", e); }
   };
 
+  const navigateBack = () => {
+    // Prefer browser history if available (for previous in-app view sequence).
+    if (window.history.length > 1) {
+      window.history.back();
+      return;
+    }
+
+    // Fallback to explicit view transitions when no history stack is available.
+    if (view === 'my-tasks' || view === 'personnel' || view === 'checklists' || view === 'inspection-viewer' || view === 'risk-assessment' || view === 'training-management' || view === 'compliance-tracker' || view === 'audit-trail' || view === 'crane-checklist' || view === 'equipment-checklist' || view === 'incident-report' || view === 'create' || view === 'observation') {
+      setView('dashboard');
+      return;
+    }
+
+    if (view === 'dashboard') {
+      setView(userProfile ? 'dashboard' : 'auth');
+      return;
+    }
+
+    setView('dashboard');
+  };
+
   const handleAuthComplete = (profile: UserProfileType) => {
     localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(profile));
     setUserProfile(profile);
@@ -269,20 +300,36 @@ export default function App() {
   const renderContent = () => {
     if (view === 'auth') return <AuthScreen onAuthComplete={handleAuthComplete} appTheme={appTheme} />;
     switch (view) {
-      case 'create': return <CreateReportForm baseId={baseId} appTheme={appTheme} onBack={() => setView('dashboard')} />;
-      case 'recent': return <RecentReports baseId={baseId} appTheme={appTheme} onBack={() => setView('dashboard')} onPrint={setPrintingIncident} />;
-      case 'my-tasks': return <RecentReports baseId={baseId} appTheme={appTheme} onBack={() => setView('dashboard')} filterAssignee={userProfile?.name} onPrint={setPrintingIncident} />;
-      case 'personnel': return <PersonnelGrid appTheme={appTheme} onBack={() => setView('dashboard')} />;
-      case 'checklists': return <Checklists appTheme={appTheme} onBack={() => setView('dashboard')} onOpenInspection={(url) => {setActiveInspectionUrl(url); setView('inspection-viewer');}} onOpenCrane={() => setView('crane-checklist')} onOpenEquipment={() => setView('equipment-checklist')} />;
-      case 'inspection-viewer': return <InspectionViewer url={activeInspectionUrl} appTheme={appTheme} onBack={() => setView('checklists')} />;
-      case 'risk-assessment': return <RiskAssessmentModule appTheme={appTheme} onBack={() => setView('dashboard')} />;
-      case 'training-management': return <TrainingManagement appTheme={appTheme} onBack={() => setView('dashboard')} />;
-      case 'compliance-tracker': return <ComplianceTracker appTheme={appTheme} onBack={() => setView('dashboard')} />;
-      case 'audit-trail': return <AuditLogViewer appTheme={appTheme} onBack={() => setView('dashboard')} />;
-      case 'crane-checklist': return <CraneChecklistForm appTheme={appTheme} onBack={() => setView('checklists')} />;
-      case 'equipment-checklist': return <EquipmentChecklistForm appTheme={appTheme} onBack={() => setView('checklists')} />;
-      case 'incident-report': return <IncidentReportForm appTheme={appTheme} onBack={() => setView('dashboard')} />;
-      default: return <Dashboard baseId={baseId} appTheme={appTheme} onNavigate={(target) => setView(target)} />;
+      case 'create':
+        return <CreateReportForm baseId={baseId} appTheme={appTheme} onBack={() => setView('dashboard')} />;
+      case 'my-tasks':
+        return <RecentReports baseId={baseId} appTheme={appTheme} onBack={() => setView('dashboard')} filterAssignee={userProfile?.name} onPrint={setPrintingIncident} onOpenObservation={(id: string) => { setSelectedObservationId(id); setView('observation'); }} />;
+      case 'personnel':
+        return <PersonnelGrid appTheme={appTheme} onBack={() => setView('dashboard')} />;
+      case 'checklists':
+        return <Checklists appTheme={appTheme} onBack={() => setView('dashboard')} onOpenInspection={(url) => { setActiveInspectionUrl(url); setView('inspection-viewer'); }} onOpenCrane={() => setView('crane-checklist')} onOpenEquipment={() => setView('equipment-checklist')} />;
+      case 'inspection-viewer':
+        return <InspectionViewer url={activeInspectionUrl} appTheme={appTheme} onBack={() => setView('checklists')} />;
+      case 'risk-assessment':
+        return <RiskAssessmentModule appTheme={appTheme} onBack={() => setView('dashboard')} />;
+      case 'training-management':
+        return <TrainingManagement appTheme={appTheme} onBack={() => setView('dashboard')} />;
+      case 'compliance-tracker':
+        return <ComplianceTracker appTheme={appTheme} onBack={() => setView('dashboard')} />;
+      case 'audit-trail':
+        return <AuditLogViewer appTheme={appTheme} onBack={() => setView('dashboard')} />;
+      case 'crane-checklist':
+        return <CraneChecklistForm appTheme={appTheme} onBack={() => setView('checklists')} />;
+      case 'equipment-checklist':
+        return <EquipmentChecklistForm appTheme={appTheme} onBack={() => setView('checklists')} />;
+      case 'incident-report':
+        return <IncidentReportForm appTheme={appTheme} onBack={() => setView('dashboard')} />;
+      case 'observation': {
+        const selected = state?.allReports?.find(r => r.id === selectedObservationId) ?? null;
+        return <CreateReportForm baseId={baseId} appTheme={appTheme} onBack={() => setView('recent')} initialObservation={selected} />;
+      }
+      default:
+        return <Dashboard baseId={baseId} appTheme={appTheme} onNavigate={(target) => setView(target)} />;
     }
   };
 
@@ -296,7 +343,12 @@ export default function App() {
         <div className={`relative z-10 flex flex-col flex-grow ${view === 'inspection-viewer' ? 'h-auto overflow-visible' : ''}`}>
           <header className={`sticky top-0 z-40 backdrop-blur-2xl border-b transition-all duration-500 ${appTheme === 'dark' ? 'bg-[#18181b]/90 border-white/10 shadow-2xl' : 'bg-white/90 border-slate-200 shadow-lg'} ${(view === 'auth' || view === 'inspection-viewer') ? 'hidden' : ''}`}>
             <div className="max-w-7xl mx-auto px-4 sm:px-8 py-4 flex items-center justify-between gap-6">
-               <div className="flex-1 flex justify-start">
+               <div className="flex-1 flex justify-start items-center gap-2">
+                 {(view !== 'auth' && view !== 'dashboard') && (
+                   <button onClick={navigateBack} className="rounded-xl p-2 text-sm font-bold bg-white/10 hover:bg-white/20 text-white transition-all duration-300">
+                     ← Back
+                   </button>
+                 )}
                  <div onClick={() => setView('dashboard')} className="group cursor-pointer rounded-xl hover:bg-blue-50/30 dark:hover:bg-white/5 p-2 transition-all duration-300">
                    <img src={SYSTEM_LOGO_URL} alt="HSE Guardian Logo" className="h-20 sm:h-32 w-auto object-contain drop-shadow-2xl transition-all duration-500 group-hover:scale-110 origin-left" />
                  </div>
