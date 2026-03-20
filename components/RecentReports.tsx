@@ -558,7 +558,17 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
         {!isMyTasksMode && (
           <div className={`flex p-1 mb-8 rounded-2xl border ${isLight ? 'bg-slate-100 border-slate-200' : 'bg-slate-800 border-slate-700'} max-w-2xl`}>
               {(['all', 'incidents', 'open', 'assigned', 'closed'] as const).map(t => (
-                <button key={t} onClick={() => { setActiveTab(t); setExpandedId(null); }} className={`flex-1 py-3 text-[9px] uppercase font-black rounded-xl transition-all ${activeTab === t ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}>
+                <button 
+                  key={t} 
+                  type="button"
+                  onClick={(e) => { 
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setActiveTab(t); 
+                    setExpandedId(null); 
+                  }} 
+                  className={`flex-1 py-3 text-[9px] uppercase font-black rounded-xl transition-all active:scale-95 cursor-pointer ${activeTab === t ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                >
                     {t === 'all' ? 'Registry' : t}
                 </button>
               ))}
