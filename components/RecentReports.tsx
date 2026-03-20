@@ -479,6 +479,27 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
       });
     }
     
+    // Registry tab: Show ALL data (incidents + observations)
+    if (activeTab === 'all') {
+      const allIncidentsFiltered = allIncidents.filter(inc => {
+        const title = String(inc.fields["Title"] || "").toLowerCase();
+        const desc = String(inc.fields["Description"] || "").toLowerCase();
+        return !query || title.includes(query) || desc.includes(query);
+      });
+      
+      const allObservationsFiltered = allReports.filter(report => {
+        const obsText = String(report.fields["Observation"] || "").toLowerCase();
+        const nameText = String(report.fields["Name"] || "").toLowerCase();
+        return !query || obsText.includes(query) || nameText.includes(query);
+      });
+      
+      return [...allIncidentsFiltered, ...allObservationsFiltered].sort((a: any, b: any) => {
+        const at = new Date(a.createdTime || 0).getTime();
+        const bt = new Date(b.createdTime || 0).getTime();
+        return bt - at;
+      });
+    }
+    
     if (activeTab === 'incidents') {
       return allIncidents.filter(inc => {
         const title = String(inc.fields["Title"] || "").toLowerCase();
@@ -503,8 +524,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
 
       if (activeTab === 'closed') return isClosed && matchesSearch && matchesAssignee;
       if (activeTab === 'assigned') return !isClosed && (assignedTokens.length > 0 || isLocallyAssignedToMe) && matchesSearch && (matchesAssignee || isLocallyAssignedToMe);
-      if (activeTab === 'all') return !isClosed && matchesSearch;
-      // Open tab: Only show unassigned and active reports (assigned ones go to "Assigned" or "My Tasks")
+      // Open tab: Only show unassigned and active observations
       return !isClosed && assignedTokens.length === 0 && matchesSearch && matchesAssignee;
     });
   }, [allReports, allIncidents, activeTab, searchTerm, filterAssignee, localAssignedObservationIds]);
