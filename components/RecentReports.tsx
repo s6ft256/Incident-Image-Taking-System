@@ -20,6 +20,8 @@ interface RecentReportsProps {
   appTheme?: 'dark' | 'light';
   filterAssignee?: string; 
   onPrint: (incident: FetchedIncident) => void;
+  // Open an existing observation in the full-form editor (prefilled)
+  onOpenObservation?: (observationId: string) => void;
 }
 
 type Tab = 'open' | 'assigned' | 'incidents' | 'closed';
@@ -1285,6 +1287,19 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
                             
                             {/* Share Button for Observations */}
                             <div className="md:col-span-2 flex justify-end gap-4 mt-4">
+                              {/* Open the same full-form editor pre-filled so user can close the observation */}
+                              {typeof onOpenObservation === 'function' && (
+                                <button
+                                  onClick={() => onOpenObservation(report.id)}
+                                  className={`flex items-center gap-2 px-6 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 border ${
+                                    isLight ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100' : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20'
+                                  }`}
+                                >
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 5v14M5 12h14"/></svg>
+                                  Open in Form
+                                </button>
+                              )}
+
                               <button
                                 onClick={() => openShareModal(report.id, 'observation', fields["Observation"]?.slice(0, 50) + '...')}
                                 className={`flex items-center gap-2 px-6 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 border ${

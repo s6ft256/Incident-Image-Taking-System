@@ -2,6 +2,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { InputField } from './InputField';
 import { ImageGrid } from './ImageGrid';
+import { ImageGallery } from './ImageGallery';
 import { OBSERVATION_TYPES, ROLES, SITES, MIN_IMAGES } from '../constants';
 import { useObservationReport } from '../hooks/useIncidentReport';
 import { getAllProfiles } from '../services/profileService';
@@ -15,6 +16,8 @@ interface CreateReportFormProps {
   baseId: string;
   onBack: () => void;
   appTheme?: 'dark' | 'light';
+  // If provided, renders the form prefilled for this observation and enables closure fields
+  initialObservation?: import('../types').FetchedObservation | null;
 }
 
 interface AISuggestion {
@@ -23,7 +26,7 @@ interface AISuggestion {
   severity: 'Low' | 'Medium' | 'High';
 }
 
-export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBack, appTheme = 'dark' }) => {
+export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBack, appTheme = 'dark', initialObservation = null }) => {
   // Enable swipe from left edge to go back (uses browser history)
   useEdgeSwipeBack();
 
@@ -47,7 +50,7 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
     handleSubmit,
     resetStatus,
     setFormData
-  } = useObservationReport(baseId);
+  } = useObservationReport(baseId, initialObservation);
 
   const [teamMembers, setTeamMembers] = useState<string[]>([]);
   const [isAnalyzingText, setIsAnalyzingText] = useState(false);
@@ -65,6 +68,24 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
     };
     fetchTeam();
   }, []);
+
+  // If an initial observation is provided, ensure the form is pre-filled with its data
+  useEffect(() => {
+    if (!initialObservation) return;
+    const f = initialObservation.fields || {} as any;
+    setFormData(prev => ({
+      ...prev,
+      name: f['Name'] || prev.name,
+      role: f['Role / Position'] || f['Role/Position'] || prev.role,
+      site: f['Site / Location'] || f['Site/Location'] || prev.site,
+      category: f['Observation Type'] || prev.category,
+      observation: f['Observation'] || prev.observation,
+      assignedTo: f['Assigned To'] || prev.assignedTo,
+      location: f['Location'] || prev.location,
+      rootCause: f['Root Cause'] || prev.rootCause,
+      closedBy: f['Closed By'] || prev.closedBy || ''
+    }));
+  }, [initialObservation, setFormData]);
 
   // AI Analysis Logic for Text
   const analyzeHazardText = useCallback(async () => {
@@ -349,7 +370,117 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
         </div>
 
         <div className={`${isLight ? 'bg-white border-slate-200' : 'bg-white/5 border-white/10'} backdrop-blur-xl rounded-[2rem] border p-8 shadow-2xl form-container-glow`}>
+          {/* When editing/closing an existing observation show its stored images first */}
+          {initialObservation && (
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h4 className="text-[10px] font-black text-blue-500 uppercase tracking-[0.3em]">Existing Observation</h4>
+                  <div className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">Viewing logged evidence from cloud</div>
+                </div>
+                <div className="text-sm font-bold text-slate-400">Recorded: {new Date(initialObservation.createdTime).toLocaleString()}</div>
+              </div>
+              <ImageGallery reportType="observation" fields={initialObservation.fields} isLight={isLight} />
+            </div>
+          )}
+
+          {initialObservation && (
+            <div className="mb-6">
+              <h4 className="text-[10px] font-black text-blue-500 uppercase tracking-[0.3em]">Existing Evidence</h4>
+              <div className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">Stored images from cloud (open / closed)</div>
+              <div className="mt-4">
+                <ImageGallery reportType="observation" fields={initialObservation.fields} isLight={isLight} />
+              </div>
+            </div>
+          )}
           <ImageGrid images={images} onAdd={handleAddFiles} onRemove={handleRemoveImage} onRetry={handleRetry} appTheme={appTheme} />
+
+          {/* Closure fields when working from an open observation */}
+          {initialObservation && (
+            <div className="mt-6 p-6 rounded-2xl border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'}">
+              <h4 className="text-[10px] font-black text-blue-500 uppercase tracking-[0.3em] mb-3">Closure & Verification</h4>
+              <div className="space-y-4">
+                <InputField
+                  id="actionTaken"
+                  label="Action Taken / Closure Notes"
+                  type="textarea"
+                  value={formData.actionTaken}
+                  onChange={handleInputChange}
+                  onBlur={handleBlur}
+                  rows={4}
+                  placeholder="Describe corrective action(s) taken to close the observation"
+                />
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <InputField
+                    id="closedBy"
+                    label="Closed By"
+                    value={formData.closedBy || ''}
+                    onChange={handleInputChange}
+                    onBlur={handleBlur}
+                    placeholder="Name of verifier"
+                  />
+                  <InputField
+                    id="assignedTo"
+                    label="Assign / Update Assignee"
+                    type="select"
+                    value={formData.assignedTo || ''}
+                    onChange={handleInputChange}
+                    onBlur={handleBlur}
+                    options={["None", ...teamMembers]}
+                    placeholder="Assign this observation"
+                  />
+                </div>
+
+                <div className="text-[10px] font-bold text-slate-500">Add verification photos (these will be stored in "Closed observations")</div>
+              </div>
+            </div>
+          )}
+
+          {/* If we're editing an existing open observation, show closure fields */}
+          {initialObservation && !(initialObservation.fields["Action taken"] || initialObservation.fields["Action Taken"]) && (
+            <div className={`mt-6 p-6 rounded-2xl border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'}`}>
+              <h4 className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.3em] mb-3">Closure & Verification</h4>
+              <div className="space-y-4">
+                <InputField
+                  id="actionTaken"
+                  label="Action Taken / Closure Notes"
+                  type="textarea"
+                  value={formData.actionTaken}
+                  onChange={handleInputChange}
+                  onBlur={handleBlur}
+                  rows={4}
+                  placeholder="Describe corrective action(s) taken to close the observation"
+                />
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <InputField
+                    id="closedBy"
+                    label="Closed By"
+                    value={formData.closedBy || ''}
+                    onChange={handleInputChange}
+                    onBlur={handleBlur}
+                    placeholder="Name of verifier"
+                  />
+                  <InputField
+              (
+            initialObservation ? ((initialObservation.fields["Action taken"] || initialObservation.fields["Action Taken"]) ? 'Update Observation' : 'Close Observation') : (isOnline ? 'Submit Evidence' : 'Store Locally')
+          )
+                    label="Assign / Update Assignee"
+                    type="select"
+                    value={formData.assignedTo || ''}
+                    onChange={handleInputChange}
+                    onBlur={handleBlur}
+                    options={["None", ...teamMembers]}
+                    placeholder="Assign this observation"
+                  />
+                </div>
+
+                <div className="text-[10px] font-bold text-slate-500">Add verification photos (these will be stored in "Closed observations")</div>
+              </div>
+            </div>
+          )}
+
           {images.length < MIN_IMAGES && (
             <div className="mt-4 flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-widest px-2">
                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

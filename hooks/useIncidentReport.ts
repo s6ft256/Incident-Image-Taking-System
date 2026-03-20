@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { ObservationForm, UploadedImage, UserProfile } from '../types';
 import { MIN_IMAGES, MAX_IMAGES, STORAGE_KEYS, OBSERVATION_TYPES } from '../constants';
-import { submitObservationReport } from '../services/airtableService';
+import { submitObservationReport, updateObservation } from '../services/airtableService';
 import { uploadImageToStorage } from '../services/storageService';
 import { compressImage } from '../utils/imageCompression';
 import { saveOfflineReport } from '../services/offlineStorage';
@@ -13,19 +13,19 @@ import { getPositionWithRefinement } from '../utils/geolocation';
 
 export type SubmitStatus = 'idle' | 'success' | 'error' | 'offline-saved';
 
-export const useObservationReport = (baseId: string) => {
-  const [formData, setFormData] = useState<ObservationForm>({
-    name: '',
-    role: '',
-    site: '',
-    category: '',
-    observation: '',
+export const useObservationReport = (baseId: string, initialObservation?: import('../types').FetchedObservation | null) => {
+  const [formData, setFormData] = useState<ObservationForm>(() => ({
+    name: initialObservation?.fields['Name'] || '',
+    role: initialObservation?.fields['Role / Position'] || initialObservation?.fields['Role/Position'] || '',
+    site: initialObservation?.fields['Site / Location'] || initialObservation?.fields['Site/Location'] || '',
+    category: initialObservation?.fields['Observation Type'] || '',
+    observation: initialObservation?.fields['Observation'] || '',
     actionTaken: '',
-    assignedTo: '',
-    location: '',
-    rootCause: '',
+    assignedTo: initialObservation?.fields['Assigned To'] || '',
+    location: initialObservation?.fields['Location'] || '',
+    rootCause: initialObservation?.fields['Root Cause'] || '',
     closedBy: ''
-  });
+  }));
   
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [images, setImages] = useState<UploadedImage[]>([]);
@@ -246,6 +246,12 @@ export const useObservationReport = (baseId: string) => {
     setIsSubmitting(true);
     
     if (!isOnline) {
+       if (initialObservation) {
+         setErrorMessage('Network unavailable — closing an existing observation requires connectivity.');
+         setSubmitStatus('error');
+         setIsSubmitting(false);
+         return;
+       }
        try {
          await saveOfflineReport(formData, images);
          setSubmitStatus('offline-saved');
@@ -272,8 +278,33 @@ export const useObservationReport = (baseId: string) => {
 
     try {
       const attachments = successfulImages.map(img => ({ url: img.serverUrl!, filename: img.file.name }));
-      await submitObservationReport(formData, attachments, { baseId });
-      setSubmitStatus('success');
+
+      // If we're editing an existing observation (closing or updating), PATCH the record
+      if (initialObservation && initialObservation.id) {
+        const patch: Record<string, any> = {};
+        // Closure fields
+        if (formData.actionTaken?.trim()) patch["Action Taken"] = formData.actionTaken;
+        if (formData.closedBy?.trim()) patch["Closed By"] = formData.closedBy;
+        if (formData.assignedTo?.trim()) patch["Assigned To"] = formData.assignedTo;
+        if (formData.rootCause?.trim()) patch["Root Cause"] = formData.rootCause;
+        // Append closure images to any existing Closed observations
+        if (attachments.length > 0) {
+          const existingClosed = Array.isArray(initialObservation.fields["Closed observations"]) ? initialObservation.fields["Closed observations"] : [];
+          patch["Closed observations"] = [...existingClosed, ...attachments];
+        }
+
+        if (Object.keys(patch).length === 0) {
+          // Nothing to update on a close - still allow but report as noop
+          setSubmitStatus('success');
+        } else {
+          await updateObservation(initialObservation.id, patch, { baseId });
+          setSubmitStatus('success');
+        }
+      } else {
+        // New observation (create)
+        await submitObservationReport(formData, attachments, { baseId });
+        setSubmitStatus('success');
+      }
     } catch (error: any) {
       setSubmitStatus('error');
       setErrorMessage(error.message || "Transmission interrupted. Please check your connection and try again.");
