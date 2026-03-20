@@ -62,8 +62,15 @@ export const sendToast = (message: string, type: 'info' | 'success' | 'warning' 
 
 export const sendNotification = (title: string, body: string, isCritical: boolean = false) => {
   playNotificationTone(isCritical);
-  if ("vibrate" in navigator) {
-    navigator.vibrate(isCritical ? [500, 100, 500, 100, 500] : [100]);
+  
+  // Vibration API: require user interaction and feature support
+  if ("vibrate" in navigator && navigator.vibrate) {
+    try {
+      navigator.vibrate(isCritical ? [500, 100, 500, 100, 500] : [100]);
+    } catch (err) {
+      // Silently fail if vibration is not allowed (e.g., no user interaction yet)
+      console.debug('Vibration not available:', err);
+    }
   }
 
   if (!("Notification" in window) || Notification.permission !== "granted") {
