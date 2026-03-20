@@ -82,6 +82,13 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
   const [isUpdatingObservation, setIsUpdatingObservation] = useState<Record<string, boolean>>({});
   const [isUploadingClosureImages, setIsUploadingClosureImages] = useState<Record<string, boolean>>({});
 
+  const [observationEdits, setObservationEdits] = useState<Record<string, Partial<{
+    observationType: string;
+    siteLocation: string;
+    observation: string;
+    rootCause: string;
+  }>>>({});
+
   const [incidentEdits, setIncidentEdits] = useState<Record<string, Partial<{
     // Core fields
     title: string;
@@ -159,6 +166,10 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
 
   const setIncidentEdit = (id: string, patch: Partial<(typeof incidentEdits)[string]>) => {
     setIncidentEdits(prev => ({ ...prev, [id]: { ...prev[id], ...patch } }));
+  };
+
+  const setObservationEdit = (id: string, patch: Partial<(typeof observationEdits)[string]>) => {
+    setObservationEdits(prev => ({ ...prev, [id]: { ...prev[id], ...patch } }));
   };
 
   const todayDate = () => new Date().toISOString().slice(0, 10);
@@ -1188,81 +1199,143 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
                                  const draft = actionDrafts[report.id] ?? "";
                                  const isBusy = !!isUpdatingObservation[report.id];
                                  const isUploadingImages = !!isUploadingClosureImages[report.id];
+                                 const edits = observationEdits[report.id] || {};
 
                                  return (
-                                   <div className={`mt-6 p-5 rounded-2xl border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'}`}>
-                                     <div className="flex items-center justify-between gap-3 mb-3">
+                                   <div className={`space-y-8 p-6 rounded-2xl border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'}`}>
+                                     <div className="flex items-center gap-3 mb-6">
+                                       <div className="w-8 h-8 bg-blue-600 rounded-xl flex items-center justify-center text-white text-xs font-black">✓</div>
                                        <div>
-                                         <div className="text-[10px] font-black text-blue-500 uppercase tracking-[0.3em]">Action & Closure</div>
-                                         <div className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">Update action taken to close this observation</div>
+                                         <div className="text-[10px] font-black text-blue-500 uppercase tracking-[0.3em]">Closure Preparation</div>
+                                         <div className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">Review and finalize observation data before closing</div>
                                        </div>
                                      </div>
-                                     
-                                     {/* Action Taken Input */}
-                                     <textarea
-                                       value={draft}
-                                       onChange={(e) => setActionDrafts(prev => ({ ...prev, [report.id]: e.target.value }))}
-                                       rows={4}
-                                       placeholder="Describe the action taken / update..."
-                                       className={`w-full p-4 rounded-2xl border text-sm font-bold outline-none resize-none transition-all ${
-                                         isLight ? 'bg-white border-slate-200 focus:border-blue-500' : 'bg-black/30 border-white/10 focus:border-blue-500 text-white'
-                                       }`}
-                                     />
-                                     
-                                     {/* Closure Images Input */}
-                                     <div className="mt-4">
-                                         <ImageUploadZone 
-                                            label="Closure Images (Optional)"
-                                            isUploading={isUploadingImages}
-                                            isLight={isLight}
-                                            helperText={pendingClosureFiles[report.id] ? `${pendingClosureFiles[report.id]?.length} file(s) selected` : "Upload evidence of correction"}
-                                            onFilesSelected={(files) => setPendingClosureFiles(prev => ({ ...prev, [report.id]: files }))}
-                                            selectedFiles={pendingClosureFiles[report.id]}
-                                            showPreview={true}
+
+                                     {/* Original Observation Fields - Editable */}
+                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 rounded-2xl bg-black/20 border border-white/5">
+                                       <div className="md:col-span-2">
+                                         <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Observation Description</label>
+                                         <textarea
+                                           value={String(edits.observation ?? fields["Observation"] ?? '')}
+                                           onChange={(e) => setObservationEdit(report.id, { observation: e.target.value })}
+                                           rows={4}
+                                           placeholder="Original finding..."
+                                           className={`w-full p-4 rounded-2xl border text-sm font-bold outline-none resize-none transition-all ${
+                                             isLight ? 'bg-white border-slate-200 focus:border-blue-500' : 'bg-black/30 border-white/10 focus:border-blue-500 text-white'
+                                           }`}
                                          />
+                                       </div>
+                                       <div>
+                                         <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Observation Type</label>
+                                         <input
+                                           value={String(edits.observationType ?? fields["Observation Type"] ?? '')}
+                                           onChange={(e) => setObservationEdit(report.id, { observationType: e.target.value })}
+                                           placeholder="Type..."
+                                           className={`w-full p-3 rounded-2xl border text-sm font-bold outline-none transition-all ${
+                                             isLight ? 'bg-white border-slate-200 focus:border-blue-500' : 'bg-black/30 border-white/10 focus:border-blue-500 text-white'
+                                           }`}
+                                         />
+                                       </div>
+                                       <div>
+                                         <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Site / Location</label>
+                                         <input
+                                           value={String(edits.siteLocation ?? fields["Site / Location"] ?? '')}
+                                           onChange={(e) => setObservationEdit(report.id, { siteLocation: e.target.value })}
+                                           placeholder="Site..."
+                                           className={`w-full p-3 rounded-2xl border text-sm font-bold outline-none transition-all ${
+                                             isLight ? 'bg-white border-slate-200 focus:border-blue-500' : 'bg-black/30 border-white/10 focus:border-blue-500 text-white'
+                                           }`}
+                                         />
+                                       </div>
+                                       <div className="md:col-span-2">
+                                         <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Root Cause / Contributing Factor</label>
+                                         <textarea
+                                           value={String(edits.rootCause ?? fields["Root Cause"] ?? '')}
+                                           onChange={(e) => setObservationEdit(report.id, { rootCause: e.target.value })}
+                                           rows={3}
+                                           placeholder="Why did this observation occur?..."
+                                           className={`w-full p-4 rounded-2xl border text-sm font-bold outline-none resize-none transition-all ${
+                                             isLight ? 'bg-white border-slate-200 focus:border-blue-500' : 'bg-black/30 border-white/10 focus:border-blue-500 text-white'
+                                           }`}
+                                         />
+                                       </div>
                                      </div>
 
-                                     {/* Assignment Edit (Optional - to allow assigning if unassigned) */}
-                                     <div className="mt-4">
+                                     {/* Action Taken Input */}
+                                     <div>
+                                       <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Action Taken / Corrective Measure *</label>
+                                       <textarea
+                                         value={draft}
+                                         onChange={(e) => setActionDrafts(prev => ({ ...prev, [report.id]: e.target.value }))}
+                                         rows={4}
+                                         placeholder="Describe the action taken to resolve this observation..."
+                                         className={`w-full p-4 rounded-2xl border text-sm font-bold outline-none resize-none transition-all ${
+                                           isLight ? 'bg-white border-slate-200 focus:border-blue-500' : 'bg-black/30 border-white/10 focus:border-blue-500 text-white'
+                                         }`}
+                                       />
+                                     </div>
+                                     
+                                     {/* Closure Images Input */}
+                                     <div>
+                                       <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Evidence Photos (Optional)</label>
+                                       <ImageUploadZone 
+                                          label=""
+                                          isUploading={isUploadingImages}
+                                          isLight={isLight}
+                                          helperText={pendingClosureFiles[report.id] ? `${pendingClosureFiles[report.id]?.length} file(s) selected` : "Upload photos showing the correction/resolution"}
+                                          onFilesSelected={(files) => setPendingClosureFiles(prev => ({ ...prev, [report.id]: files }))}
+                                          selectedFiles={pendingClosureFiles[report.id]}
+                                          showPreview={true}
+                                       />
+                                     </div>
+
+                                     {/* Assignment Edit */}
+                                     <div>
                                         <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 block">
-                                          Assign To (Optional)
+                                          Keep Assigned To
                                         </label>
                                         <input
                                           defaultValue={String(fields["Assigned To"] || "")}
-                                          onBlur={(e) => {
-                                            const newVal = e.target.value;
-                                            if (newVal !== String(fields["Assigned To"] || "")) {
-                                              handleSaveObservationEdits(report.id, filterAssignee || '', { assignedTo: newVal });
-                                            }
-                                          }}
                                           list={`obs-${report.id}-assignees`}
-                                          placeholder="Assign this observation..."
-                                          className={`w-full p-3 rounded-2xl border text-sm font-bold outline-none transition-all ${
-                                            isLight ? 'bg-white border-slate-200' : 'bg-black/30 border-white/10 text-white'
+                                          placeholder="Assignment..."
+                                          disabled
+                                          className={`w-full p-3 rounded-2xl border text-sm font-bold outline-none opacity-60 ${
+                                            isLight ? 'bg-slate-100 border-slate-200' : 'bg-black/30 border-white/10 text-white'
                                           }`}
                                         />
-                                         <datalist id={`obs-${report.id}-assignees`}>
+                                        <datalist id={`obs-${report.id}-assignees`}>
                                             {personnelNames.map((n) => <option key={n} value={n} />)}
-                                         </datalist>
+                                        </datalist>
                                      </div>
                                      
-                                     <div className="flex justify-end mt-4">
+                                     <div className="flex justify-end gap-3 pt-4 border-t border-white/10">
+                                       <button
+                                         type="button"
+                                         onClick={() => {
+                                           setActionDrafts(prev => ({ ...prev, [report.id]: '' }));
+                                           setPendingClosureFiles(prev => ({ ...prev, [report.id]: null }));
+                                           setObservationEdits(prev => ({ ...prev, [report.id]: {} }));
+                                         }}
+                                         className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 border ${
+                                           isLight ? 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200' : 'bg-black/20 text-slate-400 border-white/10 hover:bg-black/30'
+                                         }`}
+                                       >
+                                         Clear
+                                       </button>
                                        <button
                                          disabled={isBusy || isUploadingImages}
                                          onClick={() => {
-                                           // If action taken is provided, submit it.
-                                           // We pass the new action taken as override to fields for the function
                                            if (!draft.trim()) {
-                                              sendToast("Please describe the action taken.", "error"); // Use standard error toast
+                                              sendToast("Please describe the action taken.", "error");
                                               return;
                                            }
-                                           handleResubmitObservation(report.id, filterAssignee, pendingClosureFiles[report.id] || undefined, fields);
+                                           handleResubmitObservation(report.id, filterAssignee, pendingClosureFiles[report.id] || undefined, { ...fields, ...edits });
                                          }}
                                          className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 border ${
-                                           isLight ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-500' : 'bg-blue-600 text-white border-blue-500/20 hover:bg-blue-500'
+                                           isLight ? 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-500' : 'bg-emerald-600 text-white border-emerald-500/20 hover:bg-emerald-500'
                                          } ${(isBusy || isUploadingImages) ? 'opacity-60 cursor-not-allowed' : ''}`}
                                        >
-                                         {isUploadingImages ? 'Uploading Images…' : isBusy ? 'Submitting…' : 'Close Observation'}
+                                         {isUploadingImages ? 'Uploading Evidence…' : isBusy ? 'Closing…' : 'Close Observation'}
                                        </button>
                                      </div>
                                    </div>
