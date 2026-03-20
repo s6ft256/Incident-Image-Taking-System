@@ -22,7 +22,7 @@ interface RecentReportsProps {
   onPrint: (incident: FetchedIncident) => void;
 }
 
-type Tab = 'open' | 'assigned' | 'incidents' | 'closed';
+type Tab = 'all' | 'open' | 'assigned' | 'incidents' | 'closed';
 
 const PROFILE_KEY = 'hse_guardian_profile';
 
@@ -57,7 +57,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
     return state.personnel.map(p => p.name).sort();
   }, [state.personnel]);
   
-  const [activeTab, setActiveTab] = useState<Tab>(filterAssignee ? 'assigned' : 'incidents');
+  const [activeTab, setActiveTab] = useState<Tab>(filterAssignee ? 'assigned' : 'all');
   const [searchTerm, setSearchTerm] = useState('');
   
   const [isArchiveUnlocked, setIsArchiveUnlocked] = useState(false);
@@ -492,6 +492,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
 
       if (activeTab === 'closed') return isClosed && matchesSearch && matchesAssignee;
       if (activeTab === 'assigned') return !isClosed && (assignedTokens.length > 0 || isLocallyAssignedToMe) && matchesSearch && (matchesAssignee || isLocallyAssignedToMe);
+      if (activeTab === 'all') return !isClosed && matchesSearch;
       // Open tab: Only show unassigned and active reports (assigned ones go to "Assigned" or "My Tasks")
       return !isClosed && assignedTokens.length === 0 && matchesSearch && matchesAssignee;
     });
@@ -525,9 +526,9 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
 
         {!isMyTasksMode && (
           <div className={`flex p-1 mb-8 rounded-2xl border ${isLight ? 'bg-slate-100 border-slate-200' : 'bg-slate-800 border-slate-700'} max-w-2xl`}>
-              {(['incidents', 'open', 'assigned', 'closed'] as const).map(t => (
+              {(['all', 'incidents', 'open', 'assigned', 'closed'] as const).map(t => (
                 <button key={t} onClick={() => { setActiveTab(t); setExpandedId(null); }} className={`flex-1 py-3 text-[9px] uppercase font-black rounded-xl transition-all ${activeTab === t ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}>
-                    {t}
+                    {t === 'all' ? 'Registry' : t}
                 </button>
               ))}
           </div>
