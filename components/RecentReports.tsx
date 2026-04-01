@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
-import { FetchedObservation, UserProfile, FetchedIncident } from '../types';
+import { FetchedObservation, UserProfile, FetchedIncident, OfflineObservation, OfflineIncident } from '../types';
 import { ARCHIVE_ACCESS_KEY, INCIDENT_STATUS, getRiskLevel, SEVERITY_LEVELS, LIKELIHOOD_LEVELS, STORAGE_KEYS, INCIDENT_TYPES, DEPARTMENTS, SITES } from '../constants';
 import { useAppContext } from '../context/AppContext';
 import { ShareModal } from './ShareModal';
@@ -8,6 +8,8 @@ import { ImageGallery } from './ImageGallery';
 import { ImageUploadZone } from './ImageUploadZone';
 import { ReportComments } from './ReportComments';
 import { getAssignedReports } from '../services/sharingService';
+import { getAllSupabaseIncidents, getAllSupabaseObservations } from '../services/supabaseService';
+import { getOfflineReports, getOfflineIncidents } from '../services/offlineStorage';
 import { updateIncident, updateObservation } from '../services/airtableService';
 import { sendToast } from '../services/notificationService';
 import { uploadImageToStorage } from '../services/storageService';
@@ -60,10 +62,205 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
   const [activeTab, setActiveTab] = useState<Tab>(filterAssignee ? 'assigned' : 'all');
   const [searchTerm, setSearchTerm] = useState('');
   
+  const [supabaseReports, setSupabaseReports] = useState<FetchedObservation[]>([]);
+  const [supabaseIncidentsState, setSupabaseIncidents] = useState<FetchedIncident[]>([]);
+  const [offlineReports, setOfflineReports] = useState<OfflineObservation[]>([]);
+  const [offlineIncidents, setOfflineIncidents] = useState<OfflineIncident[]>([]);
+  const [archiveKey, setArchiveKey] = useState('');
+  const [isArchiveUnlocked, setIsArchiveUnlocked] = useState(false);
+  const [isLoadingRegistry, setIsLoadingRegistry] = useState(false);
+
   // Registry should always show both Open and Closed records in all/partial modes.
   const [showRawMetadata, setShowRawMetadata] = useState<Record<string, boolean>>({});
 
   const isLight = appTheme === 'light';
+
+  const mergedReports = useMemo<FetchedObservation[]>(() => {
+    const offlineAsAirtable = offlineReports.map(r => ({
+      id: r.id,
+      createdTime: new Date(r.timestamp).toISOString(),
+      fields: {
+        'Name': r.form.name,
+        'Role / Position': r.form.role,
+        'Site / Location': r.form.site,
+        'Observation Type': r.form.category,
+        'Observation': r.form.observation,
+        'Action Taken': r.form.actionTaken,
+        'Assigned To': r.form.assignedTo,
+        'Closed By': r.form.closedBy,
+        'Location': r.form.location,
+        'Root Cause': r.form.rootCause,
+        'source': 'offline'
+      }
+    } as FetchedObservation));
+    return [...allReports, ...supabaseReports, ...offlineAsAirtable];
+  }, [allReports, supabaseReports, offlineReports]);
+
+  const mergedIncidents = useMemo<FetchedIncident[]>(() => {
+    const offlineAsAirtable = offlineIncidents.map(i => ({
+      id: i.id,
+      createdTime: new Date(i.timestamp).toISOString(),
+      fields: {
+        'Title': i.form.title,
+        'Description': i.form.description,
+        'Incident Date': i.form.date,
+        'Location': i.form.location,
+        'Department': i.form.department,
+        'Site / Project': i.form.site,
+        'Status': i.form.closureDate ? 'Closed' : 'Pending Review',
+        'Severity': i.form.severityScore,
+        'Likelihood': i.form.likelihoodScore,
+        'Category': i.form.type,
+        'Reporter ID': i.form.reporterName,
+        'Root Cause': i.form.rootCause,
+        'Closure Date': i.form.closureDate,
+        'source': 'offline'
+      }
+    } as FetchedIncident));
+    return [...allIncidents, ...supabaseIncidentsState, ...offlineAsAirtable];
+  }, [allIncidents, supabaseIncidentsState, offlineIncidents]);
+
+  const tabFilteredReports = useMemo(() => {
+    const query = searchTerm.toLowerCase().trim();
+    const showClosed = isArchiveUnlocked;
+
+    const incidentIsClosed = (inc: FetchedIncident) => String(inc.fields['Status'] || '').toLowerCase() === 'closed';
+    const observationIsClosed = (report: FetchedObservation) => String(report.fields['Action taken'] || report.fields['Action Taken'] || '').trim().length > 0;
+
+    if (isMyTasksMode && filterAssignee) {
+      const normalizedAssignee = filterAssignee.trim().toLowerCase();
+
+      const incidentTasks = mergedIncidents.filter((inc) => {
+        const fields: any = inc.fields;
+        const status = String(fields['Status'] || INCIDENT_STATUS.PENDING_REVIEW);
+        if (status === INCIDENT_STATUS.CLOSED) return false;
+
+        const title = String(fields['Title'] || '').toLowerCase();
+        const desc = String(fields['Description'] || '').toLowerCase();
+        const matchesSearch = !query || title.includes(query) || desc.includes(query);
+        if (!matchesSearch) return false;
+
+        const reviewerTokens = normalizeAssignees(String(fields['Reviewer'] || ''));
+        const actionTokens = normalizeAssignees(String(fields['Action Assigned To'] || ''));
+
+        const isReviewer = reviewerTokens.includes(normalizedAssignee);
+        const isActionAssignee = actionTokens.includes(normalizedAssignee);
+
+        if (status === INCIDENT_STATUS.PENDING_REVIEW) return isReviewer;
+        if (status === INCIDENT_STATUS.ACTION_PENDING) return isActionAssignee;
+        if (status === INCIDENT_STATUS.VERIFICATION_PENDING) return isReviewer;
+        return false;
+      });
+
+      const observationTasks = mergedReports.filter((report) => {
+        const actionTaken = String(report.fields['Action taken'] || report.fields['Action Taken'] || '').trim();
+        const isClosed = actionTaken.length > 0;
+        if (isClosed) return false;
+
+        const assignedToRaw = String(report.fields['Assigned To'] || '').trim();
+        const assignedTokens = normalizeAssignees(assignedToRaw);
+
+        const obsText = String(report.fields['Observation'] || '').toLowerCase();
+        const nameText = String(report.fields['Name'] || '').toLowerCase();
+        const matchesSearch = !query || obsText.includes(query) || nameText.includes(query);
+        if (!matchesSearch) return false;
+
+        const matchesAssignee = assignedTokens.includes(normalizedAssignee) || assignedToRaw.toLowerCase() === normalizedAssignee;
+        const isLocallyAssignedToMe = localAssignedObservationIds.has(report.id);
+        return (matchesAssignee || isLocallyAssignedToMe);
+      });
+
+      return [...incidentTasks, ...observationTasks].sort((a: any, b: any) => {
+        const at = new Date(a.createdTime || 0).getTime();
+        const bt = new Date(b.createdTime || 0).getTime();
+        return bt - at;
+      });
+    }
+
+    if (activeTab === 'all') {
+      const incidentCandidates = showClosed ? mergedIncidents : mergedIncidents.filter(inc => !incidentIsClosed(inc));
+      const allIncidentsFiltered = incidentCandidates.filter(inc => {
+        const title = String(inc.fields['Title'] || '').toLowerCase();
+        const desc = String(inc.fields['Description'] || '').toLowerCase();
+        return !query || title.includes(query) || desc.includes(query);
+      });
+
+      const observationCandidates = showClosed ? mergedReports : mergedReports.filter(rep => !observationIsClosed(rep));
+      const allObservationsFiltered = observationCandidates.filter(report => {
+        const obsText = String(report.fields['Observation'] || '').toLowerCase();
+        const nameText = String(report.fields['Name'] || '').toLowerCase();
+        return !query || obsText.includes(query) || nameText.includes(query);
+      });
+
+      return [...allIncidentsFiltered, ...allObservationsFiltered].sort((a: any, b: any) => {
+        const at = new Date(a.createdTime || 0).getTime();
+        const bt = new Date(b.createdTime || 0).getTime();
+        return bt - at;
+      });
+    }
+
+    if (activeTab === 'incidents') {
+      const incidentCandidates = showClosed ? mergedIncidents : mergedIncidents.filter(inc => !incidentIsClosed(inc));
+      return incidentCandidates.filter(inc => {
+        const title = String(inc.fields['Title'] || '').toLowerCase();
+        const desc = String(inc.fields['Description'] || '').toLowerCase();
+        return !query || title.includes(query) || desc.includes(query);
+      });
+    }
+
+    if (activeTab === 'open' || activeTab === 'closed') {
+      const targetClosed = activeTab === 'closed';
+      if (targetClosed && !showClosed) {
+        return [];
+      }
+
+      const incidentCandidates = showClosed ? mergedIncidents : mergedIncidents.filter(inc => !incidentIsClosed(inc));
+      const incidentFiltered = incidentCandidates.filter(inc => {
+        const status = String(inc.fields['Status'] || INCIDENT_STATUS.PENDING_REVIEW);
+        const isClosedIncident = status === INCIDENT_STATUS.CLOSED;
+        if (isClosedIncident !== targetClosed) return false;
+
+        const title = String(inc.fields['Title'] || '').toLowerCase();
+        const desc = String(inc.fields['Description'] || '').toLowerCase();
+        return !query || title.includes(query) || desc.includes(query);
+      });
+
+      const observationCandidates = showClosed ? mergedReports : mergedReports.filter(rep => !observationIsClosed(rep));
+      const observationFiltered = observationCandidates.filter(report => {
+        const actionTaken = String(report.fields['Action taken'] || report.fields['Action Taken'] || '').trim();
+        const isClosedObservation = actionTaken.length > 0;
+        if (isClosedObservation !== targetClosed) return false;
+
+        const obsText = String(report.fields['Observation'] || '').toLowerCase();
+        const nameText = String(report.fields['Name'] || '').toLowerCase();
+        const matchesSearch = !query || obsText.includes(query) || nameText.includes(query);
+        if (!matchesSearch) return false;
+
+        return true;
+      });
+
+      return [...incidentFiltered, ...observationFiltered].sort((a: any, b: any) => {
+        const at = new Date(a.createdTime || 0).getTime();
+        const bt = new Date(b.createdTime || 0).getTime();
+        return bt - at;
+      });
+    }
+
+    const visibleObservations = mergedReports.filter(report => {
+      const actionTaken = String(report.fields['Action taken'] || report.fields['Action Taken'] || '').trim();
+      const isClosed = actionTaken.length > 0;
+      if (!showClosed && isClosed) return false;
+
+      const obsText = String(report.fields['Observation'] || '').toLowerCase();
+      const nameText = String(report.fields['Name'] || '').toLowerCase();
+      return !query || obsText.includes(query) || nameText.includes(query);
+    });
+
+    if (activeTab === 'closed' && !showClosed) return [];
+
+    return visibleObservations;
+  }, [mergedReports, mergedIncidents, activeTab, searchTerm, filterAssignee, isMyTasksMode, localAssignedObservationIds]);
+
   const isMyTasksMode = !!filterAssignee;
 
   const localAssignedObservationIds = useMemo(() => {
@@ -73,6 +270,31 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
       .map(a => a.reportId);
     return new Set<string>(assigned);
   }, [filterAssignee]);
+
+  useEffect(() => {
+    const loadRegistryData = async () => {
+      setIsLoadingRegistry(true);
+      try {
+        const [sbReports, sbIncidents, offReports, offIncidents] = await Promise.all([
+          getAllSupabaseObservations(),
+          getAllSupabaseIncidents(),
+          getOfflineReports(),
+          getOfflineIncidents()
+        ]);
+
+        setSupabaseReports(sbReports);
+        setSupabaseIncidents(sbIncidents);
+        setOfflineReports(offReports);
+        setOfflineIncidents(offIncidents);
+      } catch (error) {
+        console.warn('Registry fetch failed', error);
+      } finally {
+        setIsLoadingRegistry(false);
+      }
+    };
+
+    loadRegistryData();
+  }, []);
 
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [actionDrafts, setActionDrafts] = useState<Record<string, string>>({});
@@ -413,141 +635,6 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
     setShowRawMetadata(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const tabFilteredReports = useMemo(() => {
-    const query = searchTerm.toLowerCase().trim();
-
-    if (isMyTasksMode && filterAssignee) {
-      const normalizedAssignee = filterAssignee.trim().toLowerCase();
-
-      const incidentTasks = allIncidents.filter((inc) => {
-        const fields: any = inc.fields;
-        const status = String(fields["Status"] || INCIDENT_STATUS.PENDING_REVIEW);
-        if (status === INCIDENT_STATUS.CLOSED) return false;
-
-        const title = String(fields["Title"] || '').toLowerCase();
-        const desc = String(fields["Description"] || '').toLowerCase();
-        const matchesSearch = !query || title.includes(query) || desc.includes(query);
-        if (!matchesSearch) return false;
-
-        const reviewerTokens = normalizeAssignees(String(fields["Reviewer"] || ''));
-        const actionTokens = normalizeAssignees(String(fields["Action Assigned To"] || ''));
-
-        const isReviewer = reviewerTokens.includes(normalizedAssignee);
-        const isActionAssignee = actionTokens.includes(normalizedAssignee);
-
-        if (status === INCIDENT_STATUS.PENDING_REVIEW) return isReviewer;
-        if (status === INCIDENT_STATUS.ACTION_PENDING) return isActionAssignee;
-        if (status === INCIDENT_STATUS.VERIFICATION_PENDING) return isReviewer;
-        return false;
-      });
-
-      const observationTasks = allReports.filter((report) => {
-        const actionTaken = String(report.fields["Action taken"] || '').trim();
-        const isClosed = actionTaken.length > 0;
-        if (isClosed) return false;
-
-        const assignedToRaw = String(report.fields["Assigned To"] || '').trim();
-        const assignedTokens = normalizeAssignees(assignedToRaw);
-
-        const obsText = String(report.fields["Observation"] || '').toLowerCase();
-        const nameText = String(report.fields["Name"] || '').toLowerCase();
-        const matchesSearch = !query || obsText.includes(query) || nameText.includes(query);
-        if (!matchesSearch) return false;
-
-        const matchesAssignee = assignedTokens.includes(normalizedAssignee) || assignedToRaw.toLowerCase() === normalizedAssignee;
-        const isLocallyAssignedToMe = localAssignedObservationIds.has(report.id);
-        return (matchesAssignee || isLocallyAssignedToMe);
-      });
-
-      return [...incidentTasks, ...observationTasks].sort((a: any, b: any) => {
-        const at = new Date(a.createdTime || 0).getTime();
-        const bt = new Date(b.createdTime || 0).getTime();
-        return bt - at;
-      });
-    }
-    
-    // Registry tab: Show ALL data (incidents + observations)
-    if (activeTab === 'all') {
-      const allIncidentsFiltered = allIncidents.filter(inc => {
-        const title = String(inc.fields["Title"] || "").toLowerCase();
-        const desc = String(inc.fields["Description"] || "").toLowerCase();
-        return !query || title.includes(query) || desc.includes(query);
-      });
-      
-      const allObservationsFiltered = allReports.filter(report => {
-        const obsText = String(report.fields["Observation"] || "").toLowerCase();
-        const nameText = String(report.fields["Name"] || "").toLowerCase();
-        return !query || obsText.includes(query) || nameText.includes(query);
-      });
-      
-      return [...allIncidentsFiltered, ...allObservationsFiltered].sort((a: any, b: any) => {
-        const at = new Date(a.createdTime || 0).getTime();
-        const bt = new Date(b.createdTime || 0).getTime();
-        return bt - at;
-      });
-    }
-    
-    if (activeTab === 'incidents') {
-      return allIncidents.filter(inc => {
-        const title = String(inc.fields["Title"] || "").toLowerCase();
-        const desc = String(inc.fields["Description"] || "").toLowerCase();
-        return !query || title.includes(query) || desc.includes(query);
-      });
-    }
-
-    if (activeTab === 'open' || activeTab === 'closed') {
-      const targetClosed = activeTab === 'closed';
-
-      const incidentFiltered = allIncidents.filter(inc => {
-        const status = String(inc.fields["Status"] || INCIDENT_STATUS.PENDING_REVIEW);
-        const isClosedIncident = status === INCIDENT_STATUS.CLOSED;
-        if (isClosedIncident !== targetClosed) return false;
-
-        const title = String(inc.fields["Title"] || "").toLowerCase();
-        const desc = String(inc.fields["Description"] || "").toLowerCase();
-        return !query || title.includes(query) || desc.includes(query);
-      });
-
-      const observationFiltered = allReports.filter(report => {
-        const actionTaken = String(report.fields["Action taken"] || "").trim();
-        const isClosedObservation = actionTaken.length > 0;
-        if (isClosedObservation !== targetClosed) return false;
-
-        const obsText = String(report.fields["Observation"] || "").toLowerCase();
-        const nameText = String(report.fields["Name"] || "").toLowerCase();
-        const matchesSearch = !query || obsText.includes(query) || nameText.includes(query);
-        if (!matchesSearch) return false;
-
-        return true;
-      });
-
-      return [...incidentFiltered, ...observationFiltered].sort((a: any, b: any) => {
-        const at = new Date(a.createdTime || 0).getTime();
-        const bt = new Date(b.createdTime || 0).getTime();
-        return bt - at;
-      });
-    }
-
-    return allReports.filter(report => {
-      const actionTaken = String(report.fields["Action taken"] || "").trim();
-      const isClosed = actionTaken.length > 0;
-      const assignedToRaw = String(report.fields["Assigned To"] || "").trim();
-      const assignedTokens = normalizeAssignees(assignedToRaw);
-      
-      const obsText = String(report.fields["Observation"] || "").toLowerCase();
-      const nameText = String(report.fields["Name"] || "").toLowerCase();
-      const matchesSearch = !query || obsText.includes(query) || nameText.includes(query);
-      
-      const normalizedAssignee = (filterAssignee || '').trim().toLowerCase();
-      const matchesAssignee = !filterAssignee || assignedTokens.includes(normalizedAssignee) || assignedToRaw.toLowerCase() === normalizedAssignee;
-      const isLocallyAssignedToMe = !!filterAssignee && localAssignedObservationIds.has(report.id);
-
-      if (activeTab === 'assigned') return !isClosed && (assignedTokens.length > 0 || isLocallyAssignedToMe) && matchesSearch && (matchesAssignee || isLocallyAssignedToMe);
-      // Open tab: Only show unassigned and active observations
-      return !isClosed && assignedTokens.length === 0 && matchesSearch && matchesAssignee;
-    });
-  }, [allReports, allIncidents, activeTab, searchTerm, filterAssignee, localAssignedObservationIds]);
-
   return (
     <div className="animate-in slide-in-from-right duration-300 pb-24 max-w-7xl mx-auto">
       <div className="relative z-10 px-2 lg:px-0">
@@ -572,6 +659,27 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
             />
             <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
           </div>
+
+          <form onSubmit={(e) => { e.preventDefault(); setIsArchiveUnlocked(archiveKey.trim() === ARCHIVE_ACCESS_KEY); }} className="flex flex-wrap items-center gap-2 mt-4">
+            <input
+              type="password"
+              placeholder="Archive access key"
+              value={archiveKey}
+              onChange={(e) => setArchiveKey(e.target.value)}
+              className={`flex-1 min-w-[220px] p-2 rounded-xl border text-xs ${isLight ? 'bg-white border-slate-300' : 'bg-white/5 border-white/20 text-white'}`}
+            />
+            <button
+              type="submit"
+              className="px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-black uppercase tracking-widest hover:bg-blue-500"
+            >
+              Unlock Archive
+            </button>
+            {isArchiveUnlocked ? (
+              <span className="text-[10px] font-semibold text-emerald-400">Archive key accepted. Closed/submitted records unlocked.</span>
+            ) : archiveKey ? (
+              <span className="text-[10px] font-semibold text-rose-400">Key invalid (or does not match). Retrying required.</span>
+            ) : null}
+          </form>
         </div>
 
         {!isMyTasksMode && (
@@ -597,7 +705,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
 
       </div>
 
-      {loading ? (
+      {(loading || isLoadingRegistry) ? (
         <div className="py-24 flex flex-col items-center gap-6">
           <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
           <p className="text-[11px] font-black uppercase text-slate-400 tracking-[0.2em]">Synchronizing Registry...</p>

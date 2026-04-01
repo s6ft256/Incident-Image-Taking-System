@@ -51,7 +51,10 @@ export const STORAGE_KEYS = {
   THEME: 'hse_guardian_theme',
   LAST_USER: 'hse_guardian_last_user',
   TUTORIAL_SEEN: 'hse_guardian_tutorial_seen',
-  COOKIES_ACCEPTED: 'hse_guardian_cookies_accepted'
+  COOKIES_ACCEPTED: 'hse_guardian_cookies_accepted',
+  OFFLINE_OBSERVATIONS: 'hse_guardian_offline_observations',
+  OFFLINE_INCIDENTS: 'hse_guardian_offline_incidents',
+  OFFLINE_SYNC_META: 'hse_guardian_offline_sync_meta'
 };
 
 export const ARCHIVE_ACCESS_KEY = getEnv('VITE_ARCHIVE_ACCESS_KEY', '');

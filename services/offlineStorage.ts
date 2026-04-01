@@ -66,7 +66,16 @@ export const saveOfflineReport = async (form: ObservationForm, images: UploadedI
       const tx = db.transaction(OBS_STORE_NAME, 'readwrite');
       const store = tx.objectStore(OBS_STORE_NAME);
       store.put(offlineData);
-      tx.oncomplete = () => resolve();
+      tx.oncomplete = async () => {
+        try {
+          const existing = JSON.parse(localStorage.getItem('hse_guardian_offline_observations') || '[]');
+          localStorage.setItem('hse_guardian_offline_observations', JSON.stringify([...existing, offlineData]));
+          localStorage.setItem('hse_guardian_offline_sync_meta', JSON.stringify({ lastSavedAt: Date.now(), pendingCount: await getPendingReportCount() }));
+        } catch {
+          // localStorage may not be available
+        }
+        resolve();
+      };
       tx.onerror = () => reject(new Error("Failed to write to local ledger."));
     } catch (e) {
       reject(e);
@@ -85,7 +94,16 @@ export const saveOfflineIncident = async (form: IncidentForm, images: UploadedIm
   return new Promise<void>((resolve, reject) => {
     const tx = db.transaction(INCIDENT_STORE_NAME, 'readwrite');
     tx.objectStore(INCIDENT_STORE_NAME).put(offlineData);
-    tx.oncomplete = () => resolve();
+    tx.oncomplete = async () => {
+      try {
+        const existing = JSON.parse(localStorage.getItem('hse_guardian_offline_incidents') || '[]');
+        localStorage.setItem('hse_guardian_offline_incidents', JSON.stringify([...existing, offlineData]));
+        localStorage.setItem('hse_guardian_offline_sync_meta', JSON.stringify({ lastSavedAt: Date.now(), pendingCount: await getPendingReportCount() }));
+      } catch {
+        // localStorage fallback not always available
+      }
+      resolve();
+    };
     tx.onerror = () => reject(new Error("Failed to persist incident to local ledger."));
   });
 };
