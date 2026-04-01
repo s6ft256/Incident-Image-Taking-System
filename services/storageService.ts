@@ -10,8 +10,8 @@ const supabase = isValidConfig
 /**
  * Maps technical storage errors to high-integrity safety messages.
  */
-const getFriendlyStorageError = (error: any, bucketName: string): string => {
-  const message = error?.message || '';
+const getFriendlyStorageError = (error: unknown, bucketName: string): string => {
+  const message = typeof error === 'object' && error !== null && 'message' in error && typeof (error as Record<string, unknown>).message === 'string' ? (error as { message: string }).message : '';
   if (message.includes('row-level security') || message.includes('policy')) {
     return "VAULT ACCESS DENIED: Digital evidence container is locked. Contact HSE Administrator to verify terminal permissions.";
   }
@@ -46,11 +46,11 @@ export const uploadImageToStorage = async (
   const cleanFolder = folder.replace(/^\/+|\/+$/g, '');
   const filePath = `${cleanFolder}/${fileName}`;
 
-  let lastError: any;
+  let lastError: unknown;
   
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
-      const { data, error } = await supabase.storage
+      const { error } = await supabase.storage
         .from(bucketToUse)
         .upload(filePath, file, {
           cacheControl: '3600',
@@ -75,9 +75,9 @@ export const uploadImageToStorage = async (
         .getPublicUrl(filePath);
 
       return publicUrl;
-    } catch (error: any) {
-      lastError = error;
-      if (attempt === maxRetries) throw error;
+    } catch (catchError: unknown) {
+      lastError = catchError;
+      if (attempt === maxRetries) throw catchError;
       await new Promise(res => setTimeout(res, Math.pow(2, attempt) * 1000));
     }
   }

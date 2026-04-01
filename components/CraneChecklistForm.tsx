@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { InputField } from './InputField';
 import { sendToast } from '../services/notificationService';
 import { submitCraneChecklist } from '../services/airtableService';
@@ -55,7 +55,9 @@ export const CraneChecklistForm: React.FC<CraneChecklistFormProps> = ({ appTheme
       try {
         const profile: UserProfile = JSON.parse(saved);
         setMetadata(prev => ({ ...prev, inspector: profile.name }));
-      } catch (e) {}
+      } catch (error: unknown) {
+        console.warn('Failed to parse saved profile', error);
+      }
     }
   }, []);
 
@@ -88,8 +90,11 @@ export const CraneChecklistForm: React.FC<CraneChecklistFormProps> = ({ appTheme
       setDefectImages(prev => [...prev, { url, filename: `${activeDefectItem.item}_${activeDefectItem.shift}_CRANE.jpg` }]);
       sendToast("Defect image archived.", "success");
       setActiveDefectItem(null);
-    } catch (err: any) {
-      sendToast("Upload failed: " + err.message, "critical");
+    } catch (error: unknown) {
+      const message = typeof error === 'object' && error !== null && 'message' in error && typeof (error as Record<string, unknown>).message === 'string'
+        ? (error as { message: string }).message
+        : 'Upload failed due to unexpected error.';
+      sendToast(`Upload failed: ${message}`, 'critical');
     }
   };
 
@@ -103,8 +108,11 @@ export const CraneChecklistForm: React.FC<CraneChecklistFormProps> = ({ appTheme
       await submitCraneChecklist(craneType, metadata, checks, remarks, defectImages);
       sendToast("Daily Inspection Synced", "success");
       onBack();
-    } catch (err: any) {
-      sendToast("Sync Failed: " + err.message, "critical");
+    } catch (error: unknown) {
+      const message = typeof error === 'object' && error !== null && 'message' in error && typeof (error as Record<string, unknown>).message === 'string'
+        ? (error as { message: string }).message
+        : 'Sync failed due to unexpected error.';
+      sendToast(`Sync Failed: ${message}`, 'critical');
     } finally { setIsSubmitting(false); }
   };
 

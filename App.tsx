@@ -58,13 +58,11 @@ export default function App() {
   const [showTutorial, setShowTutorial] = useState(false);
   const [baseId] = useState(AIRTABLE_CONFIG.BASE_ID);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const [syncCount, setSyncCount] = useState(0);
   const [quote, setQuote] = useState('');
   const [appTheme, setAppTheme] = useState<'dark' | 'light'>('dark');
   const [isInitialized, setIsInitialized] = useState(false);
   const [activeAlerts, setActiveAlerts] = useState<SystemAlert[]>([]);
   const [isBellShaking, setIsBellShaking] = useState(false);
-  const [isBadgePinging, setIsBadgePinging] = useState(false);
   const [activeInspectionUrl, setActiveInspectionUrl] = useState('');
   const [printingIncident, setPrintingIncident] = useState<FetchedIncident | null>(null);
   const [selectedObservationId, setSelectedObservationId] = useState<string | null>(null);
@@ -193,13 +191,17 @@ export default function App() {
             sendNotification(alert.type === 'escalated-overdue' ? "SYSTEM ESCALATION" : "CRITICAL HAZARD ASSIGNED", alert.title, true);
             if (alert.type === 'escalated-overdue') sendToast(alert.title, "critical", alert.id);
             setIsBellShaking(true);
-            setIsBadgePinging(true);
-            setTimeout(() => { setIsBellShaking(false); setIsBadgePinging(false); }, 6000);
+            setTimeout(() => { setIsBellShaking(false); }, 6000);
           }
         });
-      } catch (e: any) {
-        if (e.message?.includes('fetch') || e.name === 'TypeError') return;
-        console.warn("Safety Monitor Sync Issue:", e.message);
+      } catch (error: unknown) {
+        if (typeof error === 'object' && error !== null && 'message' in error && typeof (error as Record<string, unknown>).message === 'string') {
+          const message = (error as Record<string, string>).message;
+          if (message.includes('fetch')) return;
+          console.warn('Safety Monitor Sync Issue:', message);
+          return;
+        }
+        console.warn('Safety Monitor Sync Issue:', error);
       }
     };
     monitorSafetyStatus();
@@ -221,12 +223,21 @@ export default function App() {
     };
     const handleProfileUpdate = () => {
       const saved = localStorage.getItem(STORAGE_KEYS.PROFILE);
-      if (saved) { try { setUserProfile(JSON.parse(saved)); } catch (e) {} }
+      if (saved) {
+        try {
+          setUserProfile(JSON.parse(saved));
+        } catch (error) {
+          console.warn('Failed to parse profile update event payload', error);
+        }
+      }
     };
-    const handleThemeChange = (e: any) => {
-      const newTheme = e.detail;
-      setAppTheme(newTheme);
-      applyTheme(newTheme);
+    const handleThemeChange = (e: Event) => {
+      const customEvent = e as CustomEvent<'dark' | 'light'>;
+      const newTheme = customEvent.detail;
+      if (newTheme === 'dark' || newTheme === 'light') {
+        setAppTheme(newTheme);
+        applyTheme(newTheme);
+      }
     };
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
@@ -261,11 +272,11 @@ export default function App() {
     try {
         const count = await runOfflineSync(baseId);
         if (count > 0) {
-            setSyncCount(count);
             window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: `${count} Reports Synced`, type: 'success' } }));
-            setTimeout(() => setSyncCount(0), 5000);
         }
-    } catch (e) { console.error("Auto-sync failed", e); }
+    } catch (error) {
+      console.error("Auto-sync failed", error);
+    }
   };
 
   const navigateBack = () => {
@@ -300,6 +311,8 @@ export default function App() {
   const renderContent = () => {
     if (view === 'auth') return <AuthScreen onAuthComplete={handleAuthComplete} appTheme={appTheme} />;
     switch (view) {
+      case 'dashboard':
+        return <Dashboard baseId={baseId} appTheme={appTheme} onNavigate={(target) => setView(target)} />;
       case 'create':
         return <CreateReportForm baseId={baseId} appTheme={appTheme} onBack={() => setView('dashboard')} />;
       case 'my-tasks':
@@ -329,7 +342,8 @@ export default function App() {
         return <CreateReportForm baseId={baseId} appTheme={appTheme} onBack={() => setView('recent')} initialObservation={selected} />;
       }
       default:
-        return <Dashboard baseId={baseId} appTheme={appTheme} onNavigate={(target) => setView(target)} />;
+        // Safety fallback: not a known view
+        return <AuthScreen onAuthComplete={handleAuthComplete} appTheme={appTheme} />;
     }
   };
 

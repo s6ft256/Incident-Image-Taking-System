@@ -18,7 +18,7 @@ export const compressImage = async (
     return file;
   }
 
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     const reader = new FileReader();
     reader.readAsDataURL(file);
 

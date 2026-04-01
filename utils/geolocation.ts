@@ -33,12 +33,14 @@ const watchForBestPosition = (
     }
 
     let bestPosition: GeolocationPosition | null = null;
+    /* eslint-disable prefer-const */
     let watchId: number;
     let timeoutId: ReturnType<typeof setTimeout>;
+    /* eslint-enable prefer-const */
 
     const cleanup = () => {
-      if (watchId) navigator.geolocation.clearWatch(watchId);
-      if (timeoutId) clearTimeout(timeoutId);
+      if (typeof watchId === 'number') navigator.geolocation.clearWatch(watchId);
+      clearTimeout(timeoutId);
     };
 
     timeoutId = setTimeout(() => {
@@ -158,14 +160,16 @@ export const getPositionWithProgress = async (
 
   return new Promise((resolve, reject) => {
     let bestPosition: GeolocationPosition | null = null;
+    /* eslint-disable prefer-const */
     let watchId: number;
     let timeoutId: ReturnType<typeof setTimeout>;
     let fastTimeoutId: ReturnType<typeof setTimeout>;
+    /* eslint-enable prefer-const */
 
     const cleanup = () => {
-      if (watchId) navigator.geolocation.clearWatch(watchId);
-      if (timeoutId) clearTimeout(timeoutId);
-      if (fastTimeoutId) clearTimeout(fastTimeoutId);
+      if (typeof watchId === 'number') navigator.geolocation.clearWatch(watchId);
+      clearTimeout(timeoutId);
+      clearTimeout(fastTimeoutId);
     };
 
     // Fast initial position (cached)

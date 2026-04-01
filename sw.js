@@ -6,13 +6,13 @@
 
 const CACHE_NAME = 'hse-guardian-v2.5';
 
-self.addEventListener('install', (event) => {
+self.addEventListener('install', () => {
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) => Promise.all(keys.map(k => caches.delete(k))))
+    caches.keys().then((keys) => Promise.all(keys.filter(key => key !== CACHE_NAME).map(k => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
@@ -55,14 +55,14 @@ self.addEventListener('notificationclick', (event) => {
   const urlToOpen = event.notification.data?.url || '/';
 
   event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
       for (let client of windowClients) {
         if (client.url.includes(self.location.origin) && 'focus' in client) {
           return client.focus().then(c => c.navigate(urlToOpen));
         }
       }
-      if (clients.openWindow) {
-        return clients.openWindow(urlToOpen);
+      if (self.clients.openWindow) {
+        return self.clients.openWindow(urlToOpen);
       }
     })
   );

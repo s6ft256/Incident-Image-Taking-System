@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { SUPABASE_CONFIG } from '../constants';
-import { TraineeRow, UploadedImage } from '../types';
+import { TraineeRow } from '../types';
 
 const isValidConfig = SUPABASE_CONFIG.URL && SUPABASE_CONFIG.ANON_KEY;
 const supabase = isValidConfig ? createClient(SUPABASE_CONFIG.URL, SUPABASE_CONFIG.ANON_KEY) : null;
@@ -15,7 +15,7 @@ export interface TrainingSessionData {
   conductedBy: string;
   conductorSignature: string;
   trainees: TraineeRow[];
-  images: any[]; 
+  images: Array<{ serverUrl: string; status: 'success' | 'failed' | 'pending'; }>; 
   created_at?: string;
 }
 
@@ -25,10 +25,12 @@ const checkSupabase = () => {
     }
 }
 
-const handleDBError = (error: any, context: string): string => {
+const handleDBError = (error: unknown, context: string): string => {
   if (!error) return `Fault in ${context}`;
-  if (error.code === '42P01') return `GRID INTEGRITY FAULT: Training registry table is missing.`;
-  return `SYNC ERROR [${context}]: ${error.message || 'Operation failed.'}`;
+
+  const errObj = error as { code?: string; message?: string };
+  if (errObj.code === '42P01') return `GRID INTEGRITY FAULT: Training registry table is missing.`;
+  return `SYNC ERROR [${context}]: ${errObj.message || 'Operation failed.'}`;
 };
 
 export const getTrainingHistory = async (): Promise<TrainingSessionData[]> => {
@@ -53,16 +55,17 @@ export const getTrainingHistory = async (): Promise<TrainingSessionData[]> => {
     conductedBy: s.conducted_by_name,
     conductorSignature: s.conductor_signature_text,
     created_at: s.created_at,
-    trainees: s.training_trainees.map((t: any) => ({
+    trainees: s.training_trainees.map((t: TraineeRow) => ({
       id: t.id,
       name: t.name,
-      companyNo: t.company_no,
+      companyNo: t.companyNo,
       designation: t.designation,
-      isSigned: t.is_signed,
-      signTimestamp: t.sign_timestamp_text
+      isSigned: t.isSigned,
+      signTimestamp: t.signTimestamp
     })),
-    images: s.training_photos.map((p: any) => ({
-      serverUrl: p.image_url
+    images: s.training_photos.map((p: { image_url: string }) => ({
+      serverUrl: p.image_url,
+      status: 'success' as const
     }))
   }));
 };

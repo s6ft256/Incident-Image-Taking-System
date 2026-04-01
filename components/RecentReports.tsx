@@ -60,9 +60,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
   const [activeTab, setActiveTab] = useState<Tab>(filterAssignee ? 'assigned' : 'all');
   const [searchTerm, setSearchTerm] = useState('');
   
-  const [isArchiveUnlocked, setIsArchiveUnlocked] = useState(false);
-  const [accessKey, setAccessKey] = useState('');
-  const [unlockError, setUnlockError] = useState(false);
+  // Registry should always show both Open and Closed records in all/partial modes.
   const [showRawMetadata, setShowRawMetadata] = useState<Record<string, boolean>>({});
 
   const isLight = appTheme === 'light';
@@ -140,17 +138,6 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
   const openShareModal = (reportId: string, reportType: 'incident' | 'observation', title: string) => {
     setShareTarget({ id: reportId, type: reportType, title });
     setShareModalOpen(true);
-  };
-
-  const handleUnlockArchive = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (accessKey === ARCHIVE_ACCESS_KEY) {
-      setIsArchiveUnlocked(true);
-      setAccessKey('');
-    } else {
-      setUnlockError(true);
-      setTimeout(() => setUnlockError(false), 2000);
-    }
   };
 
   const handleRowClick = (id: string) => {
@@ -507,7 +494,40 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
         return !query || title.includes(query) || desc.includes(query);
       });
     }
-    
+
+    if (activeTab === 'open' || activeTab === 'closed') {
+      const targetClosed = activeTab === 'closed';
+
+      const incidentFiltered = allIncidents.filter(inc => {
+        const status = String(inc.fields["Status"] || INCIDENT_STATUS.PENDING_REVIEW);
+        const isClosedIncident = status === INCIDENT_STATUS.CLOSED;
+        if (isClosedIncident !== targetClosed) return false;
+
+        const title = String(inc.fields["Title"] || "").toLowerCase();
+        const desc = String(inc.fields["Description"] || "").toLowerCase();
+        return !query || title.includes(query) || desc.includes(query);
+      });
+
+      const observationFiltered = allReports.filter(report => {
+        const actionTaken = String(report.fields["Action taken"] || "").trim();
+        const isClosedObservation = actionTaken.length > 0;
+        if (isClosedObservation !== targetClosed) return false;
+
+        const obsText = String(report.fields["Observation"] || "").toLowerCase();
+        const nameText = String(report.fields["Name"] || "").toLowerCase();
+        const matchesSearch = !query || obsText.includes(query) || nameText.includes(query);
+        if (!matchesSearch) return false;
+
+        return true;
+      });
+
+      return [...incidentFiltered, ...observationFiltered].sort((a: any, b: any) => {
+        const at = new Date(a.createdTime || 0).getTime();
+        const bt = new Date(b.createdTime || 0).getTime();
+        return bt - at;
+      });
+    }
+
     return allReports.filter(report => {
       const actionTaken = String(report.fields["Action taken"] || "").trim();
       const isClosed = actionTaken.length > 0;
@@ -522,7 +542,6 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
       const matchesAssignee = !filterAssignee || assignedTokens.includes(normalizedAssignee) || assignedToRaw.toLowerCase() === normalizedAssignee;
       const isLocallyAssignedToMe = !!filterAssignee && localAssignedObservationIds.has(report.id);
 
-      if (activeTab === 'closed') return isClosed && matchesSearch && matchesAssignee;
       if (activeTab === 'assigned') return !isClosed && (assignedTokens.length > 0 || isLocallyAssignedToMe) && matchesSearch && (matchesAssignee || isLocallyAssignedToMe);
       // Open tab: Only show unassigned and active observations
       return !isClosed && assignedTokens.length === 0 && matchesSearch && matchesAssignee;
@@ -575,27 +594,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
           </div>
         )}
 
-        {activeTab === 'closed' && !isArchiveUnlocked && (
-          <div className={`mb-8 p-8 rounded-[2rem] border text-center space-y-6 ${isLight ? 'bg-blue-50 border-blue-100' : 'bg-blue-600/5 border-blue-500/20'}`}>
-            <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto text-white shadow-lg">
-               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-            </div>
-            <div className="max-w-xs mx-auto space-y-4">
-              <h3 className={`text-lg font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>Archive Encryption Active</h3>
-              <p className="text-[10px] font-bold text-slate-500 uppercase leading-relaxed">Enter security clearance key to access resolved records.</p>
-              <form onSubmit={handleUnlockArchive} className="flex gap-2">
-                <input 
-                  type="password" 
-                  value={accessKey}
-                  onChange={e => setAccessKey(e.target.value)}
-                  placeholder="Clearance Key" 
-                  className={`flex-1 p-3 rounded-xl border text-xs font-bold outline-none ${isLight ? 'bg-white' : 'bg-black/40 border-white/10 text-white'} ${unlockError ? 'border-rose-500' : ''}`}
-                />
-                <button type="submit" className="px-6 py-3 bg-blue-600 text-white text-[10px] font-black uppercase rounded-xl hover:bg-blue-500 transition-all">Unlock</button>
-              </form>
-            </div>
-          </div>
-        )}
+
       </div>
 
       {loading ? (
@@ -605,7 +604,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
         </div>
       ) : (
         <div className="flex flex-col gap-4">
-          {(activeTab !== 'closed' || isArchiveUnlocked) && tabFilteredReports.map((report) => {
+          {tabFilteredReports.map((report) => {
               const isIncident = 'fields' in report && 'Title' in report.fields;
               const fields = report.fields as any;
               const status = isIncident ? (fields["Status"] || 'Pending Review') : 'Observation';

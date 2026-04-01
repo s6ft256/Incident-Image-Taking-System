@@ -12,7 +12,7 @@ export const exportToCsv = (filename: string, rows: object[]) => {
     '\n' +
     rows.map(row => {
       return keys.map(k => {
-        let cell = (row as any)[k];
+        let cell: unknown = (row as Record<string, unknown>)[k];
         cell = cell === null || cell === undefined ? '' : cell;
         
         if (cell instanceof Date) {

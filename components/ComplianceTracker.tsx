@@ -57,7 +57,9 @@ export const ComplianceTracker: React.FC<ComplianceTrackerProps> = ({ appTheme, 
         const profile: UserProfile = JSON.parse(saved);
         setCurrentUser(profile.name);
         setForm(prev => ({ ...prev, createdBy: profile.name, reviewerName: profile.name }));
-      } catch (e) {}
+      } catch (error: unknown) {
+        console.warn('Could not parse user profile from storage', error);
+      }
     }
   }, []);
 
@@ -75,10 +77,12 @@ export const ComplianceTracker: React.FC<ComplianceTrackerProps> = ({ appTheme, 
   }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value, type } = e.target as any;
-    setForm(prev => ({ 
-      ...prev, 
-      [name]: type === 'checkbox' ? (e.target as any).checked : value 
+    const target = e.target as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
+    const { name, value, type } = target;
+    const newValue = type === 'checkbox' && 'checked' in target ? target.checked : value;
+    setForm(prev => ({
+      ...prev,
+      [name]: newValue as string | boolean | string[],
     }));
   };
 
@@ -221,7 +225,7 @@ export const ComplianceTracker: React.FC<ComplianceTrackerProps> = ({ appTheme, 
               <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest px-1">Regulation Status</label>
               <div className="flex gap-2">
                 {['Active', 'Superseded', 'Draft'].map(s => (
-                  <button key={s} onClick={() => setForm(p => ({ ...p, regStatus: s as any }))} className={`flex-1 py-3 rounded-lg border text-[9px] font-black uppercase transition-all ${form.regStatus === s ? 'bg-cyan-600 border-cyan-400 text-white shadow-lg' : 'bg-black/20 border-white/5 text-slate-500'}`}>{s}</button>
+                  <button key={s} onClick={() => setForm(p => ({ ...p, regStatus: s as ComplianceRecord['regStatus'] }))} className={`flex-1 py-3 rounded-lg border text-[9px] font-black uppercase transition-all ${form.regStatus === s ? 'bg-cyan-600 border-cyan-400 text-white shadow-lg' : 'bg-black/20 border-white/5 text-slate-500'}`}>{s}</button>
                 ))}
               </div>
             </div>
@@ -275,11 +279,11 @@ export const ComplianceTracker: React.FC<ComplianceTrackerProps> = ({ appTheme, 
                   <input value={req.description} onChange={e => updateRequirement(req.id, { description: e.target.value })} className={`p-2 rounded-lg border text-[10px] font-bold ${isLight ? 'bg-white' : 'bg-black/20 border-white/5 text-white'}`} placeholder="Description" />
                   <input value={req.method} onChange={e => updateRequirement(req.id, { method: e.target.value })} className={`p-2 rounded-lg border text-[10px] font-bold ${isLight ? 'bg-white' : 'bg-black/20 border-white/5 text-white'}`} />
                   <input value={req.responsible} onChange={e => updateRequirement(req.id, { responsible: e.target.value })} className={`p-2 rounded-lg border text-[10px] font-bold ${isLight ? 'bg-white' : 'bg-black/20 border-white/5 text-white'}`} />
-                  <select value={req.frequency} onChange={e => updateRequirement(req.id, { frequency: e.target.value as any })} className={`p-2 rounded-lg border text-[10px] font-bold ${isLight ? 'bg-white' : 'bg-black/20 border-white/5 text-white'}`}>
+                  <select value={req.frequency} onChange={e => updateRequirement(req.id, { frequency: e.target.value as ComplianceRequirement['frequency'] })} className={`p-2 rounded-lg border text-[10px] font-bold ${isLight ? 'bg-white' : 'bg-black/20 border-white/5 text-white'}`}>
                     {FREQUENCIES.map(f => <option key={f} value={f}>{f}</option>)}
                   </select>
                   <input type="date" value={req.nextDueDate} onChange={e => updateRequirement(req.id, { nextDueDate: e.target.value })} className={`p-2 rounded-lg border text-[10px] font-bold ${isLight ? 'bg-white' : 'bg-black/20 border-white/5 text-white'}`} />
-                  <select value={req.status} onChange={e => updateRequirement(req.id, { status: e.target.value as any })} className={`p-2 rounded-lg border text-[10px] font-black uppercase ${
+                  <select value={req.status} onChange={e => updateRequirement(req.id, { status: e.target.value as ComplianceRequirement['status'] })} className={`p-2 rounded-lg border text-[10px] font-black uppercase ${
                     req.status === 'Compliant' ? 'text-emerald-500' : req.status === 'Non-Compliant' ? 'text-rose-500' : 'text-amber-500'
                   } ${isLight ? 'bg-white' : 'bg-black/20 border-white/5'}`}>
                     {COMPLIANCE_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
@@ -344,7 +348,7 @@ export const ComplianceTracker: React.FC<ComplianceTrackerProps> = ({ appTheme, 
                       <label className="text-[9px] font-black text-rose-500 uppercase tracking-widest px-1">Severity Level</label>
                       <div className="flex gap-2">
                          {['Low', 'Medium', 'High'].map(l => (
-                           <button key={l} onClick={() => setForm(p => ({ ...p, riskSeverity: l as any }))} className={`flex-1 py-3 rounded-lg border text-[9px] font-black uppercase transition-all ${form.riskSeverity === l ? 'bg-rose-600 text-white shadow-lg' : 'bg-white/10 text-slate-500 border-white/5'}`}>{l}</button>
+                           <button key={l} onClick={() => setForm(p => ({ ...p, riskSeverity: l as ComplianceRecord['riskSeverity'] }))} className={`flex-1 py-3 rounded-lg border text-[9px] font-black uppercase transition-all ${form.riskSeverity === l ? 'bg-rose-600 text-white shadow-lg' : 'bg-white/10 text-slate-500 border-white/5'}`}>{l}</button>
                          ))}
                       </div>
                    </div>

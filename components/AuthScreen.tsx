@@ -144,8 +144,12 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
 
       localStorage.setItem(LAST_USER_KEY, newProfile.name);
       onAuthComplete(newProfile);
-    } catch (err: any) { 
-      setError(err.message || 'Onboarding flow interrupted.'); 
+    } catch (error: unknown) {
+      if (typeof error === 'object' && error !== null && 'message' in error && typeof (error as Record<string, unknown>).message === 'string') {
+        setError((error as { message: string }).message || 'Onboarding flow interrupted.');
+      } else {
+        setError('Onboarding flow interrupted.');
+      }
       setIsProcessing(false);
     }
   };
@@ -163,10 +167,14 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthComplete, appTheme
           onAuthComplete(existing);
         } else setError('Incorrect Access Key.');
       } else setError('Personnel identity not found.');
-    } catch (err: any) { 
-      setError(err.message || 'Authentication timeout.'); 
-    } finally { 
-      setIsProcessing(false); 
+    } catch (error: unknown) {
+      if (typeof error === 'object' && error !== null && 'message' in error && typeof (error as Record<string, unknown>).message === 'string') {
+        setError((error as { message: string }).message || 'Authentication timeout.');
+      } else {
+        setError('Authentication timeout.');
+      }
+    } finally {
+      setIsProcessing(false);
     }
   };
 

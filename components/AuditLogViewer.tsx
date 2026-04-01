@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { AuditEntry, UserProfile, AuditChange, FetchedObservation, FetchedIncident } from '../types';
+import { AuditEntry, UserProfile } from '../types';
 import { STORAGE_KEYS } from '../constants';
 import { getAllReports, getAllIncidents } from '../services/airtableService';
 
@@ -90,7 +90,9 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ appTheme, onBack
       try {
         const profile = JSON.parse(saved);
         setCurrentUser(profile);
-      } catch (e) {}
+      } catch (error: unknown) {
+        console.warn('Failed to parse saved profile for audit log viewer', error);
+      }
     }
     // Perform Grid discovery for related records
     fetchGridRecords();
@@ -118,11 +120,11 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ appTheme, onBack
         timestamp: i.createdTime
       }));
 
-      setRecordDirectory([...mappedIncidents, ...mappedObservations].sort((a, b) => 
+      setRecordDirectory([...mappedIncidents, ...mappedObservations].sort((a, b) =>
         new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
       ));
-    } catch (e) {
-      console.warn("Grid discovery failed", e);
+    } catch (error: unknown) {
+      console.warn('Grid discovery failed', error);
     } finally {
       setIsSearchingRecords(false);
     }
@@ -140,7 +142,7 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ appTheme, onBack
     setNewLog(prev => ({ 
       ...prev, 
       relatedRecordId: record.id, 
-      module: record.module as any,
+      module: record.module,
       actionSummary: `Audit review of ${record.module} Record ${record.id}`
     }));
     setRecordSearchQuery(record.id);
@@ -155,8 +157,8 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ appTheme, onBack
     }
 
     const createdEntry: AuditEntry = {
-      ...newLog as any,
-      id: `AUD-${Math.floor(1000 + Math.random() * 9000)}-MN`,
+      ...(newLog as Partial<AuditEntry>),
+      id: `AUD-${Math.floor(1000 + Math.random() * 9000)}-MN`, 
       timestamp: new Date().toISOString(),
       user: currentUser?.name || 'System User',
       userRole: currentUser?.role || 'Guest',
@@ -248,7 +250,7 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ appTheme, onBack
                 <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest px-1">Action Category</label>
                 <select 
                   value={newLog.actionCategory} 
-                  onChange={e => setNewLog({...newLog, actionCategory: e.target.value as any})}
+                  onChange={e => setNewLog({...newLog, actionCategory: e.target.value as AuditEntry['actionCategory']})}
                   className={`p-4 rounded-xl border outline-none font-bold text-xs ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-black/20 border-white/5 text-white'}`}
                 >
                   {ACTION_CATEGORIES.map(t => <option key={t} value={t}>{t}</option>)}
@@ -258,7 +260,7 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ appTheme, onBack
                 <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest px-1">Record Type (Module)</label>
                 <select 
                   value={newLog.module} 
-                  onChange={e => setNewLog({...newLog, module: e.target.value as any})}
+                  onChange={e => setNewLog({...newLog, module: e.target.value as AuditEntry['module']})}
                   className={`p-4 rounded-xl border outline-none font-bold text-xs ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-black/20 border-white/5 text-white'}`}
                 >
                   {MODULE_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
@@ -570,7 +572,7 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ appTheme, onBack
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 rounded-2xl border-2 border-amber-500/20 bg-amber-500/5">
             <div className="flex flex-col gap-1.5">
               <label className="text-[9px] font-black text-amber-600 uppercase tracking-widest px-1">Reason for Change *</label>
-              <p className="text-[11px] font-bold text-slate-300 italic">"{selectedLog?.reasonForChange}"</p>
+              <p className="text-[11px] font-bold text-slate-300 italic">{selectedLog?.reasonForChange || 'N/A'}</p>
             </div>
             <FormField label="Approved By" value={selectedLog?.approvedBy || ''} auto={false} />
           </div>

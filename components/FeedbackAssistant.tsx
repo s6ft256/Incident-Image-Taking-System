@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 
 interface FeedbackAssistantProps {
@@ -10,8 +9,9 @@ const DEV_PHOTO_URL = 'https://www.cyberark.com/wp-content/uploads/2019/11/Devel
 
 export const FeedbackAssistant: React.FC<FeedbackAssistantProps> = ({ appTheme = 'dark', userName = '' }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [isSurveyOpen, setIsSurveyOpen] = useState(false);
   const [formData, setFormData] = useState({
-    name: userName || '', 
+    name: userName || '',
     subject: 'General Query',
     message: ''
   });
@@ -34,6 +34,21 @@ export const FeedbackAssistant: React.FC<FeedbackAssistantProps> = ({ appTheme =
     };
   }, [isOpen]);
 
+  useEffect(() => {
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!isSurveyOpen) {
+        setIsSurveyOpen(true);
+        event.preventDefault();
+        event.returnValue = '';
+        return '';
+      }
+      return undefined;
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isSurveyOpen]);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { id, value } = e.target;
     setFormData(prev => ({ ...prev, [id]: value }));
@@ -41,7 +56,7 @@ export const FeedbackAssistant: React.FC<FeedbackAssistantProps> = ({ appTheme =
 
   const handleSubmit = (type: 'whatsapp' | 'email') => {
     const text = `*HSE Guardian Feedback*\n*From:* ${formData.name}\n*Type:* ${formData.subject}\n*Message:* ${formData.message}`;
-    
+
     if (type === 'whatsapp') {
       const encodedText = encodeURIComponent(text);
       window.open(`https://wa.me/971563892557?text=${encodedText}`, '_blank');
@@ -49,7 +64,7 @@ export const FeedbackAssistant: React.FC<FeedbackAssistantProps> = ({ appTheme =
       const mailtoLink = `mailto:niwamanyaelius95@gmail.com?subject=${encodeURIComponent(formData.subject)}&body=${encodeURIComponent(text)}`;
       window.location.href = mailtoLink;
     }
-    
+
     setIsSubmitted(true);
     setTimeout(() => {
       setIsSubmitted(false);
@@ -66,7 +81,7 @@ export const FeedbackAssistant: React.FC<FeedbackAssistantProps> = ({ appTheme =
           <div className={`${isLight ? 'bg-slate-50 border-b border-slate-100' : 'bg-white/[0.03] border-b border-white/5'} p-6 flex justify-between items-center shrink-0`}>
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-full border-2 border-blue-500/30 overflow-hidden shadow-md">
-                 <img src={DEV_PHOTO_URL} alt="Developer" className="w-full h-full object-cover" />
+                <img src={DEV_PHOTO_URL} alt="Developer" className="w-full h-full object-cover" />
               </div>
               <div>
                 <h3 className={`text-sm font-black tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>Developer Direct</h3>
@@ -82,7 +97,7 @@ export const FeedbackAssistant: React.FC<FeedbackAssistantProps> = ({ appTheme =
             {isSubmitted ? (
               <div className="py-12 text-center animate-in zoom-in duration-300">
                 <div className="w-16 h-16 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto mb-4 border-2 border-emerald-500/20">
-                   <svg className="w-8 h-8 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path d="M5 13l4 4L19 7" /></svg>
+                  <svg className="w-8 h-8 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path d="M5 13l4 4L19 7" /></svg>
                 </div>
                 <h4 className={`text-xl font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>Transmission Sent</h4>
                 <p className="text-xs text-slate-500 mt-2 uppercase tracking-widest font-bold">Connecting to Support...</p>
@@ -91,22 +106,20 @@ export const FeedbackAssistant: React.FC<FeedbackAssistantProps> = ({ appTheme =
               <>
                 {/* Social Connect Grid */}
                 <div className="grid grid-cols-2 gap-3">
-                  <a 
-                    href="https://github.com/s6ft256" 
-                    target="_blank" 
+                  <a
+                    href="https://github.com/s6ft256"
+                    target="_blank"
                     rel="noopener noreferrer"
-                    className={`flex flex-col items-center justify-center p-4 rounded-2xl border transition-all hover:scale-[1.02] active:scale-[0.98] ${isLight ? 'bg-slate-50 border-slate-200 hover:bg-slate-900 hover:text-white' : 'bg-white/5 border-white/5 hover:bg-white hover:text-black'}`}
-                  >
-                    <svg className="w-6 h-6 mb-1" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.744.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.003-.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+                    className={`flex flex-col items-center justify-center p-4 rounded-2xl border transition-all hover:scale-[1.02] active:scale-[0.98] ${isLight ? 'bg-slate-50 border-slate-200 hover:bg-slate-900 hover:text-white' : 'bg-white/5 border-white/5 hover:bg-white hover:text-black'}`}>
+                    <svg className="w-6 h-6 mb-1" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.744.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.003-.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" /></svg>
                     <span className="text-[9px] font-black uppercase tracking-widest">Source</span>
                   </a>
-                  <a 
-                    href="https://www.linkedin.com/in/elius-niwamanya-026228187" 
-                    target="_blank" 
+                  <a
+                    href="https://www.linkedin.com/in/elius-niwamanya-026228187"
+                    target="_blank"
                     rel="noopener noreferrer"
-                    className={`flex flex-col items-center justify-center p-4 rounded-2xl border transition-all hover:scale-[1.02] active:scale-[0.98] ${isLight ? 'bg-slate-50 border-slate-200 hover:border-blue-500 hover:bg-blue-500 hover:text-white' : 'bg-white/5 border-white/5 hover:border-blue-500 hover:bg-blue-500/10'}`}
-                  >
-                    <svg className="w-6 h-6 mb-1 text-[#0077b5]" fill="currentColor" viewBox="0 0 24 24"><path d="M22.23 0H1.77C.8 0 0 .77 0 1.72v20.56C0 23.23.8 24 1.77 24h20.46c.98 0 1.77-.77 1.77-1.72V1.72C24 .77 23.2 0 22.23 0zM7.27 20.1H3.65V9.24h3.62V20.1zM5.47 7.76h-.03c-1.22 0-2.01-.84-2.01-1.88 0-1.06.81-1.88 2.05-1.88 1.24 0 2.01.82 2.04 1.88 0 1.04-.77 1.88-2.05 1.88zM20.11 20.1h-3.63v-5.8c0-1.45-.52-2.45-1.83-2.45-1 0-1.6.67-1.86 1.32-.1.23-.12.55-.12.87v6.06h-3.63s.05-9.83 0-10.86h3.63v1.54c.48-.74 1.34-1.81 3.27-1.81 2.39 0 4.17 1.56 4.17 4.91v6.22z"/></svg>
+                    className={`flex flex-col items-center justify-center p-4 rounded-2xl border transition-all hover:scale-[1.02] active:scale-[0.98] ${isLight ? 'bg-slate-50 border-slate-200 hover:border-blue-500 hover:bg-blue-500 hover:text-white' : 'bg-white/5 border-white/5 hover:border-blue-500 hover:bg-blue-500/10'}`}>
+                    <svg className="w-6 h-6 mb-1 text-[#0077b5]" fill="currentColor" viewBox="0 0 24 24"><path d="M22.23 0H1.77C.8 0 0 .77 0 1.72v20.56C0 23.23.8 24 1.77 24h20.46c.98 0 1.77-.77 1.77-1.72V1.72C24 .77 23.2 0 22.23 0zM7.27 20.1H3.65V9.24h3.62V20.1zM5.47 7.76h-.03c-1.22 0-2.01-.84-2.01-1.88 0-1.06.81-1.88 2.05-1.88 1.24 0 2.01.82 2.04 1.88 0 1.04-.77 1.88-2.05 1.88zM20.11 20.1h-3.63v-5.8c0-1.45-.52-2.45-1.83-2.45-1 0-1.6.67-1.86 1.32-.1.23-.12.55-.12.87v6.06h-3.63s.05-9.83 0-10.86h3.63v1.54c.48-.74 1.34-1.81 3.27-1.81 2.39 0 4.17 1.56 4.17 4.91v6.22z" /></svg>
                     <span className="text-[9px] font-black uppercase tracking-widest">Connect</span>
                   </a>
                 </div>
@@ -127,6 +140,14 @@ export const FeedbackAssistant: React.FC<FeedbackAssistantProps> = ({ appTheme =
                   </a>
                 </div>
 
+                <button
+                  onClick={() => setIsSurveyOpen(true)}
+                  className="w-full p-3 rounded-2xl border text-xs font-black uppercase tracking-widest transition-all hover:scale-[1.01] active:scale-[0.98] mb-2 text-left"
+                  style={{ borderColor: isLight ? '#cbd5e1' : 'rgba(255,255,255,0.2)', backgroundColor: isLight ? '#f8fafc' : 'rgba(255,255,255,0.06)' }}
+                >
+                  Take quick exit survey
+                </button>
+
                 <div className={`h-[1px] w-full ${isLight ? 'bg-slate-100' : 'bg-white/5'}`}></div>
 
                 {/* Feedback Form */}
@@ -141,18 +162,18 @@ export const FeedbackAssistant: React.FC<FeedbackAssistantProps> = ({ appTheme =
                   </div>
                   <div className="flex flex-col gap-1">
                     <label className={`text-[8px] font-black uppercase tracking-widest px-1 ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>Sender Identification</label>
-                    <input 
+                    <input
                       id="name"
-                      type="text" 
-                      value={formData.name} 
+                      type="text"
+                      value={formData.name}
                       onChange={handleInputChange}
                       placeholder="Name"
-                      className={`w-full p-4 rounded-xl border text-xs outline-none transition-all ${isLight ? 'bg-slate-50 border-slate-200 focus:border-blue-500' : 'bg-black/40 border-white/5 focus:border-blue-500 text-white'}`} 
+                      className={`w-full p-4 rounded-xl border text-xs outline-none transition-all ${isLight ? 'bg-slate-50 border-slate-200 focus:border-blue-500' : 'bg-black/40 border-white/5 focus:border-blue-500 text-white'}`}
                     />
                   </div>
                   <div className="flex flex-col gap-1">
                     <label className={`text-[8px] font-black uppercase tracking-widest px-1 ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>Subject Classification</label>
-                    <select 
+                    <select
                       id="subject"
                       value={formData.subject}
                       onChange={handleInputChange}
@@ -166,27 +187,26 @@ export const FeedbackAssistant: React.FC<FeedbackAssistantProps> = ({ appTheme =
                   </div>
                   <div className="flex flex-col gap-1">
                     <label className={`text-[8px] font-black uppercase tracking-widest px-1 ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>Secure Message Payload</label>
-                    <textarea 
+                    <textarea
                       id="message"
                       rows={3}
                       value={formData.message}
                       onChange={handleInputChange}
                       placeholder="Transmission details..."
-                      className={`w-full p-4 rounded-xl border text-xs outline-none transition-all resize-none ${isLight ? 'bg-slate-50 border-slate-200 focus:border-blue-500' : 'bg-black/40 border-white/5 focus:border-blue-500 text-white'}`} 
+                      className={`w-full p-4 rounded-xl border text-xs outline-none transition-all resize-none ${isLight ? 'bg-slate-50 border-slate-200 focus:border-blue-500' : 'bg-black/40 border-white/5 focus:border-blue-500 text-white'}`}
                     />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 pt-2">
-                  <button 
+                  <button
                     onClick={() => handleSubmit('email')}
                     disabled={!formData.message.trim()}
-                    className={`flex items-center justify-center gap-2 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 disabled:opacity-30 ${isLight ? 'bg-slate-100 text-slate-900 border border-slate-200 hover:bg-slate-200' : 'bg-white/10 text-white border border-white/10 hover:bg-white/20'}`}
-                  >
+                    className={`flex items-center justify-center gap-2 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 disabled:opacity-30 ${isLight ? 'bg-slate-100 text-slate-900 border border-slate-200 hover:bg-slate-200' : 'bg-white/10 text-white border border-white/10 hover:bg-white/20'}`}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
                     Email
                   </button>
-                  <button 
+                  <button
                     onClick={() => handleSubmit('whatsapp')}
                     disabled={!formData.message.trim()}
                     className="flex items-center justify-center gap-2 py-4 rounded-2xl bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest shadow-xl shadow-emerald-900/20 hover:bg-emerald-500 transition-all active:scale-95 border border-emerald-400/20 disabled:opacity-30"
@@ -198,9 +218,41 @@ export const FeedbackAssistant: React.FC<FeedbackAssistantProps> = ({ appTheme =
               </>
             )}
           </div>
-          
+
           <div className={`p-4 border-t ${isLight ? 'bg-slate-50 border-slate-100' : 'bg-white/[0.02] border-white/5'} text-center shrink-0`}>
             <p className="text-[7px] font-black text-slate-500 uppercase tracking-widest">HSE Guardian Ecosystem • Security-First Reporting</p>
+          </div>
+        </div>
+      )}
+
+      {isSurveyOpen && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 p-4">
+          <div className="relative w-full max-w-4xl h-[90vh] bg-white rounded-2xl overflow-hidden shadow-2xl">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-slate-50">
+              <h3 className="text-sm font-black">Exit Survey</h3>
+              <button
+                onClick={() => setIsSurveyOpen(false)}
+                className="p-2 rounded-lg hover:bg-slate-200"
+                title="Close survey"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M18 6 6 18M6 6l12 12"/></svg>
+              </button>
+            </div>
+            <div className="p-2 h-[calc(100%-3rem)] bg-black">
+              <iframe
+                width="100%"
+                height="100%"
+                src="https://forms.cloud.microsoft/Pages/ResponsePage.aspx?id=DQSIkWdsW0yxEjajBLZtrQAAAAAAAAAAAANAARdKqcBUQVdXSjA3QVhHRlJZRFZYWUNYUUZNRTQxWC4u&embed=true"
+                frameBorder="0"
+                marginWidth={0}
+                marginHeight={0}
+                style={{ border: 'none', maxWidth: '100%', maxHeight: '100%' }}
+                allowFullScreen
+                webkitallowfullscreen="true"
+                mozallowfullscreen="true"
+                msallowfullscreen="true"
+              />
+            </div>
           </div>
         </div>
       )}

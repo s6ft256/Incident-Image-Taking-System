@@ -45,7 +45,8 @@ export const Checklists: React.FC<ChecklistsProps> = ({ appTheme = 'dark', onBac
   const [craneHistory, setCraneHistory] = useState<FetchedCraneChecklist[]>([]);
   const [equipmentHistory, setEquipmentHistory] = useState<FetchedEquipmentChecklist[]>([]);
   const [loading, setLoading] = useState(false);
-  const [selectedRecord, setSelectedRecord] = useState<any | null>(null);
+  type SelectedRecord = (FetchedCraneChecklist | FetchedEquipmentChecklist) & { inspectionType?: 'crane' | 'equipment' };
+  const [selectedRecord, setSelectedRecord] = useState<SelectedRecord | null>(null);
 
   useEffect(() => {
     if (activeTab === 'crane-history') fetchCraneHistory();
@@ -72,7 +73,8 @@ export const Checklists: React.FC<ChecklistsProps> = ({ appTheme = 'dark', onBac
     if (!selectedRecord?.fields["Inspection Data"]) return null;
     try {
       return JSON.parse(selectedRecord.fields["Inspection Data"]);
-    } catch (e) {
+    } catch (error: unknown) {
+      console.warn('Failed to parse inspection data', error);
       return null;
     }
   }, [selectedRecord]);
@@ -85,7 +87,7 @@ export const Checklists: React.FC<ChecklistsProps> = ({ appTheme = 'dark', onBac
     return <span className="opacity-10 text-[8px]">VOID</span>;
   };
 
-  const RecordCard: React.FC<{ record: any, type: 'crane' | 'equipment' }> = ({ record, type }) => {
+  const RecordCard: React.FC<{ record: SelectedRecord; type: 'crane' | 'equipment' }> = ({ record, type }) => {
     const isGrounded = record.fields["Status"] === "Grounded";
     return (
       <div 
@@ -284,7 +286,7 @@ export const Checklists: React.FC<ChecklistsProps> = ({ appTheme = 'dark', onBac
                     <h4 className="text-[10px] font-black text-blue-500 uppercase tracking-[0.3em] px-2">Photographic Evidence</h4>
                     {selectedRecord.fields["Image"]?.length > 0 ? (
                        <div className="grid grid-cols-2 gap-4">
-                          {selectedRecord.fields["Image"].map((img: any, i: number) => (
+                          {selectedRecord.fields["Image"].map((img: { url: string }, i: number) => (
                              <a key={i} href={img.url} target="_blank" rel="noopener noreferrer" className="group/img aspect-video rounded-[1.5rem] overflow-hidden border-2 border-white/5 shadow-2xl relative transition-all active:scale-95 hover:border-blue-500/50">
                                 <img src={img.url} className="w-full h-full object-cover transition-transform duration-1000 group-hover/img:scale-110" alt="Defect Detail" />
                                 <div className="absolute inset-0 bg-black/50 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
@@ -329,8 +331,17 @@ export const Checklists: React.FC<ChecklistsProps> = ({ appTheme = 'dark', onBac
   );
 };
 
-const InventoryCard = ({ title, sub, img, onAction, color, isLight }: any) => {
-  const colors: any = { amber: 'bg-amber-600', blue: 'bg-blue-600', emerald: 'bg-emerald-600' };
+interface InventoryCardProps {
+  title: string;
+  sub: string;
+  img?: string;
+  onAction: () => void;
+  color: 'amber' | 'blue' | 'emerald';
+  isLight: boolean;
+}
+
+const InventoryCard: React.FC<InventoryCardProps> = ({ title, sub, img, onAction, color, isLight }) => {
+  const colors: Record<'amber' | 'blue' | 'emerald', string> = { amber: 'bg-amber-600', blue: 'bg-blue-600', emerald: 'bg-emerald-600' };
   return (
     <div className={`p-8 rounded-[2.5rem] border shadow-2xl relative overflow-hidden transition-all duration-300 group flex flex-col justify-between h-72 ${isLight ? 'bg-white border-slate-200' : 'bg-white/[0.03] border-white/10'}`}>
       <div className="absolute inset-0 z-0 opacity-[0.05] group-hover:opacity-[0.12] transition-opacity duration-500">
