@@ -11,10 +11,9 @@ import { useEdgeSwipeBack } from '../hooks/useSwipeGesture';
 
 interface UserProfileProps {
   onBack: () => void;
-  baseId: string;
 }
 
-export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
+export const UserProfile: React.FC<UserProfileProps> = ({ onBack }) => {
   // Enable swipe from left edge to go back
   useEdgeSwipeBack();
 
@@ -22,7 +21,6 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [isUploading, setIsUploading] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
-  const [errorMessage, setErrorMessage] = useState('');
   const [notificationPermission, setNotificationPermission] = useState<string>(Notification.permission);
   
   const initialProfile = useRef<UserProfileType | null>(null);
@@ -45,6 +43,16 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
       setTheme(savedTheme); 
     }
     setNotificationPermission(Notification.permission);
+
+    const handleThemeChange = (e: Event) => {
+      const customEvent = e as CustomEvent<'dark' | 'light'>;
+      const newTheme = customEvent.detail;
+      if (newTheme === 'dark' || newTheme === 'light') {
+        setTheme(newTheme);
+      }
+    };
+    window.addEventListener('themeChanged', handleThemeChange as EventListener);
+    return () => window.removeEventListener('themeChanged', handleThemeChange as EventListener);
   }, []);
 
   const hasChanges = useMemo(() => {
@@ -91,9 +99,10 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
       window.dispatchEvent(new Event('profileUpdated'));
       sendToast("Profile Updated", "success");
       setTimeout(() => setSaveStatus('idle'), 2000);
-    } catch (err: any) {
-      setErrorMessage(err.message);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Save failed';
       setSaveStatus('error');
+      console.error(message);
     }
   };
 
@@ -111,8 +120,9 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onBack, baseId }) => {
       localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(updatedProfile));
       window.dispatchEvent(new Event('profileUpdated'));
       sendToast("Photo Updated", "success");
-    } catch (err: any) {
-      setErrorMessage(err.message || "Upload failed.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Upload failed';
+      console.error(message);
     } finally { setIsUploading(false); }
   };
 

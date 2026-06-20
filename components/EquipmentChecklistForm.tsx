@@ -59,7 +59,7 @@ export const EquipmentChecklistForm: React.FC<EquipmentChecklistFormProps> = ({ 
       try {
         const profile: UserProfile = JSON.parse(saved);
         setMetadata(prev => ({ ...prev, inspector: profile.name }));
-      } catch (e) {}
+      } catch (e) { console.error('Failed to parse profile', e); }
     }
   }, []);
 
@@ -90,8 +90,9 @@ export const EquipmentChecklistForm: React.FC<EquipmentChecklistFormProps> = ({ 
       setDefectImages(prev => [...prev, { url, filename: `${activeDefectItem.item}_${Date.now()}.jpg` }]);
       sendToast("Evidence captured.", "success");
       setActiveDefectItem(null);
-    } catch (err: any) {
-      sendToast("Upload fault: " + err.message, "critical");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Upload failed';
+      sendToast("Upload fault: " + message, "critical");
     }
   };
 
@@ -115,9 +116,9 @@ export const EquipmentChecklistForm: React.FC<EquipmentChecklistFormProps> = ({ 
       await submitEquipmentChecklist(selectedAsset, metadata, checks, remarks, defectImages);
       sendToast("Equipment Inspection Finalized", "success");
       onBack();
-    } catch (err: any) {
-      // Direct user to check Airtable setup if it's a mismatch error
-      sendToast(err.message, "critical");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Submission failed';
+      sendToast(message, "critical");
     } finally { setIsSubmitting(false); }
   };
 

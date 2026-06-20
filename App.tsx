@@ -262,6 +262,14 @@ export default function App() {
     };
   }, [baseId, userProfile]);
 
+  const toggleTheme = () => {
+    const newTheme = appTheme === 'dark' ? 'light' : 'dark';
+    setAppTheme(newTheme);
+    applyTheme(newTheme);
+    localStorage.setItem(STORAGE_KEYS.THEME, newTheme);
+    window.dispatchEvent(new CustomEvent('themeChanged', { detail: newTheme }));
+  };
+
   const attemptSync = async () => {
     try {
         const count = await runOfflineSync(baseId);
@@ -360,6 +368,15 @@ export default function App() {
                </div>
                <div className="flex-1 flex justify-end items-center gap-3 sm:gap-8 relative">
                  {userProfile && (
+                   <button onClick={toggleTheme} className={`p-3 rounded-2xl transition-all flex items-center justify-center shadow-lg hover:shadow-xl ${appTheme === 'dark' ? 'hover:bg-white/10 text-slate-400 hover:text-white' : 'hover:bg-blue-100 text-blue-700 hover:text-blue-900'}`} aria-label="Toggle theme">
+                     {appTheme === 'dark' ? (
+                       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+                     ) : (
+                       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                     )}
+                   </button>
+                 )}
+                 {userProfile && (
                    <div ref={notificationsRef} className="relative">
                      <button onClick={() => setShowNotifications(!showNotifications)} className={`relative p-3 rounded-2xl transition-all flex items-center justify-center shadow-lg hover:shadow-xl ${isBellShaking ? 'bell-swing-animate' : (activeAlerts.length > 0 ? 'bell-tasks-active' : '')} ${appTheme === 'dark' ? 'hover:bg-white/10 text-slate-400 hover:text-white' : 'hover:bg-blue-100 text-blue-700 hover:text-blue-900'}`} aria-label="View safety alerts">
                         <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
@@ -397,7 +414,7 @@ export default function App() {
                         {userProfile?.profileImageUrl ? <img src={userProfile.profileImageUrl} alt="User" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center bg-blue-600 text-white font-black text-2xl">{userProfile?.name?.charAt(0)}</div>}
                       </div>
                    </div>
-                   {showProfileCard && <div className="absolute top-full right-0 mt-4 w-80 z-50 animate-in fade-in slide-in-from-top-2 duration-300"><UserProfile onBack={() => setShowProfileCard(false)} baseId={baseId} /></div>}
+                   {showProfileCard && <div className="absolute top-full right-0 mt-4 w-80 z-50 animate-in fade-in slide-in-from-top-2 duration-300"><UserProfile onBack={() => setShowProfileCard(false)} /></div>}
                  </div>
                </div>
             </div>

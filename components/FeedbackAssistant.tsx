@@ -132,7 +132,7 @@ export const FeedbackAssistant: React.FC<FeedbackAssistantProps> = ({ appTheme =
                     </div>
                     <span className="text-[8px] font-black uppercase tracking-widest text-slate-500">Call Support</span>
                   </a>
-                  <a href="https://wa.me/971563892557" target="_blank" className={`flex items-center gap-3 p-3 rounded-2xl border transition-all ${isLight ? 'bg-slate-50 border-slate-200 hover:bg-emerald-50' : 'bg-white/5 border-white/5 hover:bg-white/10'}`}>
+                  <a href="https://wa.me/971563892557" target="_blank" rel="noreferrer" className={`flex items-center gap-3 p-3 rounded-2xl border transition-all ${isLight ? 'bg-slate-50 border-slate-200 hover:bg-emerald-50' : 'bg-white/5 border-white/5 hover:bg-white/10'}`}>
                     <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-500">
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 1 1-7.6-10.6 8.38 8.38 0 0 1 3.8.9L22 2l-2.5 4.5Z"/></svg>
                     </div>
@@ -248,9 +248,6 @@ export const FeedbackAssistant: React.FC<FeedbackAssistantProps> = ({ appTheme =
                 marginHeight={0}
                 style={{ border: 'none', maxWidth: '100%', maxHeight: '100%' }}
                 allowFullScreen
-                webkitallowfullscreen="true"
-                mozallowfullscreen="true"
-                msallowfullscreen="true"
               />
             </div>
           </div>
