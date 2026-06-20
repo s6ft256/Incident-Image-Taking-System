@@ -1,0 +1,8 @@
+{
+  "name": "HSE Guardian",
+  "description": "A professional-grade mobile-first safety reporting tool designed for high-integrity evidence acquisition and incident management.",
+  "requestFramePermissions": [
+    "camera",
+    "geolocation"
+  ]
+}

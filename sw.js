@@ -1,0 +1,69 @@
+
+/**
+ * HSE Guardian Service Worker - Active Protocol
+ * Handles background push notifications and interaction routing.
+ */
+
+const CACHE_NAME = 'hse-guardian-v2.5';
+
+self.addEventListener('install', () => {
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((keys) => Promise.all(keys.filter(key => key !== CACHE_NAME).map(k => caches.delete(k))))
+      .then(() => self.clients.claim())
+  );
+});
+
+// Listener for Push Notifications (Remote Protocol)
+self.addEventListener('push', (event) => {
+  let data = { 
+    title: 'HSE Critical Alert', 
+    body: 'New high-risk observation assigned to your terminal.',
+    url: '/?view=my-tasks'
+  };
+
+  try {
+    if (event.data) {
+      data = event.data.json();
+    }
+  } catch (e) {
+    console.warn('Push payload not JSON, using fallback.');
+  }
+
+  const options = {
+    body: data.body,
+    icon: 'https://www.multiply-marketing.com/trojan-wp/wp-content/uploads/2020/08/tgc-logo-300x300.png',
+    badge: 'https://www.multiply-marketing.com/trojan-wp/wp-content/uploads/2020/08/tgc-logo-300x300.png',
+    tag: 'critical-alert',
+    renotify: true,
+    requireInteraction: true, // Keep on screen for critical events
+    vibrate: [500, 110, 500, 110, 450, 110, 200, 110, 170, 40],
+    data: { url: data.url }
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(data.title, options)
+  );
+});
+
+// Handle Notification Interactions
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const urlToOpen = event.notification.data?.url || '/';
+
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+      for (let client of windowClients) {
+        if (client.url.includes(self.location.origin) && 'focus' in client) {
+          return client.focus().then(c => c.navigate(urlToOpen));
+        }
+      }
+      if (self.clients.openWindow) {
+        return self.clients.openWindow(urlToOpen);
+      }
+    })
+  );
+});

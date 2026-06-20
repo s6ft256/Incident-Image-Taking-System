@@ -1,0 +1,187 @@
+
+import React, { useEffect, useState, useCallback } from 'react';
+import { getLocalWeather, WeatherData, getWeatherSafetyTip, getWindDirection, getUVRiskLevel } from '../services/weatherService';
+
+interface WeatherWidgetProps {
+  appTheme?: 'dark' | 'light';
+  compact?: boolean;
+}
+
+export const WeatherWidget: React.FC<WeatherWidgetProps> = ({ appTheme = 'dark', compact = false }) => {
+  const [weather, setWeather] = useState<WeatherData | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState<string>('');
+  const isLight = appTheme === 'light';
+
+  const fetchWeather = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await getLocalWeather();
+      setWeather(data);
+      setLastUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchWeather();
+    // Auto-refresh every 10 minutes
+    const interval = setInterval(fetchWeather, 10 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [fetchWeather]);
+
+  if (loading) {
+    return (
+      <div className={`h-24 sm:h-28 flex items-center justify-center rounded-[2rem] border animate-pulse ${
+        isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/[0.04] border-white/10'
+      }`}>
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-full border-2 border-blue-500/20 border-t-blue-500 animate-spin"></div>
+          <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Establishing High-Precision Link...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !weather) {
+    return (
+      <div className={`h-24 sm:h-28 flex items-center justify-between px-6 sm:px-8 rounded-[2rem] border transition-all ${
+        isLight ? 'bg-rose-50 border-rose-200 shadow-sm' : 'bg-rose-950/20 border-rose-500/20 shadow-lg shadow-rose-900/10'
+      }`}>
+        <div className="flex items-center gap-4">
+          <div className="w-10 h-10 rounded-xl bg-rose-500/10 flex items-center justify-center text-rose-500 border border-rose-500/20">
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <div>
+            <h4 className="text-[10px] font-black uppercase tracking-widest text-rose-500">Precise Site Sync Failed</h4>
+            <p className="text-[8px] font-bold text-rose-400 uppercase tracking-tighter mt-0.5">{error || "Exact GPS Link Required"}</p>
+          </div>
+        </div>
+        <button 
+          onClick={fetchWeather}
+          className="px-4 py-3 bg-rose-600 hover:bg-rose-500 text-white text-[9px] font-black uppercase tracking-widest rounded-xl transition-all active:scale-95 shadow-lg border border-rose-400/30"
+        >
+          Retry Precision Sync
+        </button>
+      </div>
+    );
+  }
+
+  const safetyTip = getWeatherSafetyTip(weather);
+  const uvRisk = getUVRiskLevel(weather.uvIndex);
+  const windDir = getWindDirection(weather.windDirection);
+
+  return (
+    <div className={`group relative flex flex-col backdrop-blur-xl border rounded-[2rem] overflow-hidden transition-all duration-300 ${
+      isLight ? 'bg-white border-slate-200 shadow-sm hover:shadow-md' : 'bg-white/[0.04] border-white/10 hover:bg-white/[0.08]'
+    }`}>
+      {/* Main Weather Row */}
+      <div className="flex items-center px-6 sm:px-8 py-4 sm:py-5">
+        <div className={`w-12 h-12 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center shadow-lg shrink-0 border transition-transform group-hover:scale-105 ${
+          weather.isDay 
+            ? 'bg-amber-500 border-amber-400 text-white shadow-amber-500/20' 
+            : 'bg-slate-800 border-slate-700 text-blue-400 shadow-slate-900/50'
+        }`}>
+          {weather.isDay ? (
+            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 9H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+            </svg>
+          ) : (
+            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+            </svg>
+          )}
+        </div>
+
+        <div className="flex-1 ml-5 sm:ml-6 flex items-center justify-between overflow-hidden">
+          <div className="text-left overflow-hidden">
+            <div className="flex items-baseline gap-2">
+              <h3 className={`text-2xl sm:text-3xl font-black tracking-tighter leading-none ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                {weather.temp}°C
+              </h3>
+              <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest truncate">{weather.condition}</span>
+            </div>
+            <div className="flex items-center gap-2 mt-0.5">
+              <span className={`text-[9px] font-bold ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                Feels {weather.feelsLike}°C
+              </span>
+              {weather.accuracy && (
+                <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded ${
+                  weather.accuracy <= 20 ? 'bg-emerald-500/20 text-emerald-500' : 
+                  weather.accuracy <= 100 ? 'bg-amber-500/20 text-amber-500' : 
+                  'bg-rose-500/20 text-rose-500'
+                }`}>
+                  ±{Math.round(weather.accuracy)}m
+                </span>
+              )}
+            </div>
+            <p className={`text-[9px] font-black uppercase tracking-[0.2em] mt-1 flex items-center gap-1.5 truncate ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+              <svg className="w-2.5 h-2.5 text-blue-500 shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+              <span className="truncate">{weather.preciseLocation || weather.city}</span>
+            </p>
+          </div>
+
+          <div className={`hidden sm:flex flex-col items-end border-l pl-6 shrink-0 ${isLight ? 'border-slate-100' : 'border-white/5'}`}>
+            <div className="flex gap-4">
+              <div className="text-right">
+                <span className="block text-[8px] font-black text-slate-500 uppercase tracking-tighter">Humidity</span>
+                <span className={`text-xs font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>{weather.humidity}%</span>
+              </div>
+              <div className="text-right">
+                <span className="block text-[8px] font-black text-slate-500 uppercase tracking-tighter">Wind</span>
+                <span className={`text-xs font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>{weather.windSpeed} {windDir}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Extended Stats Row */}
+      {!compact && (
+        <div className={`grid grid-cols-4 gap-2 px-4 sm:px-6 py-3 border-t ${isLight ? 'border-slate-100 bg-slate-50/50' : 'border-white/5 bg-white/[0.02]'}`}>
+          <div className="text-center">
+            <span className="block text-[7px] font-black text-slate-500 uppercase">UV Index</span>
+            <span className={`text-[11px] font-black ${
+              uvRisk.color === 'green' ? 'text-emerald-500' :
+              uvRisk.color === 'yellow' ? 'text-amber-500' :
+              uvRisk.color === 'orange' ? 'text-orange-500' :
+              uvRisk.color === 'red' ? 'text-rose-500' : 'text-purple-500'
+            }`}>{weather.uvIndex} {uvRisk.level}</span>
+          </div>
+          <div className="text-center">
+            <span className="block text-[7px] font-black text-slate-500 uppercase">Visibility</span>
+            <span className={`text-[11px] font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>{weather.visibility} km</span>
+          </div>
+          <div className="text-center">
+            <span className="block text-[7px] font-black text-slate-500 uppercase">Pressure</span>
+            <span className={`text-[11px] font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>{weather.pressure} hPa</span>
+          </div>
+          <div className="text-center">
+            <span className="block text-[7px] font-black text-slate-500 uppercase">Updated</span>
+            <span className={`text-[11px] font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>{lastUpdated}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Safety Alert Banner */}
+      <div className={`h-7 flex items-center justify-center px-4 ${
+        safetyTip.includes("EXTREME") || safetyTip.includes("SEVERE") || safetyTip.includes("CRITICAL") || safetyTip.includes("⚡")
+          ? 'bg-rose-600/90 text-white'
+          : safetyTip.includes("ALERT") || safetyTip.includes("HIGH") || safetyTip.includes("HAZARD")
+          ? 'bg-amber-500/90 text-white'
+          : 'bg-blue-600/20 text-blue-500'
+      }`}>
+        <span className="text-[8px] font-black uppercase tracking-[0.2em] truncate">
+          {safetyTip}
+        </span>
+      </div>
+    </div>
+  );
+};
