@@ -1,19 +1,34 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { ObservationForm, UploadedImage, UserProfile } from '../types';
-import { MIN_IMAGES, MAX_IMAGES, STORAGE_KEYS, OBSERVATION_TYPES } from '../constants';
-import { submitObservationReport } from '../services/airtableService';
-import { uploadImageToStorage } from '../services/storageService';
+import { ObservationForm, UploadedImage, UserProfile, FetchedObservation } from '../types';
+import { MAX_IMAGES, STORAGE_KEYS } from '../constants';
+import { createObservationRecord, attachEvidenceToRecord } from '../services/airtableService';
 import { compressImage } from '../utils/imageCompression';
 import { saveOfflineReport } from '../services/offlineStorage';
-import { getAddress } from '../services/weatherService';
-import { fileToBase64 } from '../utils/fileToBase64';
-import { GoogleGenAI, Type } from "@google/genai";
 import { sendToast } from '../services/notificationService';
+import { getAddress } from '../services/weatherService';
 import { getPositionWithRefinement } from '../utils/geolocation';
+import { useAppContext } from '../context/AppContext';
 
 export type SubmitStatus = 'idle' | 'success' | 'error' | 'offline-saved';
 
+const buildOptimisticObservation = (recordId: string, form: ObservationForm): FetchedObservation => ({
+  id: recordId,
+  createdTime: new Date().toISOString(),
+  fields: {
+    "Name": form.name,
+    "Role / Position": form.role,
+    "Site / Location": form.site,
+    "Observation Type": form.category,
+    "Observation": form.observation,
+    "Action Taken": form.actionTaken,
+    "Assigned To": form.assignedTo,
+    "Closed By": form.closedBy,
+    "Location": form.location,
+  } as FetchedObservation['fields'],
+});
+
 export const useObservationReport = (baseId: string) => {
+  const { refetchData, addObservationOptimistic } = useAppContext();
   const [formData, setFormData] = useState<ObservationForm>({
     name: '',
     role: '',
@@ -34,7 +49,6 @@ export const useObservationReport = (baseId: string) => {
   const [errorMessage, setErrorMessage] = useState('');
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [isLocating, setIsLocating] = useState(false);
-  const [isAnalyzingImage, setIsAnalyzingImage] = useState(false);
 
   useEffect(() => {
     const savedProfile = localStorage.getItem(STORAGE_KEYS.PROFILE);
@@ -122,69 +136,22 @@ export const useObservationReport = (baseId: string) => {
     })();
   }, []);
   
-  const analyzeImageWithAI = useCallback(async (image: UploadedImage) => {
-    if (!isOnline) return;
-    
-    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-    if (!apiKey) {
-      console.warn('Gemini API key not configured. Skipping AI image analysis.');
-      return;
-    }
-    
-    setIsAnalyzingImage(true);
-    setImages(prev => prev.map(i => i.id === image.id ? { ...i, status: 'analyzing' } : i));
-
-    try {
-      const base64Data = await fileToBase64(image.file);
-      const ai = new GoogleGenAI({ apiKey });
-      const imagePart = { inlineData: { mimeType: image.file.type, data: base64Data } };
-      
-      const response = await ai.models.generateContent({
-        model: 'gemini-flash-latest',
-        contents: { parts: [imagePart, { text: 'Analyze this image from a construction or industrial site. In one or two sentences, describe any safety hazards you see. Then, classify the primary hazard into one of the available categories.' }] },
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              description: { type: Type.STRING, description: 'A detailed one or two sentence description of the safety hazard observed in the image.' },
-              category: { type: Type.STRING, description: 'The most relevant safety category for the hazard.', enum: OBSERVATION_TYPES },
-            },
-            required: ['description', 'category'],
-          }
-        }
-      });
-      
-      const result = JSON.parse(response.text || '{}');
-      if (result.description && result.category) {
-        setFormData(prev => ({ ...prev, observation: result.description, category: result.category }));
-        sendToast("AI analysis complete. Report pre-filled.", "ai");
-      }
-    } catch (e: any) {
-      console.error("AI Image Analysis failed", e);
-      sendToast("AI analysis failed. Please proceed manually.", "warning");
-    } finally {
-      setIsAnalyzingImage(false);
-      // Reset status to pending so it can be uploaded or re-analyzed
-      setImages(prev => prev.map(i => i.id === image.id && i.status === 'analyzing' ? { ...i, status: 'pending' } : i));
-    }
-  }, [isOnline]);
-
   const processImageUpload = useCallback(async (img: UploadedImage) => {
     const onProgress = (p: number) => {
       setImages(prev => prev.map(i => i.id === img.id ? { ...i, progress: p } : i));
     };
-    
+
     setImages(prev => prev.map(i => i.id === img.id ? { ...i, status: 'uploading', progress: 0, errorMessage: undefined } : i));
     try {
-      onProgress(10); // Initial progress
-      const fileToUpload = await compressImage(img.file, p => onProgress(10 + Math.round(p * 0.4))); // Compression is 40% of the work
-      onProgress(50);
-      const publicUrl = await uploadImageToStorage(fileToUpload, 'incident_evidence');
+      onProgress(10);
+      // Compress locally and stage the file. The binary is uploaded directly to
+      // the Airtable attachment field at submit time (bypassing Firestore), so
+      // no network round-trip happens here.
+      const fileToUpload = await compressImage(img.file, p => onProgress(10 + Math.round(p * 0.9)));
       onProgress(100);
-      setImages(prev => prev.map(i => i.id === img.id ? { ...i, status: 'success', serverUrl: publicUrl } : i));
+      setImages(prev => prev.map(i => i.id === img.id ? { ...i, file: fileToUpload, status: 'success' } : i));
     } catch (error: any) {
-      const friendlyError = error.message || "Connection Error";
+      const friendlyError = error.message || "Compression Error";
       setImages(prev => prev.map(i => i.id === img.id ? { ...i, status: 'error', progress: 0, errorMessage: friendlyError } : i));
     }
   }, []);
@@ -210,16 +177,12 @@ export const useObservationReport = (baseId: string) => {
       progress: 0
     }));
 
-    const wasEmpty = images.length === 0;
     setImages(prev => [...prev, ...newImages]);
 
-    // Run uploads and AI analysis in parallel for better UX
+    // Upload evidence in parallel with the form update.
     newImages.forEach(img => processImageUpload(img));
-    if (wasEmpty && newImages.length > 0) {
-      analyzeImageWithAI(newImages[0]);
-    }
     
-  }, [images.length, analyzeImageWithAI, processImageUpload]);
+  }, [images.length, processImageUpload]);
 
   const handleRemoveImage = useCallback((id: string) => {
     setImages(prev => {
@@ -263,24 +226,47 @@ export const useObservationReport = (baseId: string) => {
       return;
     }
       
-    const successfulImages = images.filter(img => img.status === 'success' && img.serverUrl);
+    const successfulImages = images.filter(img => img.status === 'success');
     if (successfulImages.length < images.length) {
-      setErrorMessage(`Evidence sync failed for some images. Retry failed uploads before submitting.`);
+      setErrorMessage(`Evidence staging failed for some images. Retry failed items before submitting.`);
       setIsSubmitting(false);
       return;
     }
 
     try {
-      const attachments = successfulImages.map(img => ({ url: img.serverUrl!, filename: img.file.name }));
-      await submitObservationReport(formData, attachments, { baseId });
+      const evidence = successfulImages.map(img => ({ file: img.file, filename: img.file.name }));
+      // 1. Create the record first (fast) so the save is confirmed instantly.
+      const created = await createObservationRecord(formData, { baseId });
+      // 2. Reflect it on the dashboard immediately (optimistic).
+      addObservationOptimistic(buildOptimisticObservation(created.recordId, formData));
       setSubmitStatus('success');
+
+      // 3. Upload evidence in the background, then reconcile with live data.
+      void (async () => {
+        try {
+          if (evidence.length > 0) {
+            await attachEvidenceToRecord({
+              tableName: created.tableName,
+              recordId: created.recordId,
+              fieldName: created.evidenceField,
+              files: evidence,
+              config: created.config,
+            });
+          }
+        } catch (uploadError) {
+          console.warn('Background evidence upload failed', uploadError);
+          sendToast('Report saved, but some images failed to attach. You can re-add them from the registry.', 'warning');
+        } finally {
+          void refetchData();
+        }
+      })();
     } catch (error: any) {
       setSubmitStatus('error');
       setErrorMessage(error.message || "Transmission interrupted. Please check your connection and try again.");
     } finally { 
       setIsSubmitting(false); 
     }
-  }, [baseId, formData, images, isOnline, validationErrors]);
+  }, [baseId, formData, images, isOnline, refetchData, addObservationOptimistic, validationErrors]);
 
   return {
     formData,
@@ -292,7 +278,6 @@ export const useObservationReport = (baseId: string) => {
     errorMessage,
     isOnline,
     isLocating,
-    isAnalyzingImage,
     handleInputChange,
     handleBlur,
     fetchCurrentLocation,

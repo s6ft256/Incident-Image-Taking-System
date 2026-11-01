@@ -175,11 +175,11 @@ export const handleError = (
 /**
  * Wraps an async function with error handling
  */
-export const withErrorHandling = <T extends (...args: unknown[]) => Promise<unknown>>(
-  fn: T,
+export const withErrorHandling = <TArgs extends unknown[], TResult>(
+  fn: (...args: TArgs) => Promise<TResult>,
   contextName: string
-): ((...args: Parameters<T>) => Promise<ReturnType<T> | null>) => {
-  return async (...args: Parameters<T>): Promise<ReturnType<T> | null> => {
+): ((...args: TArgs) => Promise<TResult | null>) => {
+  return async (...args: TArgs): Promise<TResult | null> => {
     try {
       return await fn(...args);
     } catch (error) {

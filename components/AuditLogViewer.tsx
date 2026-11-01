@@ -151,20 +151,29 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ appTheme, onBack
 
   const handleCreateSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newLog.actionSummary || !newLog.reasonForChange) {
+    const actionSummary = newLog.actionSummary?.trim();
+    const reasonForChange = newLog.reasonForChange?.trim();
+    if (!actionSummary || !reasonForChange) {
       alert("Summary and Reason for Change are mandatory.");
       return;
     }
 
     const createdEntry: AuditEntry = {
-      ...(newLog as Partial<AuditEntry>),
-      id: `AUD-${Math.floor(1000 + Math.random() * 9000)}-MN`, 
+      id: `AUD-${Math.floor(1000 + Math.random() * 9000)}-MN`,
       timestamp: new Date().toISOString(),
       user: currentUser?.name || 'System User',
       userRole: currentUser?.role || 'Guest',
       department: currentUser?.site || 'Global Hub',
       ipAddress: '127.0.0.XX (Logged)',
       deviceBrowser: navigator.userAgent.split(') ')[0] + ')',
+      action: newLog.action || 'Create',
+      module: newLog.module || 'Other',
+      actionCategory: newLog.actionCategory || 'Data Entry',
+      source: newLog.source || 'Web',
+      actionSummary,
+      detailedDescription: newLog.detailedDescription,
+      relatedRecordId: newLog.relatedRecordId,
+      reasonForChange,
       hash: `sha256:${crypto.randomUUID().replace(/-/g, '')}`,
       previousHash: logs[0]?.hash || '0'.repeat(64),
       tamperStatus: 'Valid',

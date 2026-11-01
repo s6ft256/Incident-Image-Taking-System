@@ -176,7 +176,7 @@ export const shareReport = async (options: ShareOptions): Promise<ShareResult> =
       }
       
       // Send notification to assigned users
-      recipients.forEach(recipient => {
+      recipients.forEach(_recipient => {
         sendNotification(
           'New Report Assignment',
           `You have been assigned to ${reportType} report #${reportId.slice(-6)}`,

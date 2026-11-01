@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
-import { FetchedObservation, UserProfile, FetchedIncident, OfflineObservation, OfflineIncident } from '../types';
+import { FetchedObservation, FetchedIncident, OfflineIncident } from '../types';
 import { ARCHIVE_ACCESS_KEY, INCIDENT_STATUS, getRiskLevel, SEVERITY_LEVELS, LIKELIHOOD_LEVELS, STORAGE_KEYS, INCIDENT_TYPES, DEPARTMENTS, SITES } from '../constants';
 import { useAppContext } from '../context/AppContext';
 import { ShareModal } from './ShareModal';
@@ -8,8 +8,9 @@ import { ImageGallery } from './ImageGallery';
 import { ImageUploadZone } from './ImageUploadZone';
 import { ReportComments } from './ReportComments';
 import { getAssignedReports } from '../services/sharingService';
-import { getAllSupabaseIncidents, getAllSupabaseObservations } from '../services/supabaseService';
+import { getAllFirebaseIncidents, getAllFirebaseObservations } from '../services/firebaseDataService';
 import { getOfflineReports, getOfflineIncidents } from '../services/offlineStorage';
+import type { OfflineObservation } from '../services/offlineStorage';
 import { updateIncident, updateObservation } from '../services/airtableService';
 import { sendToast } from '../services/notificationService';
 import { uploadImageToStorage } from '../services/storageService';
@@ -26,7 +27,15 @@ interface RecentReportsProps {
 
 type Tab = 'all' | 'open' | 'assigned' | 'incidents' | 'closed';
 
-const PROFILE_KEY = 'hse_guardian_profile';
+// Splits a comma/semicolon-separated assignee string into normalized tokens.
+// Declared at module scope so it is available during the component's render
+// (avoids a temporal-dead-zone error when referenced inside useMemo).
+const normalizeAssignees = (value: string): string[] =>
+  value
+    .split(/[,;]+/)
+    .map(s => s.trim().toLowerCase())
+    .filter(Boolean);
+
 
 interface DataFieldProps {
   label: string;
@@ -48,7 +57,7 @@ const DataField: React.FC<DataFieldProps> = ({ label, value, icon, isLight }) =>
   </div>
 );
 
-export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, appTheme = 'dark', filterAssignee, onPrint }) => {
+export const RecentReports: React.FC<RecentReportsProps> = ({ onBack, appTheme = 'dark', filterAssignee, onPrint }) => {
   // Enable swipe from left edge to go back
   useEdgeSwipeBack();
   
@@ -62,8 +71,8 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
   const [activeTab, setActiveTab] = useState<Tab>(filterAssignee ? 'assigned' : 'all');
   const [searchTerm, setSearchTerm] = useState('');
   
-  const [supabaseReports, setSupabaseReports] = useState<FetchedObservation[]>([]);
-  const [supabaseIncidentsState, setSupabaseIncidents] = useState<FetchedIncident[]>([]);
+  const [firebaseReports, setFirebaseReports] = useState<FetchedObservation[]>([]);
+  const [firebaseIncidents, setFirebaseIncidents] = useState<FetchedIncident[]>([]);
   const [offlineReports, setOfflineReports] = useState<OfflineObservation[]>([]);
   const [offlineIncidents, setOfflineIncidents] = useState<OfflineIncident[]>([]);
   const [archiveKey, setArchiveKey] = useState('');
@@ -93,8 +102,8 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
         'source': 'offline'
       }
     } as FetchedObservation));
-    return [...allReports, ...supabaseReports, ...offlineAsAirtable];
-  }, [allReports, supabaseReports, offlineReports]);
+    return [...allReports, ...firebaseReports, ...offlineAsAirtable];
+  }, [allReports, firebaseReports, offlineReports]);
 
   const mergedIncidents = useMemo<FetchedIncident[]>(() => {
     const offlineAsAirtable = offlineIncidents.map(i => ({
@@ -117,8 +126,18 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
         'source': 'offline'
       }
     } as FetchedIncident));
-    return [...allIncidents, ...supabaseIncidentsState, ...offlineAsAirtable];
-  }, [allIncidents, supabaseIncidentsState, offlineIncidents]);
+    return [...allIncidents, ...firebaseIncidents, ...offlineAsAirtable];
+  }, [allIncidents, firebaseIncidents, offlineIncidents]);
+
+  const isMyTasksMode = !!filterAssignee;
+
+  const localAssignedObservationIds = useMemo(() => {
+    if (!filterAssignee) return new Set<string>();
+    const assigned = getAssignedReports(filterAssignee)
+      .filter(a => a.reportType === 'observation')
+      .map(a => a.reportId);
+    return new Set<string>(assigned);
+  }, [filterAssignee]);
 
   const tabFilteredReports = useMemo(() => {
     const query = searchTerm.toLowerCase().trim();
@@ -256,34 +275,22 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
       return !query || obsText.includes(query) || nameText.includes(query);
     });
 
-    if (activeTab === 'closed' && !showClosed) return [];
-
     return visibleObservations;
   }, [mergedReports, mergedIncidents, activeTab, searchTerm, filterAssignee, isMyTasksMode, localAssignedObservationIds]);
-
-  const isMyTasksMode = !!filterAssignee;
-
-  const localAssignedObservationIds = useMemo(() => {
-    if (!filterAssignee) return new Set<string>();
-    const assigned = getAssignedReports(filterAssignee)
-      .filter(a => a.reportType === 'observation')
-      .map(a => a.reportId);
-    return new Set<string>(assigned);
-  }, [filterAssignee]);
 
   useEffect(() => {
     const loadRegistryData = async () => {
       setIsLoadingRegistry(true);
       try {
-        const [sbReports, sbIncidents, offReports, offIncidents] = await Promise.all([
-          getAllSupabaseObservations(),
-          getAllSupabaseIncidents(),
+        const [firebaseReports, firebaseIncidents, offReports, offIncidents] = await Promise.all([
+          getAllFirebaseObservations(),
+          getAllFirebaseIncidents(),
           getOfflineReports(),
           getOfflineIncidents()
         ]);
 
-        setSupabaseReports(sbReports);
-        setSupabaseIncidents(sbIncidents);
+        setFirebaseReports(firebaseReports);
+        setFirebaseIncidents(firebaseIncidents);
         setOfflineReports(offReports);
         setOfflineIncidents(offIncidents);
       } catch (error) {
@@ -353,7 +360,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
         const profile = JSON.parse(saved);
         return profile.name || '';
       }
-    } catch {}
+    } catch { /* ignore malformed profile */ }
     return '';
   }, []);
 
@@ -364,13 +371,6 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
 
   const handleRowClick = (id: string) => {
     setExpandedId(prev => (prev === id ? null : id));
-  };
-
-  const normalizeAssignees = (value: string) => {
-    return value
-      .split(/[,;]+/)
-      .map(s => s.trim().toLowerCase())
-      .filter(Boolean);
   };
 
   const setIncidentEdit = (id: string, patch: Partial<(typeof incidentEdits)[string]>) => {
@@ -568,27 +568,6 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
     }
   };
 
-  const handleSaveObservationEdits = async (observationId: string, _assigneeName: string, updates: { assignedTo?: string }) => {
-    setIsUpdatingObservation(prev => ({ ...prev, [observationId]: true }));
-    try {
-      const patch: Record<string, any> = {};
-      if (updates.assignedTo !== undefined) patch["Assigned To"] = updates.assignedTo;
-      
-      if (Object.keys(patch).length === 0) {
-        sendToast('No changes to save.', 'info');
-        return;
-      }
-      
-      await updateObservation(observationId, patch);
-      sendToast('Observation updated.', 'success');
-      refetchData();
-    } catch (e: any) {
-      sendToast(e?.message || 'Failed to update observation.', 'critical');
-    } finally {
-      setIsUpdatingObservation(prev => ({ ...prev, [observationId]: false }));
-    }
-  };
-
   const handleResubmitObservation = async (reportId: string, assigneeName: string, closureImages?: FileList, existingFields?: any) => {
     const draft = String(actionDrafts[reportId] ?? '').trim();
     if (draft.length < 3) {
@@ -713,7 +692,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
       ) : (
         <div className="flex flex-col gap-4">
           {tabFilteredReports.map((report) => {
-              const isIncident = 'fields' in report && 'Title' in report.fields;
+              const isIncident = 'Title' in report.fields;
               const fields = report.fields as any;
               const status = isIncident ? (fields["Status"] || 'Pending Review') : 'Observation';
               const riskScore = isIncident ? (Number(fields["Severity"] || 1) * Number(fields["Likelihood"] || 1)) : 0;
@@ -1168,7 +1147,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
                                            label="Verification Photos (Airtable)"
                                            isUploading={uploading}
                                            isLight={isLight}
-                                           helperText="Uploads to Supabase then writes into Airtable."
+                                           helperText="Uploads to Firebase Storage then writes into Airtable."
                                            onFilesSelected={(files) => handleUploadVerificationPhotos(report.id, files, fields)}
                                         />
                                      </div>
@@ -1463,7 +1442,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
                                          disabled={isBusy || isUploadingImages}
                                          onClick={() => {
                                            if (!draft.trim()) {
-                                              sendToast("Please describe the action taken.", "error");
+                                              sendToast("Please describe the action taken.", "critical");
                                               return;
                                            }
                                            handleResubmitObservation(report.id, filterAssignee, pendingClosureFiles[report.id] || undefined, { ...fields, ...edits });
@@ -1523,7 +1502,7 @@ export const RecentReports: React.FC<RecentReportsProps> = ({ baseId, onBack, ap
 
                        {/* Extracted Image Gallery */}
                        <ImageGallery 
-                          reportType={report.reportType} 
+                          reportType={isIncident ? 'incident' : 'observation'}
                           fields={fields} 
                           isLight={isLight} 
                        />
@@ -1559,7 +1538,7 @@ const WorkflowTimeline: React.FC<{status: FetchedIncident['fields']['Status'], i
         <React.Fragment key={step}>
           <div className="flex flex-col items-center gap-3 text-center min-w-[80px]">
             <div className={`w-10 h-10 rounded-2xl flex items-center justify-center border-2 transition-all duration-500 ${
-              i <= currentIndex ? 'bg-blue-600 border-blue-400 text-white shadow-[0_0_15px_rgba(37,99,235,0.4)]' : (isLight ? 'bg-white border-slate-200 text-slate-300' : 'bg-slate-800 border-slate-700 text-slate-600')
+              i <= currentIndex ? 'bg-blue-600 border-blue-400 text-white shadow-[0_0_15px_rgba(22,163,74,0.4)]' : (isLight ? 'bg-white border-slate-200 text-slate-300' : 'bg-slate-800 border-slate-700 text-slate-600')
             }`}>
               {i < currentIndex ? (
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4"><polyline points="20 6 9 17 4 12"/></svg>
@@ -1570,7 +1549,7 @@ const WorkflowTimeline: React.FC<{status: FetchedIncident['fields']['Status'], i
             <span className={`text-[8px] font-black uppercase tracking-widest max-w-[70px] ${i <= currentIndex ? (isLight ? 'text-blue-600' : 'text-blue-400') : 'text-slate-500'}`}>{step}</span>
           </div>
           {i < steps.length - 1 && (
-            <div className={`flex-1 h-1.5 rounded-full mx-2 transition-all duration-1000 ${i < currentIndex ? 'bg-blue-600 shadow-[0_0_10px_rgba(37,99,235,0.4)]' : (isLight ? 'bg-slate-200' : 'bg-slate-800')}`}></div>
+            <div className={`flex-1 h-1.5 rounded-full mx-2 transition-all duration-1000 ${i < currentIndex ? 'bg-blue-600 shadow-[0_0_10px_rgba(22,163,74,0.4)]' : (isLight ? 'bg-slate-200' : 'bg-slate-800')}`}></div>
           )}
         </React.Fragment>
       ))}

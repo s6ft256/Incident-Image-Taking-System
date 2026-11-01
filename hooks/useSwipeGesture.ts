@@ -149,7 +149,7 @@ export const useEdgeSwipeBack = (_onBack?: () => void) => {
       }
     };
 
-    const handleTouchMove = (e: TouchEvent) => {
+    const handleTouchMove = (_e: TouchEvent) => {
       // Visual feedback could be added here if needed
       if (!isTracking) return;
     };

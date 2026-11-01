@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { AIRTABLE_CONFIG, SAFETY_QUOTES, STORAGE_KEYS, SYSTEM_LOGO_URL, AUTHORIZED_ADMIN_ROLES } from './constants';
+import { AIRTABLE_CONFIG, SAFETY_QUOTES, STORAGE_KEYS, SYSTEM_LOGO_URL } from './constants';
+import { can } from './services/permissions';
 import { CreateReportForm } from './components/CreateReportForm';
 import { RecentReports } from './components/RecentReports';
 import { Dashboard } from './components/Dashboard';
@@ -26,7 +27,7 @@ import { UserProfile as UserProfileType, FetchedObservation, FetchedIncident } f
 import { requestNotificationPermission, sendNotification, sendToast } from './services/notificationService';
 import { getAssignedCriticalObservations, getAllReports } from './services/airtableService';
 
-type ViewState = 'dashboard' | 'create' | 'recent' | 'my-tasks' | 'personnel' | 'checklists' | 'inspection-viewer' | 'risk-assessment' | 'training-management' | 'audit-trail' | 'compliance-tracker' | 'crane-checklist' | 'equipment-checklist' | 'incident-report' | 'observation';
+type ViewState = 'dashboard' | 'create' | 'recent' | 'my-tasks' | 'personnel' | 'checklists' | 'inspection-viewer' | 'risk-assessment' | 'training-management' | 'audit-trail' | 'compliance-tracker' | 'crane-checklist' | 'equipment-checklist' | 'incident-report';
 
 interface SystemAlert {
   id: string;
@@ -46,7 +47,7 @@ export default function App() {
     if (saved) {
       try { return JSON.parse(saved); } catch (e) { return null; }
     }
-    return { name: 'Guest User', role: 'Safety Officer', site: '', email: '' };
+    return { name: 'Guest User', role: 'Officer', site: '', email: '' };
   });
 
   const [view, setView] = useState<ViewState>('dashboard');
@@ -58,14 +59,14 @@ export default function App() {
   const [baseId] = useState(AIRTABLE_CONFIG.BASE_ID);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [quote, setQuote] = useState('');
-  const [appTheme, setAppTheme] = useState<'dark' | 'light'>('dark');
+  const [appTheme, setAppTheme] = useState<'dark' | 'light'>('light');
   const [isInitialized, setIsInitialized] = useState(false);
   const [activeAlerts, setActiveAlerts] = useState<SystemAlert[]>([]);
   const [isBellShaking, setIsBellShaking] = useState(false);
+  const [logoLoadFailed, setLogoLoadFailed] = useState(false);
   const [activeInspectionUrl, setActiveInspectionUrl] = useState('');
   const [printingIncident, setPrintingIncident] = useState<FetchedIncident | null>(null);
-  const [selectedObservationId, setSelectedObservationId] = useState<string | null>(null);
-  const { state } = useAppContext();
+  const { refetchData } = useAppContext();
   
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isFabVisible, setIsFabVisible] = useState(true);
@@ -149,8 +150,7 @@ export default function App() {
       try {
         const tasks = await getAssignedCriticalObservations(userProfile.name, { baseId });
         const allReports = await getAllReports({ baseId });
-        const isSafetyLead = AUTHORIZED_ADMIN_ROLES.includes(userProfile.role.toLowerCase()) || 
-                             userProfile.role.toLowerCase().includes('safety');
+        const isSafetyLead = can(userProfile.role, 'view-escalations');
         const now = Date.now();
         const ESCALATION_THRESHOLD = 48 * 60 * 60 * 1000;
         const alerts: SystemAlert[] = [];
@@ -208,8 +208,9 @@ export default function App() {
     if (userProfile && !localStorage.getItem(STORAGE_KEYS.TUTORIAL_SEEN)) setShowTutorial(true);
     requestNotificationPermission();
     setIsInitialized(true);
-    const savedTheme = localStorage.getItem(STORAGE_KEYS.THEME) as 'dark' | 'light';
-    if (savedTheme) { setAppTheme(savedTheme); applyTheme(savedTheme); }
+    const savedTheme = localStorage.getItem(STORAGE_KEYS.THEME) as 'dark' | 'light' | null;
+    const initialTheme = savedTheme || 'light';
+    setAppTheme(initialTheme); applyTheme(initialTheme);
     const handleStatus = () => {
       const online = navigator.onLine;
       setIsOnline(online);
@@ -260,7 +261,7 @@ export default function App() {
       window.removeEventListener('themeChanged', handleThemeChange as EventListener);
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [baseId, userProfile]);
+  }, [baseId, refetchData, userProfile]);
 
   const toggleTheme = () => {
     const newTheme = appTheme === 'dark' ? 'light' : 'dark';
@@ -274,6 +275,7 @@ export default function App() {
     try {
         const count = await runOfflineSync(baseId);
         if (count > 0) {
+            await refetchData();
             window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: `${count} Reports Synced`, type: 'success' } }));
         }
     } catch (error) {
@@ -289,7 +291,7 @@ export default function App() {
     }
 
     // Fallback to explicit view transitions when no history stack is available.
-    if (view === 'my-tasks' || view === 'personnel' || view === 'checklists' || view === 'inspection-viewer' || view === 'risk-assessment' || view === 'training-management' || view === 'compliance-tracker' || view === 'audit-trail' || view === 'crane-checklist' || view === 'equipment-checklist' || view === 'incident-report' || view === 'create' || view === 'observation') {
+    if (view === 'my-tasks' || view === 'personnel' || view === 'checklists' || view === 'inspection-viewer' || view === 'risk-assessment' || view === 'training-management' || view === 'compliance-tracker' || view === 'audit-trail' || view === 'crane-checklist' || view === 'equipment-checklist' || view === 'incident-report' || view === 'create') {
       setView('dashboard');
       return;
     }
@@ -305,11 +307,13 @@ export default function App() {
   const renderContent = () => {
     switch (view) {
       case 'dashboard':
-        return <Dashboard baseId={baseId} appTheme={appTheme} onNavigate={(target) => setView(target)} />;
+        return <Dashboard appTheme={appTheme} onNavigate={(target) => setView(target)} />;
       case 'create':
         return <CreateReportForm baseId={baseId} appTheme={appTheme} onBack={() => setView('dashboard')} />;
       case 'my-tasks':
-        return <RecentReports baseId={baseId} appTheme={appTheme} onBack={() => setView('dashboard')} filterAssignee={userProfile?.name} onPrint={setPrintingIncident} onOpenObservation={(id: string) => { setSelectedObservationId(id); setView('observation'); }} />;
+        return <RecentReports baseId={baseId} appTheme={appTheme} onBack={() => setView('dashboard')} filterAssignee={userProfile?.name} onPrint={setPrintingIncident} />;
+      case 'recent':
+        return <RecentReports baseId={baseId} appTheme={appTheme} onBack={() => setView('dashboard')} onPrint={setPrintingIncident} />;
       case 'personnel':
         return <PersonnelGrid appTheme={appTheme} onBack={() => setView('dashboard')} />;
       case 'checklists':
@@ -330,12 +334,8 @@ export default function App() {
         return <EquipmentChecklistForm appTheme={appTheme} onBack={() => setView('checklists')} />;
       case 'incident-report':
         return <IncidentReportForm appTheme={appTheme} onBack={() => setView('dashboard')} />;
-      case 'observation': {
-        const selected = state?.allReports?.find(r => r.id === selectedObservationId) ?? null;
-        return <CreateReportForm baseId={baseId} appTheme={appTheme} onBack={() => setView('recent')} initialObservation={selected} />;
-      }
       default:
-        return <Dashboard baseId={baseId} appTheme={appTheme} onNavigate={(target) => setView(target)} />;
+        return <Dashboard appTheme={appTheme} onNavigate={(target) => setView(target)} />;
     }
   };
 
@@ -348,27 +348,41 @@ export default function App() {
         <NotificationSystem appTheme={appTheme} onViewTask={(id) => { setView('recent'); window.location.hash = `view-report-${id}`; }} />
         <div className={`relative z-10 flex flex-col flex-grow ${view === 'inspection-viewer' ? 'h-auto overflow-visible' : ''}`}>
           <header className={`sticky top-0 z-40 backdrop-blur-2xl border-b transition-all duration-500 ${appTheme === 'dark' ? 'bg-[#18181b]/90 border-white/10 shadow-2xl' : 'bg-white/90 border-slate-200 shadow-lg'} ${view === 'inspection-viewer' ? 'hidden' : ''}`}>
-            <div className="max-w-7xl mx-auto px-4 sm:px-8 py-4 flex items-center justify-between gap-6">
-               <div className="flex-1 flex justify-start items-center gap-2">
+            <div className="max-w-7xl mx-auto grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-3 py-2 sm:gap-6 sm:px-8 sm:py-4">
+               <div className="flex min-w-0 items-center gap-2">
                  {view !== 'dashboard' && (
-                   <button onClick={navigateBack} className="rounded-xl p-2 text-sm font-bold bg-white/10 hover:bg-white/20 text-white transition-all duration-300">
-                     ← Back
+                   <button onClick={navigateBack} aria-label="Go back" className="rounded-xl p-2 text-sm font-bold bg-white/10 hover:bg-white/20 text-white transition-all duration-300">
+                     ← <span className="hidden sm:inline">Back</span>
                    </button>
                  )}
-                 <div onClick={() => setView('dashboard')} className="group cursor-pointer rounded-xl hover:bg-blue-50/30 dark:hover:bg-white/5 p-2 transition-all duration-300">
-                   <img src={SYSTEM_LOGO_URL} alt="HSE Guardian Logo" className="h-20 sm:h-32 w-auto object-contain drop-shadow-2xl transition-all duration-500 group-hover:scale-110 origin-left" />
-                 </div>
+                 <button
+                   type="button"
+                   onClick={() => setView('dashboard')}
+                   aria-label="Go to dashboard"
+                   className="group rounded-xl p-1 transition-all duration-300 hover:bg-white/5"
+                 >
+                   {logoLoadFailed ? (
+                     <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-xs font-black text-white sm:h-16 sm:w-16 sm:text-sm">HSE</span>
+                   ) : (
+                     <img
+                       src={SYSTEM_LOGO_URL}
+                       alt="HSE Guardian"
+                       onError={() => setLogoLoadFailed(true)}
+                       className="h-10 w-10 object-contain drop-shadow-2xl sm:h-20 sm:w-20"
+                     />
+                   )}
+                 </button>
                </div>
-               <div className="flex flex-[4] flex-col items-center group cursor-pointer" onClick={() => setView('dashboard')}>
-                  <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-center drop-shadow-lg leading-tight">
+               <button type="button" className="flex min-w-0 flex-col items-center group" onClick={() => setView('dashboard')} aria-label="HSE Guardian home">
+                  <h1 className="whitespace-nowrap text-lg sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-center drop-shadow-lg leading-tight">
                     <span className={appTheme === 'dark' ? 'text-white' : 'text-slate-900'}>HSE</span><span className="text-blue-500"> Guardian</span>
                   </h1>
-                  <div className="h-2 w-28 sm:w-48 bg-gradient-to-r from-red-600 via-blue-500 to-rose-500 mt-2 rounded-full shadow-lg transition-all duration-500 group-hover:w-36 sm:group-hover:w-56"></div>
-                  <span className={`mt-2 text-base font-medium italic ${appTheme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>Professional Safety Evidence System</span>
-               </div>
-               <div className="flex-1 flex justify-end items-center gap-3 sm:gap-8 relative">
+                  <div className="mt-1 h-1 w-16 rounded-full bg-gradient-to-r from-red-600 via-blue-500 to-rose-500 shadow-lg sm:mt-2 sm:h-2 sm:w-48"></div>
+                  <span className={`mt-1 hidden text-sm font-medium italic sm:block ${appTheme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>Professional Safety Evidence System</span>
+               </button>
+               <div className="relative flex items-center justify-end gap-1 sm:gap-3">
                  {userProfile && (
-                   <button onClick={toggleTheme} className={`p-3 rounded-2xl transition-all flex items-center justify-center shadow-lg hover:shadow-xl ${appTheme === 'dark' ? 'hover:bg-white/10 text-slate-400 hover:text-white' : 'hover:bg-blue-100 text-blue-700 hover:text-blue-900'}`} aria-label="Toggle theme">
+                   <button onClick={toggleTheme} className={`rounded-2xl p-2 sm:p-3 transition-all flex items-center justify-center shadow-lg hover:shadow-xl ${appTheme === 'dark' ? 'hover:bg-white/10 text-slate-400 hover:text-white' : 'hover:bg-blue-100 text-blue-700 hover:text-blue-900'}`} aria-label="Toggle theme">
                      {appTheme === 'dark' ? (
                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
                      ) : (
@@ -378,7 +392,7 @@ export default function App() {
                  )}
                  {userProfile && (
                    <div ref={notificationsRef} className="relative">
-                     <button onClick={() => setShowNotifications(!showNotifications)} className={`relative p-3 rounded-2xl transition-all flex items-center justify-center shadow-lg hover:shadow-xl ${isBellShaking ? 'bell-swing-animate' : (activeAlerts.length > 0 ? 'bell-tasks-active' : '')} ${appTheme === 'dark' ? 'hover:bg-white/10 text-slate-400 hover:text-white' : 'hover:bg-blue-100 text-blue-700 hover:text-blue-900'}`} aria-label="View safety alerts">
+                     <button onClick={() => setShowNotifications(!showNotifications)} className={`relative rounded-2xl p-2 sm:p-3 transition-all flex items-center justify-center shadow-lg hover:shadow-xl ${isBellShaking ? 'bell-swing-animate' : (activeAlerts.length > 0 ? 'bell-tasks-active' : '')} ${appTheme === 'dark' ? 'hover:bg-white/10 text-slate-400 hover:text-white' : 'hover:bg-blue-100 text-blue-700 hover:text-blue-900'}`} aria-label="View safety alerts">
                         <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
                         {activeAlerts.length > 0 && <div className="absolute top-1 right-1 flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-rose-600 to-amber-500 text-[11px] font-black text-white ring-2 ring-blue-500 animate-pulse"><span className="badge-ping-layer" />{activeAlerts.length}</div>}
                      </button>
@@ -409,17 +423,17 @@ export default function App() {
                    </div>
                  )}
                  <div ref={profileCardRef} className="relative">
-                   <div onClick={() => setShowProfileCard(!showProfileCard)} className="cursor-pointer group">
-                      <div className={`w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden border-2 shadow-lg transition-all duration-300 ${showProfileCard ? 'border-blue-500 ring-4 ring-blue-500/20 scale-105' : 'border-slate-700'}`}>
+                   <button type="button" onClick={() => setShowProfileCard(!showProfileCard)} aria-label="Open user profile" aria-expanded={showProfileCard} className="group">
+                      <div className={`h-10 w-10 sm:h-16 sm:w-16 rounded-full overflow-hidden border-2 shadow-lg transition-all duration-300 ${showProfileCard ? 'border-blue-500 ring-4 ring-blue-500/20 scale-105' : 'border-slate-700'}`}>
                         {userProfile?.profileImageUrl ? <img src={userProfile.profileImageUrl} alt="User" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center bg-blue-600 text-white font-black text-2xl">{userProfile?.name?.charAt(0)}</div>}
                       </div>
-                   </div>
+                   </button>
                    {showProfileCard && <div className="absolute top-full right-0 mt-4 w-80 z-50 animate-in fade-in slide-in-from-top-2 duration-300"><UserProfile onBack={() => setShowProfileCard(false)} /></div>}
                  </div>
                </div>
             </div>
           </header>
-          <main className={`flex-grow ${view === 'inspection-viewer' ? 'p-0 max-w-none' : 'max-w-7xl mx-auto px-6 sm:px-10 py-8 w-full'} font-sans`}>{renderContent()}</main>
+          <main className={`flex-grow ${view === 'inspection-viewer' ? 'p-0 max-w-none' : `max-w-7xl mx-auto ${view === 'dashboard' ? 'px-0 sm:px-10 py-4 sm:py-8' : 'px-4 sm:px-10 py-6 sm:py-8'} w-full`} font-sans`}>{renderContent()}</main>
           <footer className={`py-8 px-6 border-t text-center shadow-inner ${appTheme === 'dark' ? 'bg-gradient-to-r from-slate-950/60 via-blue-900/40 to-slate-900/60 border-white/10' : 'bg-gradient-to-r from-blue-50 via-white to-blue-100 border-slate-200'}`}>
             <div className="max-w-7xl mx-auto flex flex-col items-center gap-3">
               <div className="px-6 py-3 rounded-full border border-blue-500/30 bg-gradient-to-r from-blue-100 via-white to-blue-200 text-base font-semibold text-blue-600 italic shadow-md">{quote}</div>

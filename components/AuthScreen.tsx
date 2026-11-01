@@ -18,8 +18,8 @@ const LAST_USER_KEY = 'hse_guardian_last_user';
 const AuthCard: React.FC<{ children: React.ReactNode, isLight: boolean }> = ({ children, isLight }) => (
   <div className={`relative w-full max-w-xs p-6 sm:p-8 rounded-[3rem] border backdrop-blur-md transition-all duration-300 animate-in fade-in zoom-in-95 slide-in-from-bottom-4 z-20 overflow-hidden form-container-glow ${
     isLight 
-      ? 'bg-white/80 border-blue-500/20 shadow-[0_0_30px_rgba(59,130,246,0.1)]' 
-      : 'bg-slate-900/60 border-blue-600/30 shadow-[0_0_40px_rgba(59,130,246,0.2)] ring-1 ring-blue-500/10'
+      ? 'bg-white/80 border-blue-500/20 shadow-[0_0_30px_rgba(34,197,94,0.12)]' 
+      : 'bg-slate-900/60 border-blue-600/30 shadow-[0_0_40px_rgba(34,197,94,0.22)] ring-1 ring-blue-500/10'
   }`}>
     <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-transparent to-blue-600/5 pointer-events-none"></div>
     <div className="relative z-10">{children}</div>
@@ -38,7 +38,7 @@ const AuthBackground: React.FC<{ isLight: boolean }> = ({ isLight }) => (
     isLight ? 'bg-slate-50' : 'bg-[#020617]'
   }`}>
     <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[url('https://grainy-gradients.vercel.app/noise.svg')] bg-repeat"></div>
-    <div className={`absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(59,130,246,0.1)_100%)] ${isLight ? 'opacity-40' : 'opacity-100'}`}></div>
+    <div className={`absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(34,197,94,0.1)_100%)] ${isLight ? 'opacity-40' : 'opacity-100'}`}></div>
     <div className="absolute top-0 left-0 w-full h-full opacity-[0.02] bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]"></div>
   </div>
 );

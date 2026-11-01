@@ -1,27 +1,14 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { WeatherWidget } from './WeatherWidget';
 import { LocationPrompt } from './LocationPrompt';
 import { BarChart, Bar, Cell, ResponsiveContainer, XAxis, YAxis } from 'recharts';
 import { useAppContext } from '../context/AppContext';
+import { can, roleLabel, Permission } from '../services/permissions';
 
 interface DashboardProps {
-  baseId: string;
   onNavigate: (view: 'create' | 'recent' | 'my-tasks' | 'personnel' | 'checklists' | 'risk-assessment' | 'training-management' | 'compliance-tracker' | 'audit-trail' | 'incident-report') => void;
   appTheme?: 'dark' | 'light';
 }
-
-type PythonAnalyticsSummary = {
-  generatedAt?: string;
-  sources?: { observations?: string; incidents?: string };
-  observations?: { rows?: number; total?: number; open?: number; closed?: number; note?: string };
-  incidents?: { rows?: number; note?: string };
-  model?: { enabled?: boolean; accuracy?: number };
-  assets?: {
-    observationsByType?: string;
-    observationsBySite?: string;
-    incidentsOverTime?: string;
-  };
-};
 
 const SEVERITY_MAP: Record<string, number> = {
   'Fire Risk': 10,
@@ -35,49 +22,52 @@ const SEVERITY_MAP: Record<string, number> = {
   'Other': 1
 };
 
-export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appTheme = 'dark' }) => {
-  const { state } = useAppContext();
-  const { userProfile, allReports: reports } = state;
+type DashboardView = Parameters<DashboardProps['onNavigate']>[0];
 
-  const isMounted = useRef(true);
+interface ControlItem {
+  view: DashboardView;
+  icon: string;
+  label: string;
+  color: string;
+  badge?: number;
+  // When set, the item is only shown to roles granted this permission.
+  permission?: Permission;
+}
+
+const OPERATION_ITEMS: ControlItem[] = [
+  { view: 'incident-report', icon: 'alert', label: 'Incident', color: 'rose', permission: 'submit-incident' },
+  { view: 'create', icon: 'plus', label: 'Observation', color: 'blue', permission: 'submit-observation' },
+  { view: 'my-tasks', icon: 'user', label: 'My Tasks', color: 'emerald' },
+  { view: 'recent', icon: 'list', label: 'Registry', color: 'slate' },
+  { view: 'checklists', icon: 'check', label: 'Inspect', color: 'amber', permission: 'submit-checklist' },
+  { view: 'personnel', icon: 'users', label: 'Personnel', color: 'indigo', permission: 'review-report' },
+];
+
+const MANAGEMENT_ITEMS: ControlItem[] = [
+  { view: 'risk-assessment', icon: 'shield', label: 'Risk RA', color: 'rose', permission: 'review-report' },
+  { view: 'training-management', icon: 'book', label: 'Training', color: 'violet', permission: 'review-report' },
+  { view: 'compliance-tracker', icon: 'award', label: 'Compliance', color: 'cyan', permission: 'view-audit-log' },
+  { view: 'audit-trail', icon: 'history', label: 'Audit', color: 'zinc', permission: 'view-audit-log' },
+];
+
+export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, appTheme = 'dark' }) => {
+  const { state, refetchData } = useAppContext();
+  const { userProfile, allReports: reports, allIncidents: incidents } = state;
+
   const [locationRefreshKey, setLocationRefreshKey] = useState(0);
-  const [activeCategory, setActiveCategory] = useState<'operations' | 'management'>('operations');
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [systemTime, setSystemTime] = useState(new Date().toLocaleTimeString());
-  const [pythonAnalytics, setPythonAnalytics] = useState<PythonAnalyticsSummary | null>(null);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  useEffect(() => {
+    const handleStatus = () => setIsOnline(navigator.onLine);
+    window.addEventListener('online', handleStatus);
+    window.addEventListener('offline', handleStatus);
+    return () => {
+      window.removeEventListener('online', handleStatus);
+      window.removeEventListener('offline', handleStatus);
+    };
+  }, []);
 
   const isLight = appTheme === 'light';
-
-  useEffect(() => {
-    let cancelled = false;
-    // Load optional, pre-generated assets produced by python/generate_dashboard_assets.py
-    // If the file is missing, we silently skip rendering.
-    void (async () => {
-      try {
-        const res = await fetch('/dashboard-assets/summary.json', { cache: 'no-store' });
-        if (!res.ok) return;
-        const json = (await res.json()) as PythonAnalyticsSummary;
-        if (!cancelled) setPythonAnalytics(json);
-      } catch {
-        // ignore
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
-    isMounted.current = true;
-    const timer = setInterval(() => {
-      if (isMounted.current) setSystemTime(new Date().toLocaleTimeString());
-    }, 1000);
-    
-    return () => {
-      isMounted.current = false;
-      clearInterval(timer);
-    };
-  }, []);
 
   const stats = useMemo(() => {
     if (!Array.isArray(reports)) return { total: 0, open: 0, closed: 0 };
@@ -89,6 +79,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
     const open = total - closed;
     return { total, open, closed };
   }, [reports]);
+
+  const incidentStats = useMemo(() => {
+    const closed = incidents.filter(
+      (incident) => String(incident.fields.Status || '').toLowerCase() === 'closed'
+    ).length;
+    return {
+      total: incidents.length,
+      open: incidents.length - closed,
+    };
+  }, [incidents]);
 
   const siteStats = useMemo(() => {
     if (!Array.isArray(reports)) return [];
@@ -138,22 +138,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
     }).length;
   }, [reports, userProfile?.name]);
 
-  const observationsByType = useMemo(() => {
-    if (!Array.isArray(reports)) return [];
-    const map = reports.reduce<Record<string, number>>((acc, report) => {
-      const type = String(report.fields["Observation Type"] || 'Unknown');
-      acc[type] = (acc[type] || 0) + 1;
-      return acc;
-    }, {});
-
-    return Object.entries(map)
-      .map(([type, count]) => ({ type, count }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 3);
-  }, [reports]);
-
-  const topObservationType = observationsByType.length ? observationsByType[0] : null;
-  const topSite = siteStats[0];
+  const role = userProfile?.role;
+  const visibleOperations = useMemo(
+    () => OPERATION_ITEMS.filter(item => !item.permission || can(role, item.permission)),
+    [role]
+  );
+  const visibleManagement = useMemo(
+    () => MANAGEMENT_ITEMS.filter(item => !item.permission || can(role, item.permission)),
+    [role]
+  );
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -167,14 +160,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
     if (avgSeverity >= 6) return '#f59e0b';
     if (avgSeverity >= 4) return '#facc15';
     return '#22c55e';
-  };
-
-  const getSystemStatusText = () => {
-    if (!stats.total) return 'No observations yet — start with a field report.';
-    const ratio = stats.open / stats.total;
-    if (ratio > 0.6) return 'Backlog rising — prioritize open actions immediately.';
-    if (ratio > 0.3) return 'Stable, but monitor open reports closely.';
-    return 'Healthy response cadence — keeping the site safe.';
   };
 
   const getFleetHealthLabel = () => {
@@ -191,335 +176,127 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
         <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
           <div>
             <h1 className={`text-2xl md:text-3xl font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>{getGreeting()}, {userProfile?.name || 'User'}!</h1>
-            <p className="mt-2 text-sm text-slate-500 max-w-2xl">Welcome back to your dashboard. This command center gives you a real-time picture of active safety observations, incident trends, and priority response tasks.</p>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] ${isLight ? 'bg-blue-100 text-blue-700' : 'bg-blue-500/15 text-blue-300 ring-1 ring-blue-500/20'}`}>
+                <span className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden="true"></span>
+                {roleLabel(role)}
+              </span>
+              <span className={`inline-flex items-center rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] ${can(role, 'review-report') ? (isLight ? 'bg-emerald-100 text-emerald-700' : 'bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/20') : (isLight ? 'bg-slate-200 text-slate-600' : 'bg-white/10 text-slate-300 ring-1 ring-white/10')}`}>
+                {can(role, 'review-report') ? 'Level 2 Clearance' : 'Level 1 Clearance'}
+              </span>
+            </div>
           </div>
+        </div>
 
-          <button
-            onClick={() => setIsDrawerOpen((prev) => !prev)}
-            className={`inline-flex items-center justify-center rounded-3xl border px-4 py-3 text-sm font-black uppercase tracking-[0.25em] transition ${isLight ? 'bg-slate-900 text-white border-slate-800 hover:bg-slate-800' : 'bg-slate-100 text-slate-900 border-white/10 hover:bg-slate-200'}`}
-            aria-expanded={isDrawerOpen}
-            aria-label={isDrawerOpen ? 'Close control terminal' : 'Open control terminal'}
+        {state.error && (
+          <div
+            role="alert"
+            className={`mt-5 flex flex-col gap-3 rounded-2xl border p-4 sm:flex-row sm:items-center sm:justify-between ${
+              isLight
+                ? 'border-amber-300 bg-amber-50 text-amber-950'
+                : 'border-amber-500/30 bg-amber-500/10 text-amber-100'
+            }`}
           >
-            {isDrawerOpen ? 'Close Control Terminal' : 'Open Control Terminal'}
-          </button>
+            <div>
+              <p className="text-sm font-bold">Some live data could not be loaded.</p>
+              <p className="mt-1 break-words text-xs opacity-80">{state.error}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => void refetchData()}
+              className="rounded-xl border border-current/20 px-4 py-2 text-xs font-bold"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
+        <div className="mt-6">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className={`text-[11px] font-black uppercase tracking-[0.3em] ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Quick Actions</h2>
+          </div>
+          <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-3">
+            {visibleOperations.map((item) => (
+              <TerminalButton
+                key={item.label}
+                onClick={() => onNavigate(item.view)}
+                icon={item.icon}
+                label={item.label}
+                color={item.color}
+                count={item.label === 'My Tasks' ? myTaskCount : item.badge || 0}
+                isLight={isLight}
+              />
+            ))}
+          </div>
+          {visibleManagement.length > 0 && (
+            <>
+              <h2 className={`mt-6 mb-3 text-[11px] font-black uppercase tracking-[0.3em] ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Management</h2>
+              <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-3">
+                {visibleManagement.map((item) => (
+                  <TerminalButton
+                    key={item.label}
+                    onClick={() => onNavigate(item.view)}
+                    icon={item.icon}
+                    label={item.label}
+                    color={item.color}
+                    count={item.badge || 0}
+                    isLight={isLight}
+                  />
+                ))}
+              </div>
+            </>
+          )}
         </div>
 
-        <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+        <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div className={`rounded-3xl p-4 border ${isLight ? 'bg-white border-slate-200' : 'bg-slate-900/40 border-white/10'} shadow-sm`}>
-            <div className="text-[9px] font-black uppercase tracking-[0.35em] text-slate-500">Top Site</div>
-            <div className={`mt-3 text-xl font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>{topSite?.name || 'No data'}</div>
-            <div className="mt-2 text-xs text-slate-400">{topSite ? `${topSite.count} reports • ${topSite.riskLevel} risk` : 'Collect observations to surface the most active location.'}</div>
+            <div className="text-[9px] font-black uppercase tracking-[0.3em] text-slate-500">Open Observations</div>
+            <div className={`mt-2 text-3xl font-black ${stats.open > 0 ? (isLight ? 'text-rose-700' : 'text-rose-300') : (isLight ? 'text-slate-900' : 'text-white')}`}>{stats.open}</div>
           </div>
           <div className={`rounded-3xl p-4 border ${isLight ? 'bg-white border-slate-200' : 'bg-slate-900/40 border-white/10'} shadow-sm`}>
-            <div className="text-[9px] font-black uppercase tracking-[0.35em] text-slate-500">Common Hazard</div>
-            <div className={`mt-3 text-xl font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>{topObservationType?.type || 'No data'}</div>
-            <div className="mt-2 text-xs text-slate-400">{topObservationType ? `${topObservationType.count} reports` : 'Hazard types will appear here once data is available.'}</div>
+            <div className="text-[9px] font-black uppercase tracking-[0.3em] text-slate-500">Open Incidents</div>
+            <div className={`mt-2 text-3xl font-black ${incidentStats.open > 0 ? 'text-amber-500' : 'text-emerald-500'}`}>{incidentStats.open}</div>
           </div>
           <div className={`rounded-3xl p-4 border ${isLight ? 'bg-white border-slate-200' : 'bg-slate-900/40 border-white/10'} shadow-sm`}>
-            <div className="text-[9px] font-black uppercase tracking-[0.35em] text-slate-500">Open Ratio</div>
-            <div className={`mt-3 text-xl font-black ${stats.total && stats.open / stats.total > 0.5 ? 'text-rose-400' : 'text-emerald-400'}`}>{stats.total ? `${Math.round((stats.open / stats.total) * 100)}%` : '0%'}</div>
-            <div className="mt-2 text-xs text-slate-400">The share of unresolved reports in the current dataset.</div>
+            <div className="text-[9px] font-black uppercase tracking-[0.3em] text-slate-500">My Tasks</div>
+            <div className={`mt-2 text-3xl font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>{myTaskCount}</div>
           </div>
           <div className={`rounded-3xl p-4 border ${isLight ? 'bg-white border-slate-200' : 'bg-slate-900/40 border-white/10'} shadow-sm`}>
-            <div className="text-[9px] font-black uppercase tracking-[0.35em] text-slate-500">Assigned Tasks</div>
-            <div className={`mt-3 text-xl font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>{myTaskCount}</div>
-            <div className="mt-2 text-xs text-slate-400">Open reports currently assigned to you.</div>
+            <div className="text-[9px] font-black uppercase tracking-[0.3em] text-slate-500">Resolved</div>
+            <div className={`mt-2 text-3xl font-black ${isLight ? 'text-emerald-700' : 'text-emerald-300'}`}>{stats.closed}</div>
           </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 px-6">
-        <div className={`rounded-3xl p-5 border ${isLight ? 'bg-white border-slate-200' : 'bg-slate-900/40 border-white/10'} shadow-sm`}>
-          <div className="text-[10px] font-black uppercase tracking-[0.35em] text-slate-500">Total Observations</div>
-          <div className={`mt-4 text-4xl font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>{stats.total}</div>
-          <div className="mt-3 text-sm text-slate-400">Live count of all tracked field observations.</div>
-        </div>
-
-        <div className={`rounded-3xl p-5 border ${isLight ? 'bg-white border-slate-200' : 'bg-slate-900/40 border-white/10'} shadow-sm`}>
-          <div className="text-[10px] font-black uppercase tracking-[0.35em] text-slate-500">Open Actions</div>
-          <div className={`mt-4 text-4xl font-black ${isLight ? 'text-rose-700' : 'text-rose-300'}`}>{stats.open}</div>
-          <div className="mt-3 text-sm text-slate-400">Observation items still awaiting corrective action.</div>
-        </div>
-
-        <div className={`rounded-3xl p-5 border ${isLight ? 'bg-white border-slate-200' : 'bg-slate-900/40 border-white/10'} shadow-sm`}>
-          <div className="text-[10px] font-black uppercase tracking-[0.35em] text-slate-500">Resolved Reports</div>
-          <div className={`mt-4 text-4xl font-black ${isLight ? 'text-emerald-700' : 'text-emerald-300'}`}>{stats.closed}</div>
-          <div className="mt-3 text-sm text-slate-400">Observations where action has been documented.</div>
-        </div>
-
-        <div className={`rounded-3xl p-5 border ${isLight ? 'bg-white border-slate-200' : 'bg-slate-900/40 border-white/10'} shadow-sm`}>
-          <div className="flex items-start gap-2">
-            <div className="text-[10px] font-black uppercase tracking-[0.35em] text-slate-500">Your Priority</div>
-            <span className={`rounded-full px-2 py-1 text-[10px] font-black ${isLight ? 'bg-slate-100 text-slate-700' : 'bg-white/10 text-slate-200'}`}>{myTaskCount} assigned</span>
-          </div>
-          <div className={`mt-4 text-4xl font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>{myTaskCount}</div>
-          <div className="mt-3 text-sm text-slate-400">Reports assigned directly to you and still open.</div>
         </div>
       </div>
 
       <div
-        className={`flex items-center justify-between px-6 py-3 rounded-2xl border backdrop-blur-md overflow-hidden ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-blue-950/20 border-blue-500/20 shadow-md'}`}
+        className={`mx-6 flex items-center justify-between px-5 py-3 rounded-2xl border backdrop-blur-md ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-blue-950/20 border-blue-500/20 shadow-md'}`}
         aria-label="System Status"
       >
-        <div className="flex items-center gap-2 min-w-[140px]">
+        <div className="flex items-center gap-2">
           <div
-            className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_#10b981]"
+            className={`w-2 h-2 rounded-full animate-pulse ${isOnline ? 'bg-emerald-500 shadow-[0_0_8px_#10b981]' : 'bg-amber-500 shadow-[0_0_8px_#f59e0b]'}`}
             aria-hidden="true"
           ></div>
-          <span className={`text-[9px] font-black uppercase tracking-widest ${isLight ? 'text-slate-700' : 'text-slate-200'}`}>System Nominal</span>
+          <span className={`text-[9px] font-black uppercase tracking-widest ${isLight ? 'text-slate-700' : 'text-slate-200'}`}>{isOnline ? 'System Nominal' : 'Offline — Queuing Locally'}</span>
         </div>
-
-        <div className="flex items-center gap-2">
-          <span className={`text-[9px] font-black uppercase tracking-widest ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>UTC Sync:</span>
-          <span className={`text-[10px] font-mono font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>{systemTime}</span>
-        </div>
-
-        <div className="flex flex-col items-end gap-2 min-w-[160px] justify-end text-right">
-          <div className="hidden sm:flex items-center gap-2">
-            <span className={`text-[9px] font-black uppercase tracking-widest ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Grid ID:</span>
-            <span className={`text-[10px] font-mono font-black ${isLight ? 'text-blue-600' : 'text-blue-400'}`}>HSE-G-2.5</span>
-          </div>
-          <span
-            className={`px-3 py-1 rounded-full border text-[9px] font-black uppercase tracking-widest ${isLight ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300'}`}
-            role="status"
-          >
-            Authorized
-          </span>
-          <span className="hidden md:block text-[9px] text-slate-400 uppercase tracking-[0.35em] font-black">{getSystemStatusText()}</span>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 px-6">
-        <div className={`rounded-3xl p-6 border ${isLight ? 'bg-white border-slate-200' : 'bg-slate-900/40 border-white/10'} shadow-sm`}> 
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <div className="text-[10px] font-black uppercase tracking-[0.35em] text-slate-500">Observation Pulse</div>
-              <div className={`mt-4 text-3xl font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>{stats.open}</div>
-            </div>
-            <div className="text-right">
-              <div className={`text-[10px] font-black uppercase tracking-[0.35em] ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Open Ratio</div>
-              <div className={`mt-2 text-2xl font-black ${stats.total ? (stats.open / stats.total > 0.5 ? 'text-rose-400' : 'text-emerald-400') : (isLight ? 'text-slate-900' : 'text-white')}`}>{stats.total ? `${Math.round((stats.open / stats.total) * 100)}%` : '0%'}</div>
-            </div>
-          </div>
-          <div className="mt-6 h-2 rounded-full bg-slate-800 overflow-hidden">
-            <div className={`h-full rounded-full ${stats.total ? (stats.open / stats.total > 0.5 ? 'bg-rose-500' : 'bg-emerald-500') : 'bg-slate-700'}`} style={{ width: `${stats.total ? Math.min(100, Math.round((stats.open / stats.total) * 100)) : 0}%` }} />
-          </div>
-          <p className="mt-4 text-sm text-slate-400">Open observations that need follow-up. Keep the open ratio below 40%.</p>
-        </div>
-
-        <div className={`rounded-3xl p-6 border ${isLight ? 'bg-white border-slate-200' : 'bg-slate-900/40 border-white/10'} shadow-sm`}>
-          <div className="text-[10px] font-black uppercase tracking-[0.35em] text-slate-500">Top Site Risk</div>
-          <div className={`mt-4 text-3xl font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>{topSite?.name || 'No data'}</div>
-          <div className="mt-4 flex flex-wrap gap-2 items-center">
-            {topSite ? (
-              <>
-                <span className={`rounded-full px-3 py-1 text-[10px] font-black ${topSite.riskLevel === 'Critical' ? 'bg-red-600 text-white' : topSite.riskLevel === 'High' ? 'bg-orange-500 text-white' : topSite.riskLevel === 'Moderate' ? 'bg-amber-300 text-slate-900' : 'bg-emerald-500 text-white'}`}>{topSite.riskLevel}</span>
-                <span className="text-sm text-slate-400">{topSite.count} observations</span>
-              </>
-            ) : (
-              <span className="text-sm text-slate-400">No recent site trends available yet.</span>
-            )}
-          </div>
-          {topSite && <p className="mt-4 text-sm text-slate-400">Average severity {topSite.avgSeverity.toFixed(1)} across the most active location.</p>}
-        </div>
-
-        <div className={`rounded-3xl p-6 border ${isLight ? 'bg-white border-slate-200' : 'bg-slate-900/40 border-white/10'} shadow-sm`}>
-          <div className="text-[10px] font-black uppercase tracking-[0.35em] text-slate-500">Top Observation Types</div>
-          <div className="mt-4 space-y-3">
-            {observationsByType.length ? observationsByType.map((item) => (
-              <div key={item.type} className="flex items-center justify-between rounded-2xl border px-4 py-3 bg-slate-950/60 border-white/10">
-                <div>
-                  <div className="text-sm font-black text-white">{item.type}</div>
-                  <div className="text-[11px] text-slate-400">{item.count} reports</div>
-                </div>
-                <div className="text-sm font-black text-slate-200">{Math.round((item.count / (stats.total || 1)) * 100)}%</div>
-              </div>
-            )) : (
-              <div className="rounded-2xl border px-4 py-5 border-dashed border-slate-500 text-sm text-slate-400">No observation type data available.</div>
-            )}
-          </div>
-        </div>
+        <span
+          className={`px-3 py-1 rounded-full border text-[9px] font-black uppercase tracking-widest ${
+            !isOnline || state.error
+              ? isLight
+                ? 'bg-amber-50 border-amber-200 text-amber-700'
+                : 'bg-amber-500/10 border-amber-500/20 text-amber-300'
+              : isLight
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300'
+          }`}
+          role="status"
+        >
+          {!isOnline ? 'Offline' : state.error ? 'Degraded' : state.isLoading ? 'Syncing' : 'Connected'}
+        </span>
       </div>
 
       <LocationPrompt appTheme={appTheme} onPermissionGranted={() => setLocationRefreshKey((prev) => prev + 1)} />
       <WeatherWidget key={locationRefreshKey} appTheme={appTheme} />
-
-      <div
-        id="control-drawer"
-        role="dialog"
-        aria-modal="true"
-        className={`fixed left-0 top-40 z-30 flex h-[calc(100vh-10rem)] w-full max-w-[92vw] lg:w-[350px] flex-col gap-4 overflow-y-auto rounded-[2rem] border bg-slate-950/95 p-5 shadow-2xl transition-all duration-300 backdrop-blur-xl ${isDrawerOpen ? 'translate-x-0 opacity-100' : '-translate-x-[120%] opacity-0 pointer-events-none'}`}
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <div className="text-[10px] font-black uppercase tracking-[0.35em] text-sky-400">Command Console</div>
-            <h2 className="mt-2 text-lg font-black text-white">Top-left Operations</h2>
-          </div>
-          <button
-            onClick={() => setIsDrawerOpen(false)}
-            className="rounded-full p-2 text-slate-300 transition hover:bg-white/10 hover:text-white"
-            aria-label="Close command console"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12" /></svg>
-          </button>
-        </div>
-
-        <div className={`rounded-3xl border ${isLight ? 'bg-white/95 border-slate-200' : 'bg-slate-900/80 border-white/10'} p-4`}>
-          <div className="flex items-center justify-between text-[9px] font-black uppercase tracking-[0.35em] text-slate-400">
-            <span>Summary</span>
-            <span>{getFleetHealthLabel()}</span>
-          </div>
-          <div className="mt-4 space-y-3">
-            <div className="rounded-3xl bg-slate-950/80 p-4 text-sm text-slate-200">
-              <div className="font-black text-base">{stats.total}</div>
-              <div className="mt-1 text-[11px] text-slate-400">Total active observations</div>
-            </div>
-            <div className="rounded-3xl bg-slate-950/80 p-4 text-sm text-slate-200">
-              <div className="font-black text-base">{stats.open}</div>
-              <div className="mt-1 text-[11px] text-slate-400">Open actions pending</div>
-            </div>
-            <div className="rounded-3xl bg-slate-950/80 p-4 text-sm text-slate-200">
-              <div className="font-black text-base">{myTaskCount}</div>
-              <div className="mt-1 text-[11px] text-slate-400">Assigned to you</div>
-            </div>
-          </div>
-        </div>
-
-        <div className="rounded-[2rem] border bg-slate-950/90 p-4 text-white shadow-inner shadow-slate-900/20">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-[10px] font-black uppercase tracking-[0.35em] text-slate-500">Modes</span>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            {(['operations', 'management'] as const).map((c) => (
-              <button
-                key={c}
-                onClick={() => setActiveCategory(c)}
-                aria-pressed={activeCategory === c}
-                className={`rounded-2xl px-3 py-3 text-left text-xs font-black uppercase tracking-[0.2em] transition ${activeCategory === c ? 'bg-slate-800 text-white shadow-lg ring-1 ring-sky-400/20' : 'bg-slate-900/60 text-slate-400 hover:bg-slate-800 hover:text-white'}`}
-              >
-                {c}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          {activeCategory === 'operations' ? (
-            [
-              { view: 'incident-report', icon: 'alert', label: 'Incident', color: 'rose' },
-              { view: 'create', icon: 'plus', label: 'Observation', color: 'blue' },
-              { view: 'my-tasks', icon: 'user', label: 'My Tasks', color: 'emerald', badge: myTaskCount },
-              { view: 'recent', icon: 'list', label: 'Registry', color: 'slate' },
-              { view: 'checklists', icon: 'check', label: 'Inspect', color: 'amber' },
-              { view: 'personnel', icon: 'users', label: 'Personnel', color: 'indigo' },
-            ].map((item) => (
-              <TerminalButton key={item.label} onClick={() => onNavigate(item.view as any)} icon={item.icon} label={item.label} color={item.color} count={item.badge || 0} isLight={isLight} />
-            ))
-          ) : (
-            [
-              { view: 'risk-assessment', icon: 'shield', label: 'Risk RA', color: 'rose' },
-              { view: 'training-management', icon: 'book', label: 'Training', color: 'violet' },
-              { view: 'compliance-tracker', icon: 'award', label: 'Compliance', color: 'cyan' },
-              { view: 'audit-trail', icon: 'history', label: 'Audit', color: 'zinc' },
-            ].map((item) => (
-              <TerminalButton key={item.label} onClick={() => onNavigate(item.view as any)} icon={item.icon} label={item.label} color={item.color} count={0} isLight={isLight} />
-            ))
-          )}
-        </div>
-
-        <div className="mt-auto rounded-[2rem] border border-slate-800 bg-slate-950/90 p-4 text-sm text-slate-300">
-          <div className="font-black uppercase tracking-[0.35em] text-slate-500">Quick Data</div>
-          <div className="mt-3 space-y-3">
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-3">
-              <div className="text-xs uppercase tracking-[0.25em] text-slate-500">Top Site</div>
-              <div className="mt-2 font-bold text-white">{topSite?.name || 'None'}</div>
-              <div className="text-[11px] text-slate-400">{topSite ? `${topSite.count} reports • ${topSite.riskLevel}` : 'No site data yet'}</div>
-            </div>
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-3">
-              <div className="text-xs uppercase tracking-[0.25em] text-slate-500">Top Hazard</div>
-              <div className="mt-2 font-bold text-white">{topObservationType?.type || 'None'}</div>
-              <div className="text-[11px] text-slate-400">{topObservationType ? `${topObservationType.count} reports` : 'No observation data yet'}</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {pythonAnalytics ? (
-        <div
-          className={`p-8 rounded-[2.5rem] border shadow-md ${isLight ? 'bg-white border-slate-200' : 'bg-slate-900/40 border-white/5 backdrop-blur-md'}`}
-          aria-label="Analytics Snapshot"
-        >
-          <div className="flex items-center justify-between gap-4 mb-6">
-            <div>
-              <h3 className={`text-xl font-black tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>Analytics Snapshot</h3>
-              <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mt-1">Generated offline (pandas / sklearn / matplotlib)</p>
-            </div>
-            {pythonAnalytics?.generatedAt && (
-              <span className={`text-[9px] font-mono font-black ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>{new Date(pythonAnalytics.generatedAt).toLocaleString()}</span>
-            )}
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <div className={`p-5 rounded-2xl border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'}`}>
-              <div className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Observations</div>
-              <div className={`text-2xl font-black mt-2 ${isLight ? 'text-slate-900' : 'text-white'}`}>{pythonAnalytics?.observations?.total ?? pythonAnalytics?.observations?.rows ?? 0}</div>
-              <div className="text-[9px] font-black text-slate-500 uppercase tracking-widest mt-2">Open: {pythonAnalytics?.observations?.open ?? 0} • Closed: {pythonAnalytics?.observations?.closed ?? 0}</div>
-            </div>
-            <div className={`p-5 rounded-2xl border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'}`}>
-              <div className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Incidents</div>
-              <div className={`text-2xl font-black mt-2 ${isLight ? 'text-slate-900' : 'text-white'}`}>{pythonAnalytics?.incidents?.rows ?? 0}</div>
-              <div className="text-[9px] font-black text-slate-500 uppercase tracking-widest mt-2">Model: {pythonAnalytics?.model?.enabled ? `Accuracy ${(pythonAnalytics?.model?.accuracy * 100).toFixed(0)}%` : 'Not enough data'}</div>
-            </div>
-            <div className={`p-5 rounded-2xl border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'}`}>
-              <div className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Sources</div>
-              <div className={`text-[10px] font-mono font-black mt-2 break-words ${isLight ? 'text-slate-800' : 'text-slate-200'}`}>{pythonAnalytics?.sources?.observations ?? ''}</div>
-              <div className={`text-[10px] font-mono font-black mt-2 break-words ${isLight ? 'text-slate-800' : 'text-slate-200'}`}>{pythonAnalytics?.sources?.incidents ?? ''}</div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {pythonAnalytics?.assets?.observationsByType && (
-              <div className={`p-5 rounded-2xl border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'}`}>
-                <div className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-3">Observations by type</div>
-                <img src={pythonAnalytics.assets.observationsByType} alt="Observations by type" className="w-full rounded-xl" loading="lazy" />
-              </div>
-            )}
-            {pythonAnalytics?.assets?.observationsBySite && (
-              <div className={`p-5 rounded-2xl border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'}`}>
-                <div className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-3">Observations by site</div>
-                <img src={pythonAnalytics.assets.observationsBySite} alt="Observations by site" className="w-full rounded-xl" loading="lazy" />
-              </div>
-            )}
-            {pythonAnalytics?.assets?.incidentsOverTime && (
-              <div className={`p-5 rounded-2xl border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'}`}>
-                <div className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-3">Incidents over time</div>
-                <img src={pythonAnalytics.assets.incidentsOverTime} alt="Incidents over time" className="w-full rounded-xl" loading="lazy" />
-              </div>
-            )}
-          </div>
-        </div>
-      ) : (
-        <div className={`p-6 rounded-[2rem] border shadow-md ${isLight ? 'bg-white border-slate-200' : 'bg-slate-900/40 border-white/5 backdrop-blur-md'}`}>
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className={`text-xl font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>Insights Overview</h3>
-              <p className="text-sm text-slate-400 mt-1">A quick snapshot of the most active sites and observation types.</p>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className={`rounded-3xl p-5 border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'}`}>
-              <div className="text-[10px] font-black uppercase tracking-[0.35em] text-slate-500">Most Active Location</div>
-              <div className={`mt-4 text-3xl font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>{topSite?.name || 'No data'}</div>
-              <div className="mt-2 text-sm text-slate-400">{topSite ? `${topSite.count} observations • ${topSite.riskLevel} risk` : 'No active site data available.'}</div>
-            </div>
-            <div className={`rounded-3xl p-5 border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'}`}>
-              <div className="text-[10px] font-black uppercase tracking-[0.35em] text-slate-500">Most Common Risk Type</div>
-              <div className={`mt-4 text-3xl font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>{topObservationType?.type || 'No data'}</div>
-              <div className="mt-2 text-sm text-slate-400">{topObservationType ? `${topObservationType.count} reports` : 'No dominant type yet.'}</div>
-            </div>
-          </div>
-        </div>
-      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div className={`lg:col-span-8 p-8 rounded-[2.5rem] border shadow-md flex flex-col relative overflow-hidden min-h-[350px] ${isLight ? 'bg-white border-slate-200' : 'bg-slate-900/40 border-white/5 backdrop-blur-md'}`}>
@@ -574,8 +351,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ baseId, onNavigate, appThe
   );
 };
 
-const TerminalButton = ({ onClick, icon, label, color, count, isLight }: any) => {
-  const colors: any = { 
+const TERMINAL_BUTTON_COLORS: Record<string, string> = {
     blue: 'bg-blue-600 text-white', 
     rose: 'bg-rose-600 text-white', 
     emerald: 'bg-emerald-600 text-white', 
@@ -585,8 +361,18 @@ const TerminalButton = ({ onClick, icon, label, color, count, isLight }: any) =>
     violet: 'bg-violet-600 text-white', 
     cyan: 'bg-cyan-500 text-slate-900', 
     zinc: 'bg-zinc-800 text-white' 
-  };
+};
 
+interface TerminalButtonProps {
+  onClick: () => void;
+  icon: string;
+  label: string;
+  color: string;
+  count: number;
+  isLight: boolean;
+}
+
+const TerminalButton: React.FC<TerminalButtonProps> = ({ onClick, icon, label, color, count, isLight }) => {
   const getIcon = (type: string) => {
     switch (type) {
       case 'alert': return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>;
@@ -609,7 +395,7 @@ const TerminalButton = ({ onClick, icon, label, color, count, isLight }: any) =>
       className={`relative h-28 rounded-3xl p-4 flex flex-col items-center justify-center transition-all duration-300 group border shadow-sm ${isLight ? `bg-white/80 border-slate-200 hover:shadow-md` : `bg-slate-900/80 border-white/10 hover:bg-slate-800 hover:border-white/20 shadow-black/10`}`}
       aria-label={label}
     >
-      <div className={`w-11 h-11 rounded-3xl flex items-center justify-center mb-3 shadow-lg ${colors[color]}`}>{getIcon(icon)}</div>
+      <div className={`w-11 h-11 rounded-3xl flex items-center justify-center mb-3 shadow-lg ${TERMINAL_BUTTON_COLORS[color] || 'bg-slate-700 text-white'}`}>{getIcon(icon)}</div>
       <span className={`text-[10px] font-black uppercase tracking-[0.25em] text-center ${isLight ? 'text-slate-900' : 'text-slate-300'}`}>{label}</span>
       {count > 0 && <div className="absolute -top-2 -right-2 w-6 h-6 bg-rose-600 text-white rounded-full flex items-center justify-center text-[10px] font-black shadow-xl">{count}</div>}
     </button>

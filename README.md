@@ -6,7 +6,7 @@
 
 *   **Secure Access**: Password Gateway and site-specific personnel identity verification.
 *   **Evidence Acquisition**: Multi-image capture with local compression and offline queueing.
-*   **AI Analysis**: Automated hazard profile assessment using Google Gemini.
+*   **Cloud Registry**: Firebase Firestore for personnel, training history, and registry fallback data.
 *   **Command Dashboard**: Real-time data visualization of site risks and resolution status.
 *   **PWA Ready**: Installable on Android and iOS for offline field operations.
 
@@ -16,8 +16,9 @@
 2.  **Install**: `npm install`
 3.  **Environment Variables**:
     *   Create a `.env` file in the root directory.
-    *   Fill in your specific API keys for Airtable, Supabase, and Google Gemini.
+    *   Fill in your Airtable and Firebase web app settings.
     *   *See `AIRTABLE_SETUP_GUIDE.md` for specific database schema requirements.*
+    *   See `.env.example` for the required variable names. Configure Firebase Firestore and Storage Security Rules before deployment; this app does not currently authenticate users with Firebase.
 4.  **Run**: `npm run dev`
 
 ## Deployment & GitHub Workflow
@@ -38,4 +39,3 @@ If `public/dashboard-assets/summary.json` exists, the app will render an "Analyt
 
 ## Developed by
 @Elius - Senior Safety Systems Architect
-

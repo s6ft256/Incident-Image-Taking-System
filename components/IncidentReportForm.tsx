@@ -2,12 +2,11 @@
 import React, { useState, useMemo } from 'react';
 import { InputField } from './InputField';
 import { ImageGrid } from './ImageGrid';
-import { INCIDENT_TYPES, DEPARTMENTS, SITES, MIN_IMAGES, getRiskLevel, LIKELIHOOD_LEVELS, SEVERITY_LEVELS } from '../constants';
+import { INCIDENT_TYPES, DEPARTMENTS, SITES, getRiskLevel, LIKELIHOOD_LEVELS, SEVERITY_LEVELS } from '../constants';
 import { UploadedImage } from '../types';
 import { useIncidentReportForm } from '../hooks/useIncidentReportForm';
 import { ImageAnnotator } from './ImageAnnotator';
 import { useAppContext } from '../context/AppContext';
-import { sendToast } from '../services/notificationService';
 import { useEdgeSwipeBack } from '../hooks/useSwipeGesture';
 
 interface IncidentReportFormProps {

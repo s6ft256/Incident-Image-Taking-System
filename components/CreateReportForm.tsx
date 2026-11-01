@@ -1,13 +1,11 @@
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import { InputField } from './InputField';
 import { ImageGrid } from './ImageGrid';
 import { OBSERVATION_TYPES, ROLES, SITES, MIN_IMAGES } from '../constants';
 import { useObservationReport } from '../hooks/useIncidentReport';
 import { getAllProfiles } from '../services/profileService';
-import { UserProfile } from '../types';
 import { sendNotification } from '../services/notificationService';
-import { GoogleGenAI, Type } from "@google/genai";
 import { handleError } from '../utils/errorHandler';
 import { useEdgeSwipeBack } from '../hooks/useSwipeGesture';
 
@@ -15,12 +13,6 @@ interface CreateReportFormProps {
   baseId: string;
   onBack: () => void;
   appTheme?: 'dark' | 'light';
-}
-
-interface AISuggestion {
-  category: string;
-  recommendation: string;
-  severity: 'Low' | 'Medium' | 'High';
 }
 
 export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBack, appTheme = 'dark' }) => {
@@ -37,7 +29,6 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
     errorMessage,
     isOnline,
     isLocating,
-    isAnalyzingImage,
     handleInputChange,
     handleBlur,
     fetchCurrentLocation,
@@ -46,12 +37,9 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
     handleRetry,
     handleSubmit,
     resetStatus,
-    setFormData
   } = useObservationReport(baseId);
 
   const [teamMembers, setTeamMembers] = useState<string[]>([]);
-  const [isAnalyzingText, setIsAnalyzingText] = useState(false);
-  const [aiResult, setAiResult] = useState<AISuggestion | null>(null);
   const isLight = appTheme === 'light';
 
   useEffect(() => {
@@ -65,73 +53,6 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
     };
     fetchTeam();
   }, []);
-
-  // AI Analysis Logic for Text
-  const analyzeHazardText = useCallback(async () => {
-    if (!formData.observation || formData.observation.length < 20 || !isOnline) return;
-    
-    setIsAnalyzingText(true);
-    setAiResult(null);
-    try {
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-      if (!apiKey) {
-        console.warn('Gemini API key not configured. Skipping AI analysis.');
-        setIsAnalyzingText(false);
-        return;
-      }
-      const ai = new GoogleGenAI({ apiKey });
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: `Analyze this safety observation: "${formData.observation}".`,
-        config: { 
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              category: {
-                type: Type.STRING,
-                description: 'The most relevant safety category for the observation.',
-                enum: OBSERVATION_TYPES,
-              },
-              recommendation: {
-                type: Type.STRING,
-                description: 'A brief, actionable corrective measure.',
-              },
-              severity: {
-                type: Type.STRING,
-                description: 'The assessed risk level.',
-                enum: ['Low', 'Medium', 'High'],
-              },
-            },
-            required: ['category', 'recommendation', 'severity'],
-          }
-        }
-      });
-
-      const result = JSON.parse(response.text || '{}');
-      if (result.category && OBSERVATION_TYPES.includes(result.category)) {
-        setAiResult(result);
-      }
-    } catch (e) {
-      // Silent fail for AI - it's an enhancement, not critical
-      handleError(e, { operation: 'ai-text-analysis' }, { silent: true });
-    } finally {
-      setIsAnalyzingText(false);
-    }
-  }, [formData.observation, isOnline]);
-
-  // Debounced AI call for text
-  useEffect(() => {
-    const timer = setTimeout(analyzeHazardText, 2000);
-    return () => clearTimeout(timer);
-  }, [formData.observation, analyzeHazardText]);
-
-  const applyAISuggestion = () => {
-    if (aiResult) {
-      setFormData(prev => ({ ...prev, category: aiResult.category }));
-      setAiResult(null);
-    }
-  };
 
   // Trigger Notification on Success
   useEffect(() => {
@@ -203,53 +124,6 @@ export const CreateReportForm: React.FC<CreateReportFormProps> = ({ baseId, onBa
             rows={4} 
             placeholder="Describe the findings and immediate hazards..." 
           />
-
-          {(isAnalyzingText || isAnalyzingImage) && (
-            <div className="flex items-center gap-2 px-2 animate-pulse">
-              <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce"></div>
-              <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce delay-75"></div>
-              <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce delay-150"></div>
-              <span className="text-[8px] font-black uppercase text-blue-500 tracking-widest">
-                {isAnalyzingImage ? 'Gemini Analyzing Evidence...' : 'Gemini Analyzing Hazard Profile...'}
-              </span>
-            </div>
-          )}
-
-          {aiResult && !isAnalyzingText && (
-            <div className="bg-blue-600/10 border border-blue-500/20 p-5 rounded-2xl animate-in fade-in slide-in-from-top-2 relative overflow-hidden group">
-              <div className="absolute top-0 right-0 p-2">
-                 <span className={`text-[8px] font-black px-2 py-1 rounded-full uppercase ${
-                   aiResult.severity === 'High' ? 'bg-rose-500 text-white' : 
-                   aiResult.severity === 'Medium' ? 'bg-amber-500 text-white' : 'bg-emerald-500 text-white'
-                 }`}>
-                   {aiResult.severity} Risk
-                 </span>
-              </div>
-              <div className="flex items-center gap-2 mb-2">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="text-blue-500"><path d="M12 2v8m0 4v8m-10-10h8m4 0h8"/></svg>
-                <span className="text-[8px] font-black uppercase text-blue-500 tracking-widest">AI Safety Assessment</span>
-              </div>
-              <div className="space-y-3">
-                 <div>
-                    <span className="block text-[7px] font-black text-slate-500 uppercase tracking-widest mb-1">Recommended Category</span>
-                    <div className="flex items-center justify-between gap-4">
-                       <p className={`text-xs font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>{aiResult.category}</p>
-                       <button 
-                         type="button" 
-                         onClick={applyAISuggestion}
-                         className="px-3 py-1 bg-blue-600 text-white text-[9px] font-black uppercase rounded-lg hover:bg-blue-500 transition-all active:scale-95"
-                       >
-                         Apply Suggestion
-                       </button>
-                    </div>
-                 </div>
-                 <div>
-                    <span className="block text-[7px] font-black text-slate-500 uppercase tracking-widest mb-1">Suggested Remediation</span>
-                    <p className={`text-[10px] font-bold ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>{aiResult.recommendation}</p>
-                 </div>
-              </div>
-            </div>
-          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <InputField 

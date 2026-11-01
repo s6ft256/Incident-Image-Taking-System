@@ -12,21 +12,24 @@ export const exportToCsv = (filename: string, rows: object[]) => {
     '\n' +
     rows.map(row => {
       return keys.map(k => {
-        let cell: unknown = (row as Record<string, unknown>)[k];
-        cell = cell === null || cell === undefined ? '' : cell;
+        const value: unknown = (row as Record<string, unknown>)[k];
+        let cell: string;
         
-        if (cell instanceof Date) {
-          cell = cell.toLocaleString();
-        } else if (typeof cell === 'object') {
-          cell = JSON.stringify(cell).replace(/"/g, '""');
+        if (value === null || value === undefined) {
+          cell = '';
+        } else if (value instanceof Date) {
+          cell = value.toLocaleString();
+        } else if (typeof value === 'object') {
+          cell = JSON.stringify(value) ?? '';
         } else {
-          cell = String(cell).replace(/"/g, '""');
+          cell = String(value);
         }
         
-        if (cell.search(/("|,|\n)/g) >= 0) {
-          cell = `"${cell}"`;
+        const escapedCell = cell.replace(/"/g, '""');
+        if (/[",\n]/.test(escapedCell)) {
+          return `"${escapedCell}"`;
         }
-        return cell;
+        return escapedCell;
       }).join(separator);
     }).join('\n');
 

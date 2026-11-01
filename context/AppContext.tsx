@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useReducer, ReactNode, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useReducer, ReactNode, useCallback } from 'react';
 import { UserProfile, FetchedObservation, FetchedIncident } from '../types';
 import { getAllProfiles } from '../services/profileService';
 import { getAllReports, getAllIncidents } from '../services/airtableService';
@@ -19,7 +19,9 @@ interface AppState {
 type Action =
   | { type: 'SET_USER_PROFILE'; payload: UserProfile | null }
   | { type: 'SET_APP_THEME'; payload: 'dark' | 'light' }
-  | { type: 'SET_DATA'; payload: { reports: FetchedObservation[], incidents: FetchedIncident[], personnel: UserProfile[] } }
+  | { type: 'SET_DATA'; payload: { reports?: FetchedObservation[], incidents?: FetchedIncident[], personnel?: UserProfile[], error: string | null } }
+  | { type: 'ADD_OBSERVATION'; payload: FetchedObservation }
+  | { type: 'ADD_INCIDENT'; payload: FetchedIncident }
   | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'SET_ERROR'; payload: string | null }
   | { type: 'REFETCH_DATA' };
@@ -27,7 +29,7 @@ type Action =
 // Initial state
 const initialState: AppState = {
   userProfile: null,
-  appTheme: 'dark',
+  appTheme: 'light',
   allReports: [],
   allIncidents: [],
   personnel: [],
@@ -43,7 +45,18 @@ const appReducer = (state: AppState, action: Action): AppState => {
     case 'SET_APP_THEME':
       return { ...state, appTheme: action.payload };
     case 'SET_DATA':
-      return { ...state, allReports: action.payload.reports, allIncidents: action.payload.incidents, personnel: action.payload.personnel, isLoading: false };
+      return {
+        ...state,
+        allReports: action.payload.reports ?? state.allReports,
+        allIncidents: action.payload.incidents ?? state.allIncidents,
+        personnel: action.payload.personnel ?? state.personnel,
+        error: action.payload.error,
+        isLoading: false
+      };
+    case 'ADD_OBSERVATION':
+      return { ...state, allReports: [action.payload, ...state.allReports] };
+    case 'ADD_INCIDENT':
+      return { ...state, allIncidents: [action.payload, ...state.allIncidents] };
     case 'SET_LOADING':
       return { ...state, isLoading: action.payload };
     case 'SET_ERROR':
@@ -59,7 +72,9 @@ const appReducer = (state: AppState, action: Action): AppState => {
 interface AppContextType {
   state: AppState;
   dispatch: React.Dispatch<Action>;
-  refetchData: () => void;
+  refetchData: () => Promise<void>;
+  addObservationOptimistic: (record: FetchedObservation) => void;
+  addIncidentOptimistic: (record: FetchedIncident) => void;
 }
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
@@ -68,18 +83,42 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(appReducer, initialState);
 
-  const refetchData = useCallback(async () => {
+  const refetchData = useCallback(async (): Promise<void> => {
     dispatch({ type: 'SET_LOADING', payload: true });
-    try {
-      const [reports, incidents, personnel] = await Promise.all([
-        getAllReports(),
-        getAllIncidents(),
-        getAllProfiles()
-      ]);
-      dispatch({ type: 'SET_DATA', payload: { reports, incidents, personnel } });
-    } catch (err: any) {
-      dispatch({ type: 'SET_ERROR', payload: err.message || 'Failed to refetch data.' });
+    const [reportsResult, incidentsResult, personnelResult] = await Promise.allSettled([
+      getAllReports(),
+      getAllIncidents(),
+      getAllProfiles()
+    ]);
+    const errors: string[] = [];
+
+    if (reportsResult.status === 'rejected') {
+      errors.push(`Observations: ${getErrorMessage(reportsResult.reason)}`);
     }
+    if (incidentsResult.status === 'rejected') {
+      errors.push(`Incidents: ${getErrorMessage(incidentsResult.reason)}`);
+    }
+    if (personnelResult.status === 'rejected') {
+      errors.push(`Personnel: ${getErrorMessage(personnelResult.reason)}`);
+    }
+
+    dispatch({
+      type: 'SET_DATA',
+      payload: {
+        reports: reportsResult.status === 'fulfilled' ? reportsResult.value : undefined,
+        incidents: incidentsResult.status === 'fulfilled' ? incidentsResult.value : undefined,
+        personnel: personnelResult.status === 'fulfilled' ? personnelResult.value : undefined,
+        error: errors.length > 0 ? errors.join(' ') : null
+      }
+    });
+  }, []);
+
+  const addObservationOptimistic = useCallback((record: FetchedObservation) => {
+    dispatch({ type: 'ADD_OBSERVATION', payload: record });
+  }, []);
+
+  const addIncidentOptimistic = useCallback((record: FetchedIncident) => {
+    dispatch({ type: 'ADD_INCIDENT', payload: record });
   }, []);
 
   useEffect(() => {
@@ -107,7 +146,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (updatedProfile) {
             try {
                 dispatch({ type: 'SET_USER_PROFILE', payload: JSON.parse(updatedProfile) });
-            } catch (e) {}
+            } catch {
+                localStorage.removeItem(STORAGE_KEYS.PROFILE);
+                dispatch({ type: 'SET_USER_PROFILE', payload: null });
+            }
         } else {
             dispatch({ type: 'SET_USER_PROFILE', payload: null });
         }
@@ -119,11 +161,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [refetchData]);
 
   return (
-    <AppContext.Provider value={{ state, dispatch, refetchData }}>
+    <AppContext.Provider value={{ state, dispatch, refetchData, addObservationOptimistic, addIncidentOptimistic }}>
       {children}
     </AppContext.Provider>
   );
 };
+
+const getErrorMessage = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error);
 
 // Custom hook to use the context
 export const useAppContext = () => {

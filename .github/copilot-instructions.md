@@ -11,7 +11,7 @@ Purpose: concise, actionable guidance so an AI coding agent can be immediately p
 - Big picture architecture
   - Frontend: TypeScript React app built with Vite. Entry points: `index.tsx` and `App.tsx`.
   - Backend/light server: `server.js` — used for local/static serving and small server-side hooks.
-  - Persistence: SQL schema files (`database.sql`, `SUPABASE_AUTO_DELETE.sql`) indicate Supabase-ready DB usage; `@supabase/supabase-js` is a dependency.
+  - Persistence: Airtable stores operational submissions, while Firebase Firestore stores personnel, training history, and registry fallback data.
   - Integrations: `services/` contains wrappers for external systems: `airtableService.ts`, `githubService.ts`, `biometricService.ts`, `trainingService.ts`, `weatherService.ts`, and `notificationService.ts`.
   - Offline/sync: `services/offlineStorage.ts`, `services/syncService.ts` manage local persistence and background synchronization.
 
@@ -34,10 +34,10 @@ Purpose: concise, actionable guidance so an AI coding agent can be immediately p
   - `hooks/useIncidentReport.ts`, `hooks/useIncidentReportForm.ts` — canonical hooks for report flow.
   - `services/syncService.ts`, `services/storageService.ts`, `services/offlineStorage.ts` — offline/sync/storage behavior.
   - `components/ImageAnnotator.tsx`, `components/ImageGrid.tsx`, `components/CreateReportForm.tsx` — image/report handling examples.
-  - `database.sql` and `SUPABASE_AUTO_DELETE.sql` — DB shape and retention rules.
+  - `.env.example` and Firebase services — cloud configuration and persistence behavior.
 
 - External integrations and notes
-  - Supabase client is used (`@supabase/supabase-js`). Watch for environment variable usage for keys/secrets (not committed here).
+  - Firebase client is used for Firestore and Storage. Watch for environment variable usage for keys/secrets (not committed here).
   - Airtable, GitHub, biometric, and Google GenAI imports indicate external API calls — respect network error handling and rate limits in `services/*`.
 
 - Example quick tasks for an agent

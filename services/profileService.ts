@@ -1,134 +1,81 @@
-import { createClient } from '@supabase/supabase-js';
-import { SUPABASE_CONFIG } from '../constants';
+import { collection, deleteDoc, doc, getDocs, limit, query, setDoc, updateDoc, where } from 'firebase/firestore';
 import { UserProfile } from '../types';
+import { getFirebaseFirestore } from './firebaseService';
 
-const isValidConfig = SUPABASE_CONFIG.URL && SUPABASE_CONFIG.ANON_KEY;
-const supabase = isValidConfig ? createClient(SUPABASE_CONFIG.URL, SUPABASE_CONFIG.ANON_KEY) : null;
-const TABLE_NAME = 'profiles';
+const COLLECTION_NAME = 'profiles';
 
-/**
- * Maps Supabase DB technical errors to personnel-appropriate safety messages.
- */
-const handleDBError = (error: any): string => {
-  if (!error) return "Unknown Database Fault";
-  
-  // PostgreSQL Error Codes
-  if (error.code === '23505') return "IDENTITY OVERLAP: This personnel name is already registered in the safety grid.";
-  if (error.code === '42P01') return "SYSTEM INTEGRITY FAULT: Personnel registry table is missing from the database.";
-  if (error.code === 'PGRST301') return "SECURITY EXPIRED: Your authentication handshake has timed out. Please refresh the terminal.";
-  if (error.message?.includes('JWT')) return "SESSION INVALID: Security credentials rejected. Please log in again.";
-  
-  return error.message || "Registry synchronization failed.";
+const requireFirestore = () => {
+  const db = getFirebaseFirestore();
+  if (!db) {
+    throw new Error('CONFIGURATION FAULT: Firebase database is not configured. Verify Firebase credentials.');
+  }
+  return db;
 };
 
-const checkSupabase = () => {
-    if (!supabase) {
-        throw new Error("CONFIGURATION FAULT: Personnel registry is not activated. Verify Supabase credentials.");
-    }
-}
+const toProfile = (id: string, data: Record<string, unknown>): UserProfile => ({
+  id,
+  name: String(data.name || ''),
+  role: String(data.role || ''),
+  site: typeof data.site === 'string' ? data.site : '',
+  email: typeof data.email === 'string' ? data.email : '',
+  password: typeof data.password === 'string' ? data.password : undefined,
+  profileImageUrl: typeof data.profile_image_url === 'string' ? data.profile_image_url : undefined,
+  privacy_policy_consent: Boolean(data.privacy_policy_consent),
+  user_agreement_consent: Boolean(data.user_agreement_consent),
+  image_consent: Boolean(data.image_consent),
+  consent_timestamp: typeof data.consent_timestamp === 'string' ? data.consent_timestamp : undefined
+});
 
 export const registerProfile = async (profile: UserProfile): Promise<UserProfile> => {
-  checkSupabase();
-  const { data, error } = await supabase!
-    .from(TABLE_NAME)
-    .insert([{ 
-      name: profile.name, 
-      role: profile.role, 
-      site: profile.site,
-      email: profile.email,
-      password: profile.password,
-      profile_image_url: profile.profileImageUrl,
-      privacy_policy_consent: profile.privacy_policy_consent,
-      user_agreement_consent: profile.user_agreement_consent,
-      image_consent: profile.image_consent,
-      consent_timestamp: new Date().toISOString()
-    }])
-    .select()
-    .single();
-
-  if (error) throw new Error(handleDBError(error));
-  
-  return {
-    id: data.id,
-    name: data.name,
-    role: data.role,
-    site: data.site,
-    email: data.email,
-    password: data.password,
-    profileImageUrl: data.profile_image_url,
-    privacy_policy_consent: data.privacy_policy_consent,
-    user_agreement_consent: data.user_agreement_consent,
-    image_consent: data.image_consent,
-    consent_timestamp: data.consent_timestamp
+  const db = requireFirestore();
+  const profileRef = doc(collection(db, COLLECTION_NAME));
+  const profileData = {
+    name: profile.name,
+    role: profile.role,
+    site: profile.site || '',
+    email: profile.email || '',
+    password: profile.password || '',
+    profile_image_url: profile.profileImageUrl || '',
+    privacy_policy_consent: Boolean(profile.privacy_policy_consent),
+    user_agreement_consent: Boolean(profile.user_agreement_consent),
+    image_consent: Boolean(profile.image_consent),
+    consent_timestamp: new Date().toISOString()
   };
+  await setDoc(profileRef, profileData);
+  return toProfile(profileRef.id, profileData);
 };
 
 export const getProfileByName = async (name: string): Promise<UserProfile | null> => {
-  checkSupabase();
-  const { data, error } = await supabase!
-    .from(TABLE_NAME)
-    .select('*')
-    .eq('name', name)
-    .maybeSingle();
-
-  if (error) throw new Error(handleDBError(error));
-  if (!data) return null;
-
-  return {
-    id: data.id,
-    name: data.name,
-    role: data.role,
-    site: data.site,
-    email: data.email,
-    password: data.password,
-    profileImageUrl: data.profile_image_url,
-    privacy_policy_consent: data.privacy_policy_consent,
-    user_agreement_consent: data.user_agreement_consent,
-    image_consent: data.image_consent,
-    consent_timestamp: data.consent_timestamp
-  };
+  const db = requireFirestore();
+  const snapshot = await getDocs(query(
+    collection(db, COLLECTION_NAME),
+    where('name', '==', name),
+    limit(1)
+  ));
+  const match = snapshot.docs[0];
+  return match ? toProfile(match.id, match.data()) : null;
 };
 
 export const getAllProfiles = async (): Promise<UserProfile[]> => {
-  checkSupabase();
-  const { data, error } = await supabase!
-    .from(TABLE_NAME)
-    .select('name, role, site, email, profile_image_url');
-  
-  if (error) throw new Error(handleDBError(error));
-  
-  return (data || []).map(d => ({
-    name: d.name,
-    role: d.role,
-    site: d.site,
-    email: d.email,
-    profileImageUrl: d.profile_image_url
-  }));
+  const db = getFirebaseFirestore();
+  if (!db) return [];
+  const snapshot = await getDocs(collection(db, COLLECTION_NAME));
+  return snapshot.docs.map(profile => toProfile(profile.id, profile.data()));
 };
 
 export const updateProfile = async (id: string, updates: Partial<UserProfile>): Promise<void> => {
-  checkSupabase();
-  const dbUpdates: any = {};
+  const db = requireFirestore();
+  const dbUpdates: Record<string, unknown> = {};
   if (updates.name !== undefined) dbUpdates.name = updates.name;
+  if (updates.role !== undefined) dbUpdates.role = updates.role;
   if (updates.site !== undefined) dbUpdates.site = updates.site;
   if (updates.email !== undefined) dbUpdates.email = updates.email;
   if (updates.password !== undefined) dbUpdates.password = updates.password;
   if (updates.profileImageUrl !== undefined) dbUpdates.profile_image_url = updates.profileImageUrl;
-
-  const { error } = await supabase!
-    .from(TABLE_NAME)
-    .update(dbUpdates)
-    .eq('id', id);
-
-  if (error) throw new Error(handleDBError(error));
+  await updateDoc(doc(db, COLLECTION_NAME, id), dbUpdates);
 };
 
 export const deleteProfile = async (id: string): Promise<void> => {
-  checkSupabase();
-  const { error } = await supabase!
-    .from(TABLE_NAME)
-    .delete()
-    .eq('id', id);
-
-  if (error) throw new Error(handleDBError(error));
+  const db = requireFirestore();
+  await deleteDoc(doc(db, COLLECTION_NAME, id));
 };

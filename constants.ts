@@ -29,9 +29,8 @@ const extractBaseId = (input: string): string => {
 export const AIRTABLE_CONFIG = {
   BASE_ID: extractBaseId(rawAirtableBaseId),
   TABLES: {
-    // Using the specific Table ID provided by the user for Incident Reports for guaranteed linkage
     OBSERVATIONS: 'Observation Reports', 
-    INCIDENTS: 'tbl71CMWMa1qDm8I7', // Table ID required for this specific Airtable Base
+    INCIDENTS: 'Incident Reports',
     CRANE_CHECKS: 'Crane Checklists',
     EQUIPMENT_CHECKS: 'Equipment Checklists',
     TRAINING: 'Training Roster'
@@ -40,10 +39,13 @@ export const AIRTABLE_CONFIG = {
   API_KEY: getEnv('VITE_AIRTABLE_API_KEY', ''),
 };
 
-export const SUPABASE_CONFIG = {
-  URL: getEnv('VITE_SUPABASE_URL', '').trim(),
-  ANON_KEY: getEnv('VITE_SUPABASE_ANON_KEY', '').trim(),
-  BUCKET_NAME: getEnv('VITE_SUPABASE_BUCKET', 'incident-images'),
+export const FIREBASE_CONFIG = {
+  API_KEY: getEnv('VITE_FIREBASE_API_KEY', '').trim(),
+  AUTH_DOMAIN: getEnv('VITE_FIREBASE_AUTH_DOMAIN', '').trim(),
+  PROJECT_ID: getEnv('VITE_FIREBASE_PROJECT_ID', '').trim(),
+  STORAGE_BUCKET: getEnv('VITE_FIREBASE_STORAGE_BUCKET', '').trim(),
+  MESSAGING_SENDER_ID: getEnv('VITE_FIREBASE_MESSAGING_SENDER_ID', '').trim(),
+  APP_ID: getEnv('VITE_FIREBASE_APP_ID', '').trim(),
 };
 
 export const STORAGE_KEYS = {
@@ -83,7 +85,7 @@ export const LIKELIHOOD_LEVELS: { [key: number]: string } = {
   5: 'Almost Certain'
 };
 
-export const ROLES = ['Site Supervisor', 'Safety Officer', 'Engineer', 'Technician', 'Contractor', 'Visitor', 'HSSE Manager'];
+export const ROLES = ['Manager', 'Engineer', 'Officer', 'Inspector', 'Assistant'];
 export const DEPARTMENTS = ['HSE', 'Operations', 'Logistics', 'Civil Engineering', 'Electrical', 'Mechanical', 'Quality Control'];
 export const SITES = ['Headquarters', 'Warehouse A', 'Construction Site North', 'Construction Site South', 'Remote Facility'];
 export const OBSERVATION_TYPES = ['Unsafe Act', 'Unsafe Condition', 'Near Miss', 'Positive Observation', 'Environmental Risk', 'Equipment Failure'];

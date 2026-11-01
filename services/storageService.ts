@@ -1,34 +1,38 @@
-import { createClient } from '@supabase/supabase-js';
-import { SUPABASE_CONFIG } from '../constants';
-
-const isValidConfig = SUPABASE_CONFIG.URL && SUPABASE_CONFIG.URL.startsWith('https') && !SUPABASE_CONFIG.URL.includes('your-project-id');
-
-const supabase = isValidConfig 
-  ? createClient(SUPABASE_CONFIG.URL, SUPABASE_CONFIG.ANON_KEY)
-  : null;
+import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
+import { getFirebaseStorage } from './firebaseService';
 
 /**
  * Maps technical storage errors to high-integrity safety messages.
  */
-const getFriendlyStorageError = (error: unknown, bucketName: string): string => {
-  const message = typeof error === 'object' && error !== null && 'message' in error && typeof (error as Record<string, unknown>).message === 'string' ? (error as { message: string }).message : '';
-  if (message.includes('row-level security') || message.includes('policy')) {
+const getFriendlyStorageError = (error: unknown): string => {
+  const code =
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    typeof error.code === 'string'
+      ? error.code
+      : '';
+
+  if (code === 'storage/unauthorized' || code === 'storage/unauthenticated') {
     return "VAULT ACCESS DENIED: Digital evidence container is locked. Contact HSE Administrator to verify terminal permissions.";
   }
-  if (message.includes('bucket not found')) {
-    return `REPOSITORY ERROR: The designated evidence vault '${bucketName}' could not be located in the safety grid.`;
+  if (code === 'storage/bucket-not-found') {
+    return 'REPOSITORY ERROR: The designated Firebase Storage bucket could not be located.';
   }
-  if (message.includes('Payload too large')) {
-    return "TRANSMISSION OVERLOAD: Evidence image exceeds the maximum safety-protocol file size. Try lower resolution.";
+  if (code === 'storage/quota-exceeded') {
+    return 'STORAGE CAPACITY REACHED: Firebase Storage quota has been exceeded.';
   }
-  if (message.includes('Network request failed') || message.includes('fetch')) {
+  if (
+    code === 'storage/retry-limit-exceeded' ||
+    code === 'storage/network-request-failed'
+  ) {
     return "SYNC DISRUPTED: Site network instability detected. Attempting to re-establish secure evidence link...";
   }
   return "SYSTEM FAULT: An unexpected error occurred while archiving evidence. Protocol will attempt a retry.";
 };
 
 /**
- * Uploads a file to Supabase Storage with automatic retry logic.
+ * Uploads a file to Firebase Storage with automatic retry logic.
  */
 export const uploadImageToStorage = async (
   file: File, 
@@ -36,51 +40,50 @@ export const uploadImageToStorage = async (
   maxRetries = 3,
   bucketName?: string
 ): Promise<string> => {
-  if (!supabase) {
-    throw new Error("CONFIGURATION FAULT: Evidence storage grid is not activated. Verify Supabase credentials.");
+  const storage = getFirebaseStorage(bucketName);
+  if (!storage) {
+    throw new Error("CONFIGURATION FAULT: Evidence storage grid is not activated. Verify Firebase credentials.");
   }
 
-  const bucketToUse = bucketName || SUPABASE_CONFIG.BUCKET_NAME;
   const fileExt = file.name.split('.').pop();
   const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
   const cleanFolder = folder.replace(/^\/+|\/+$/g, '');
-  const filePath = `${cleanFolder}/${fileName}`;
+  const storageRef = ref(storage, `${cleanFolder}/${fileName}`);
 
   let lastError: unknown;
   
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
-      const { error } = await supabase.storage
-        .from(bucketToUse)
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: false
-        });
+      await uploadBytes(storageRef, file, {
+        cacheControl: 'public,max-age=3600',
+      });
+      return await getDownloadURL(storageRef);
+    } catch (error: unknown) {
+      lastError = error;
+      const code =
+        typeof error === 'object' &&
+        error !== null &&
+        'code' in error &&
+        typeof error.code === 'string'
+          ? error.code
+          : '';
+      const isFatalError = [
+        'storage/unauthorized',
+        'storage/unauthenticated',
+        'storage/bucket-not-found',
+        'storage/quota-exceeded',
+        'storage/invalid-checksum',
+        'storage/invalid-format',
+        'storage/invalid-argument',
+      ].includes(code);
 
-      if (error) {
-        const isClientError = error.message.includes('security') || 
-                            error.message.includes('policy') || 
-                            error.message.includes('not found');
-        
-        if (isClientError || attempt === maxRetries) {
-          throw new Error(getFriendlyStorageError(error, bucketToUse));
-        }
-        
-        await new Promise(res => setTimeout(res, Math.pow(2, attempt) * 1000));
-        continue;
+      if (isFatalError || attempt === maxRetries) {
+        throw new Error(getFriendlyStorageError(error), { cause: error });
       }
 
-      const { data: { publicUrl } } = supabase.storage
-        .from(bucketToUse)
-        .getPublicUrl(filePath);
-
-      return publicUrl;
-    } catch (catchError: unknown) {
-      lastError = catchError;
-      if (attempt === maxRetries) throw catchError;
       await new Promise(res => setTimeout(res, Math.pow(2, attempt) * 1000));
     }
   }
 
-  throw lastError;
+  throw lastError ?? new Error('Firebase Storage upload failed without an error result.');
 };

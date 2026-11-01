@@ -8,6 +8,8 @@ import {
   FetchedEquipmentChecklist 
 } from '../types';
 import { AIRTABLE_CONFIG, INCIDENT_STATUS } from '../constants';
+import { fileToBase64 } from '../utils/fileToBase64';
+import { persistEvidenceFallback } from './evidenceRegistryService';
 
 interface AirtableConfigOverride {
   baseId?: string;
@@ -16,6 +18,12 @@ interface AirtableConfigOverride {
 
 interface AttachmentData {
   url: string;
+  filename: string;
+}
+
+/** A raw evidence image awaiting upload to an Airtable attachment field. */
+export interface EvidenceFile {
+  file: File;
   filename: string;
 }
 
@@ -55,26 +63,40 @@ const handleAirtableError = async (response: Response, context: { baseId: string
 };
 
 const fetchWithRetry = async (url: string, options: RequestInit, context: { baseId: string, tableName: string }, maxRetries = 2): Promise<any> => {
-  let lastError: Error | null = null;
+  const authorization = new Headers(options.headers).get('Authorization');
+  if (!context.baseId || !authorization?.startsWith('Bearer ') || authorization.length <= 7) {
+    throw new Error('CONFIGURATION FAULT: Set VITE_AIRTABLE_BASE_ID and VITE_AIRTABLE_API_KEY to connect Airtable.');
+  }
+
+  let lastError: unknown;
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    let response: Response;
     try {
-      const response = await fetch(url, options);
-      if (!response.ok) {
-        const msg = await handleAirtableError(response, context);
-        if ((response.status >= 500 || response.status === 429) && attempt < maxRetries) {
-          await new Promise(res => setTimeout(res, Math.pow(2, attempt) * 1000));
-          continue;
-        }
-        throw new Error(msg);
-      }
-      return await response.json();
-    } catch (error: any) {
+      response = await fetch(url, options);
+    } catch (error: unknown) {
       lastError = error;
       if (attempt === maxRetries) throw error;
-      await new Promise(res => setTimeout(res, 1000));
+      await new Promise(res => setTimeout(res, Math.pow(2, attempt) * 1000));
+      continue;
+    }
+
+    if (!response.ok) {
+      const message = await handleAirtableError(response, context);
+      if ((response.status >= 500 || response.status === 429) && attempt < maxRetries) {
+        lastError = new Error(message);
+        await new Promise(res => setTimeout(res, Math.pow(2, attempt) * 1000));
+        continue;
+      }
+      throw new Error(message);
+    }
+
+    try {
+      return await response.json();
+    } catch (error) {
+      throw new Error('Airtable returned an invalid response payload.', { cause: error });
     }
   }
-  throw lastError;
+  throw lastError ?? new Error('Airtable request failed without an error result.');
 };
 
 const fetchAllPaginatedRecords = async <T>(initialUrl: string, apiKey: string, context: { baseId: string, tableName: string }): Promise<T[]> => {
@@ -111,16 +133,156 @@ const normalizeObservationRecord = (record: FetchedObservation): FetchedObservat
   return { ...record, fields: normalizedFields as FetchedObservation['fields'] };
 };
 
-export const submitObservationReport = async (form: ObservationForm, images: AttachmentData[], configOverride?: AirtableConfigOverride): Promise<boolean> => {
-  const baseId = configOverride?.baseId || AIRTABLE_CONFIG.BASE_ID;
-  const apiKey = configOverride?.apiKey || AIRTABLE_CONFIG.API_KEY;
-  const tableName = AIRTABLE_CONFIG.TABLES.OBSERVATIONS;
-  const url = `https://api.airtable.com/v0/${baseId}/${encodeURIComponent(tableName)}`;
-  
-  const fields: Record<string, any> = {};
-  
+const AIRTABLE_CONTENT_HOST = 'https://content.airtable.com/v0';
+
+/** Creates a single Airtable record and returns its record ID. */
+const createRecord = async (
+  tableName: string,
+  fields: Record<string, unknown>,
+  context: { baseId: string; apiKey: string }
+): Promise<string> => {
+  const url = `https://api.airtable.com/v0/${context.baseId}/${encodeURIComponent(tableName)}`;
+  const data = await fetchWithRetry(url, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${context.apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ records: [{ fields }], typecast: true }),
+  }, { baseId: context.baseId, tableName });
+
+  const recordId = data?.records?.[0]?.id;
+  if (!recordId) {
+    throw new Error('Airtable did not return a record ID for the created report.');
+  }
+  return recordId;
+};
+
+/**
+ * Primary image pipeline: uploads a binary directly into an Airtable attachment
+ * field via the content-upload endpoint, bypassing Firestore/Storage entirely.
+ */
+const uploadAttachmentDirect = async (
+  file: File,
+  context: { baseId: string; apiKey: string; recordId: string; fieldName: string }
+): Promise<void> => {
+  const base64 = await fileToBase64(file);
+  const url = `${AIRTABLE_CONTENT_HOST}/${context.baseId}/${context.recordId}/${encodeURIComponent(context.fieldName)}/uploadAttachment`;
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${context.apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contentType: file.type || 'image/jpeg',
+      file: base64,
+      filename: file.name,
+    }),
+  });
+
+  if (!response.ok) {
+    const message = await handleAirtableError(response, { baseId: context.baseId, tableName: context.fieldName });
+    throw new Error(message);
+  }
+};
+
+/** Reads the current attachment array from a record's field. */
+const fetchRecordAttachments = async (
+  tableName: string,
+  recordId: string,
+  fieldName: string,
+  context: { baseId: string; apiKey: string }
+): Promise<AttachmentData[]> => {
+  const url = `https://api.airtable.com/v0/${context.baseId}/${encodeURIComponent(tableName)}/${recordId}`;
+  const data = await fetchWithRetry(url, {
+    headers: { 'Authorization': `Bearer ${context.apiKey}` },
+  }, { baseId: context.baseId, tableName });
+
+  const existing = data?.fields?.[fieldName];
+  if (!Array.isArray(existing)) return [];
+  return (existing as Array<{ url?: string; filename?: string }>)
+    .map(a => ({ url: a?.url ?? '', filename: a?.filename ?? '' }))
+    .filter(a => Boolean(a.url));
+};
+
+/**
+ * Appends externally-hosted attachment URLs to a record's field without
+ * discarding attachments already present (e.g. prior direct uploads).
+ */
+const appendAttachmentsToRecord = async (
+  tableName: string,
+  recordId: string,
+  fieldName: string,
+  attachments: AttachmentData[],
+  context: { baseId: string; apiKey: string }
+): Promise<void> => {
+  const existing = await fetchRecordAttachments(tableName, recordId, fieldName, context);
+  const merged = [...existing, ...attachments].map(a => ({ url: a.url, filename: a.filename }));
+  const url = `https://api.airtable.com/v0/${context.baseId}/${encodeURIComponent(tableName)}/${recordId}`;
+
+  await fetchWithRetry(url, {
+    method: 'PATCH',
+    headers: { 'Authorization': `Bearer ${context.apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fields: { [fieldName]: merged }, typecast: true }),
+  }, { baseId: context.baseId, tableName });
+};
+
+/**
+ * Attaches evidence images to an existing Airtable record.
+ *
+ * Each image is first attempted via a direct Airtable attachment upload. If a
+ * direct upload fails, the image falls back to Firebase (Firestore registry +
+ * Storage) and its resulting URL is batched into a single PATCH so successful
+ * direct uploads are preserved.
+ */
+export const attachEvidenceToRecord = async (params: {
+  tableName: string;
+  recordId: string;
+  fieldName: string;
+  files: EvidenceFile[];
+  config: { baseId: string; apiKey: string };
+}): Promise<void> => {
+  const { tableName, recordId, fieldName, files, config } = params;
+  if (!files || files.length === 0) return;
+
+  const fallbackAttachments: AttachmentData[] = [];
+
+  for (const { file } of files) {
+    try {
+      await uploadAttachmentDirect(file, {
+        baseId: config.baseId,
+        apiKey: config.apiKey,
+        recordId,
+        fieldName,
+      });
+    } catch (directError) {
+      console.warn('Direct Airtable upload failed; engaging Firestore fallback:', directError);
+      const attachment = await persistEvidenceFallback(file, {
+        tableName,
+        fieldName,
+        recordId,
+        reason: directError instanceof Error ? directError.message : 'direct-upload-failed',
+      });
+      fallbackAttachments.push(attachment);
+    }
+  }
+
+  if (fallbackAttachments.length > 0) {
+    await appendAttachmentsToRecord(tableName, recordId, fieldName, fallbackAttachments, config);
+  }
+};
+
+export const OBSERVATION_EVIDENCE_FIELD = 'Open observations';
+export const INCIDENT_EVIDENCE_FIELD = 'Attachments';
+
+/** Result of creating a record; carries the config needed to attach evidence. */
+export interface CreatedRecord {
+  recordId: string;
+  tableName: string;
+  evidenceField: string;
+  config: { baseId: string; apiKey: string };
+}
+
+const buildObservationFields = (form: ObservationForm): Record<string, unknown> => {
+  const fields: Record<string, unknown> = {};
   // Only include fields that exist in Airtable "Observation Reports" table
-  // Confirmed fields: Name, Role / Position, Site / Location, Observation Type, 
+  // Confirmed fields: Name, Role / Position, Site / Location, Observation Type,
   // Observation, Action Taken, Assigned To, Closed By, Location, Open observations, Closed observations
   if (form.name?.trim()) fields["Name"] = form.name;
   if (form.role?.trim()) fields["Role / Position"] = form.role;
@@ -131,67 +293,81 @@ export const submitObservationReport = async (form: ObservationForm, images: Att
   if (form.assignedTo?.trim()) fields["Assigned To"] = form.assignedTo;
   if (form.closedBy?.trim()) fields["Closed By"] = form.closedBy;
   if (form.location?.trim()) fields["Location"] = form.location;
-  
-  // Include initial observation images in "Open observations" field
-  if (images && images.length > 0) {
-    fields["Open observations"] = images.map(img => ({ url: img.url, filename: img.filename }));
-  }
-
-  console.log("📤 SUBMITTING TO AIRTABLE - Field Names:", Object.keys(fields));
-  console.log("📤 SUBMITTING TO AIRTABLE - Full Payload:", JSON.stringify({ fields }, null, 2));
-
-  await fetchWithRetry(url, {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ records: [{ fields }], typecast: true })
-  }, { baseId, tableName });
-  
-  return true;
+  return fields;
 };
 
-export const submitIncidentReport = async (form: IncidentForm, images: AttachmentData[], configOverride?: AirtableConfigOverride): Promise<boolean> => {
+const buildIncidentFields = (form: IncidentForm): Record<string, unknown> => ({
+  "Title": form.title,
+  "Description": form.description,
+  "Incident Date": `${form.date}T${form.time}:00.000Z`,
+  "Location": form.location,
+  "Department": form.department,
+  "Site / Project": form.site,
+  "Device Metadata": form.deviceMetadata || '',
+  "Status": INCIDENT_STATUS.PENDING_REVIEW,
+  "Severity": form.severityScore,
+  "Likelihood": form.likelihoodScore,
+  "Category": form.type,
+  "Reporter ID": form.reporterName,
+  "Persons Involved": form.involvedParties,
+  "Equipment Involved": form.equipmentInvolved,
+  "Witnesses": form.witnesses,
+  "Root Cause": form.rootCause || '',
+  "Recommended Controls": form.recommendedControls || '',
+  // Workflow Mapping
+  "Reviewer": form.reviewer,
+  "Review Date": form.reviewDate ? `${form.reviewDate}T00:00:00.000Z` : undefined,
+  "Review Comments": form.reviewComments,
+  "Corrective Action": form.correctiveAction,
+  "Action Assigned To": form.actionAssignedTo,
+  "Action Due Date": form.actionDueDate,
+  "Verification Comments": form.verificationComments,
+  "Closed By": form.closedBy,
+  "Closure Date": form.closureDate ? `${form.closureDate}T00:00:00.000Z` : undefined,
+});
+
+/**
+ * Creates the observation record (text fields only) and returns a handle for
+ * attaching evidence. Fast path so the UI can confirm the save instantly and
+ * upload images in the background.
+ */
+export const createObservationRecord = async (form: ObservationForm, configOverride?: AirtableConfigOverride): Promise<CreatedRecord> => {
+  const baseId = configOverride?.baseId || AIRTABLE_CONFIG.BASE_ID;
+  const apiKey = configOverride?.apiKey || AIRTABLE_CONFIG.API_KEY;
+  const tableName = AIRTABLE_CONFIG.TABLES.OBSERVATIONS;
+  const recordId = await createRecord(tableName, buildObservationFields(form), { baseId, apiKey });
+  return { recordId, tableName, evidenceField: OBSERVATION_EVIDENCE_FIELD, config: { baseId, apiKey } };
+};
+
+export const createIncidentRecord = async (form: IncidentForm, configOverride?: AirtableConfigOverride): Promise<CreatedRecord> => {
   const baseId = configOverride?.baseId || AIRTABLE_CONFIG.BASE_ID;
   const apiKey = configOverride?.apiKey || AIRTABLE_CONFIG.API_KEY;
   const tableName = AIRTABLE_CONFIG.TABLES.INCIDENTS;
-  const url = `https://api.airtable.com/v0/${baseId}/${encodeURIComponent(tableName)}`;
-  
-  const fields = {
-    "Title": form.title,
-    "Description": form.description,
-    "Incident Date": `${form.date}T${form.time}:00.000Z`,
-    "Location": form.location,
-    "Department": form.department,
-    "Site / Project": form.site,
-    "Device Metadata": form.deviceMetadata || '',
-    "Status": INCIDENT_STATUS.PENDING_REVIEW,
-    "Severity": form.severityScore,
-    "Likelihood": form.likelihoodScore,
-    "Category": form.type,
-    "Reporter ID": form.reporterName,
-    "Persons Involved": form.involvedParties,
-    "Equipment Involved": form.equipmentInvolved,
-    "Witnesses": form.witnesses,
-    "Root Cause": form.rootCause || '',
-    "Recommended Controls": form.recommendedControls || '',
-    "Attachments": images.map(img => ({ url: img.url, filename: img.filename })),
-    // Workflow Mapping
-    "Reviewer": form.reviewer,
-    "Review Date": form.reviewDate ? `${form.reviewDate}T00:00:00.000Z` : undefined,
-    "Review Comments": form.reviewComments,
-    "Corrective Action": form.correctiveAction,
-    "Action Assigned To": form.actionAssignedTo,
-    "Action Due Date": form.actionDueDate,
-    "Verification Comments": form.verificationComments,
-    "Closed By": form.closedBy,
-    "Closure Date": form.closureDate ? `${form.closureDate}T00:00:00.000Z` : undefined
-  };
+  const recordId = await createRecord(tableName, buildIncidentFields(form), { baseId, apiKey });
+  return { recordId, tableName, evidenceField: INCIDENT_EVIDENCE_FIELD, config: { baseId, apiKey } };
+};
 
-  await fetchWithRetry(url, {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ records: [{ fields }], typecast: true })
-  }, { baseId, tableName });
-  
+export const submitObservationReport = async (form: ObservationForm, evidence: EvidenceFile[], configOverride?: AirtableConfigOverride): Promise<boolean> => {
+  const created = await createObservationRecord(form, configOverride);
+  await attachEvidenceToRecord({
+    tableName: created.tableName,
+    recordId: created.recordId,
+    fieldName: created.evidenceField,
+    files: evidence || [],
+    config: created.config,
+  });
+  return true;
+};
+
+export const submitIncidentReport = async (form: IncidentForm, evidence: EvidenceFile[], configOverride?: AirtableConfigOverride): Promise<boolean> => {
+  const created = await createIncidentRecord(form, configOverride);
+  await attachEvidenceToRecord({
+    tableName: created.tableName,
+    recordId: created.recordId,
+    fieldName: created.evidenceField,
+    files: evidence || [],
+    config: created.config,
+  });
   return true;
 };
 

@@ -1,16 +1,25 @@
 
 import { getOfflineReports, deleteOfflineReport, getOfflineIncidents, deleteOfflineIncident } from './offlineStorage';
-import { uploadImageToStorage } from './storageService';
 import { submitObservationReport, submitIncidentReport } from './airtableService';
 import { compressImage } from '../utils/imageCompression';
 import { sendToast } from './notificationService';
 import { handleError, isRetryableError } from '../utils/errorHandler';
 
+let activeSync: Promise<number> | null = null;
+
 /**
  * Orchestrates the synchronization of all queued offline records to the cloud base.
  * Includes exponential backoff for transient failures.
  */
-export const runOfflineSync = async (baseId: string): Promise<number> => {
+export const runOfflineSync = (baseId: string): Promise<number> => {
+  if (activeSync) return activeSync;
+  activeSync = synchronizeQueuedReports(baseId).finally(() => {
+    activeSync = null;
+  });
+  return activeSync;
+};
+
+const synchronizeQueuedReports = async (baseId: string): Promise<number> => {
   const observations = await getOfflineReports();
   const incidents = await getOfflineIncidents();
   const totalToSync = observations.length + incidents.length;
@@ -29,15 +38,13 @@ export const runOfflineSync = async (baseId: string): Promise<number> => {
     sendToast(`Syncing Observation ${i + 1}/${observations.length}`, "info", syncId, progress);
 
     try {
-      const attachments: { url: string; filename: string }[] = [];
+      const evidence: { file: File; filename: string }[] = [];
       for (const img of report.images) {
         const compressedFile = await compressImage(img.file);
-        // Evidence is archived in Supabase first to get URLs for Airtable
-        const url = await uploadImageToStorage(compressedFile, 'incident_evidence');
-        attachments.push({ url, filename: img.file.name });
+        evidence.push({ file: compressedFile, filename: img.file.name });
       }
 
-      await submitObservationReport(report.form, attachments, { baseId });
+      await submitObservationReport(report.form, evidence, { baseId });
       await deleteOfflineReport(report.id);
       syncedCount++;
     } catch (error) {
@@ -61,14 +68,13 @@ export const runOfflineSync = async (baseId: string): Promise<number> => {
     sendToast(`Syncing Incident ${i + 1}/${incidents.length}`, "info", syncId, progress);
 
     try {
-      const attachments: { url: string; filename: string }[] = [];
+      const evidence: { file: File; filename: string }[] = [];
       for (const img of report.images) {
         const compressedFile = await compressImage(img.file);
-        const url = await uploadImageToStorage(compressedFile, 'incident_evidence');
-        attachments.push({ url, filename: img.file.name });
+        evidence.push({ file: compressedFile, filename: img.file.name });
       }
 
-      await submitIncidentReport(report.form, attachments, { baseId });
+      await submitIncidentReport(report.form, evidence, { baseId });
       await deleteOfflineIncident(report.id);
       syncedCount++;
     } catch (error) {

@@ -8,7 +8,6 @@ interface InputFieldProps {
   onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
   onBlur?: (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
   placeholder?: string;
-  // @google/genai-fix: Added 'date' and 'time' to the type definition to support date and time inputs.
   type?: 'text' | 'select' | 'textarea' | 'password' | 'date' | 'time';
   options?: string[];
   list?: string[];
@@ -41,13 +40,11 @@ export const InputField: React.FC<InputFieldProps> = memo(({
   autoCapitalize = "sentences",
   error,
   touched,
-  // @google/genai-fix: Added disabled prop to handle disabled state for inputs.
   disabled = false
 }) => {
   const dataListId = list && list.length > 0 ? `${id}-list` : undefined;
   const hasError = touched && !!error;
 
-  // @google/genai-fix: Added styling for disabled state.
   const baseClasses = `w-full rounded-xl border px-4 py-3.5 outline-none transition-all duration-200 text-sm ${
     hasError 
       ? 'border-rose-500 ring-1 ring-rose-500/20 shadow-[0_0_10px_rgba(244,63,94,0.1)]' 
@@ -122,7 +119,6 @@ export const InputField: React.FC<InputFieldProps> = memo(({
         return (
           <>
             <input
-              // @google/genai-fix: Changed type from hardcoded "text" to the passed `type` prop.
               type={type}
               id={id}
               value={value}
@@ -166,3 +162,5 @@ export const InputField: React.FC<InputFieldProps> = memo(({
     </div>
   );
 });
+
+InputField.displayName = 'InputField';

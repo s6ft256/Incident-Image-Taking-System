@@ -1,18 +1,38 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { IncidentForm, UploadedImage, UserProfile } from '../types';
-import { STORAGE_KEYS, MIN_IMAGES, MAX_IMAGES } from '../constants';
-import { submitIncidentReport } from '../services/airtableService';
-import { uploadImageToStorage } from '../services/storageService';
+import { IncidentForm, UploadedImage, UserProfile, FetchedIncident } from '../types';
+import { STORAGE_KEYS, MIN_IMAGES, MAX_IMAGES, INCIDENT_STATUS } from '../constants';
+import { createIncidentRecord, attachEvidenceToRecord } from '../services/airtableService';
 import { compressImage } from '../utils/imageCompression';
 import { getAddress } from '../services/weatherService';
 import { sendNotification, sendToast } from '../services/notificationService';
 import { getPositionWithRefinement } from '../utils/geolocation';
 import { saveOfflineIncident } from '../services/offlineStorage';
+import { can } from '../services/permissions';
+import { useAppContext } from '../context/AppContext';
 
 export type SubmitStatus = 'idle' | 'submitting' | 'success' | 'error' | 'offline-saved';
 
+const buildOptimisticIncident = (recordId: string, form: IncidentForm): FetchedIncident => ({
+  id: recordId,
+  createdTime: new Date().toISOString(),
+  fields: {
+    "Title": form.title,
+    "Description": form.description,
+    "Incident Date": `${form.date}T${form.time}:00.000Z`,
+    "Location": form.location,
+    "Department": form.department,
+    "Site / Project": form.site,
+    "Status": INCIDENT_STATUS.PENDING_REVIEW as FetchedIncident['fields']['Status'],
+    "Severity": form.severityScore,
+    "Likelihood": form.likelihoodScore,
+    "Category": form.type,
+    "Reporter ID": form.reporterName,
+  } as FetchedIncident['fields'],
+});
+
 export const useIncidentReportForm = () => {
+  const { refetchData, addIncidentOptimistic } = useAppContext();
   const [formData, setFormData] = useState<IncidentForm>({
     title: '',
     type: '',
@@ -48,13 +68,15 @@ export const useIncidentReportForm = () => {
   const [errorMessage, setErrorMessage] = useState('');
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [isLocating, setIsLocating] = useState(false);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isAnalyzing] = useState(false);
+  const [userRole, setUserRole] = useState('');
 
   useEffect(() => {
     const savedProfile = localStorage.getItem(STORAGE_KEYS.PROFILE);
     if (savedProfile) {
       try {
         const profile: UserProfile = JSON.parse(savedProfile);
+        setUserRole(profile.role || '');
         setFormData(prev => ({
           ...prev,
           reporterName: profile.name || prev.reporterName,
@@ -120,19 +142,17 @@ export const useIncidentReportForm = () => {
   const processImageUpload = useCallback(async (img: UploadedImage) => {
     setImages(prev => prev.map(i => i.id === img.id ? { ...i, status: 'uploading', progress: 0 } : i));
     try {
-      // 1. Local Compression
+      // Compress locally and stage the file. Upload happens directly to the
+      // Airtable attachment field at submit time (bypassing Firestore).
       const compressedFile = await compressImage(img.file, p => {
-        setImages(prev => prev.map(i => i.id === img.id ? { ...i, progress: Math.round(p * 0.4) } : i));
+        setImages(prev => prev.map(i => i.id === img.id ? { ...i, progress: Math.round(p) } : i));
       });
-      
-      // 2. Cloud Sync (Supabase)
-      const publicUrl = await uploadImageToStorage(compressedFile, 'incident_evidence');
-      
-      setImages(prev => prev.map(i => i.id === img.id ? { 
-        ...i, 
-        status: 'success', 
-        progress: 100, 
-        serverUrl: publicUrl 
+
+      setImages(prev => prev.map(i => i.id === img.id ? {
+        ...i,
+        file: compressedFile,
+        status: 'success',
+        progress: 100,
       } : i));
     } catch (error: any) {
       setImages(prev => prev.map(i => i.id === img.id ? { 
@@ -140,7 +160,7 @@ export const useIncidentReportForm = () => {
         status: 'error', 
         errorMessage: error.message 
       } : i));
-      sendToast(`Upload Fault: ${img.file.name}`, "critical");
+      sendToast(`Staging Fault: ${img.file.name}`, "critical");
     }
   }, []);
 
@@ -166,6 +186,12 @@ export const useIncidentReportForm = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
+
+    if (!can(userRole, 'submit-incident')) {
+      setErrorMessage('Access denied: your role is not authorized to file incident reports.');
+      setSubmitStatus('error');
+      return;
+    }
 
     if (!formData.title || !formData.type || !formData.site || !formData.description) {
       setErrorMessage("Mandatory operational fields missing.");
@@ -197,15 +223,37 @@ export const useIncidentReportForm = () => {
     }
 
     try {
-      const attachments = images
-        .filter(img => img.status === 'success' && img.serverUrl)
-        .map(img => ({ url: img.serverUrl!, filename: img.file.name }));
+      const evidence = images
+        .filter(img => img.status === 'success')
+        .map(img => ({ file: img.file, filename: img.file.name }));
 
-      await submitIncidentReport(formData, attachments);
-      
+      // 1. Create the record first (fast) so the save is confirmed instantly.
+      const created = await createIncidentRecord(formData);
+      // 2. Reflect it on the dashboard immediately (optimistic).
+      addIncidentOptimistic(buildOptimisticIncident(created.recordId, formData));
       setSubmitStatus('success');
       sendNotification("Incident Dispatched", `Record ID generated for "${formData.title}"`);
-      sendToast("Cloud Synchronization Verified", "success");
+      sendToast("Incident saved • uploading evidence…", "success");
+
+      // 3. Upload evidence in the background, then reconcile with live data.
+      void (async () => {
+        try {
+          if (evidence.length > 0) {
+            await attachEvidenceToRecord({
+              tableName: created.tableName,
+              recordId: created.recordId,
+              fieldName: created.evidenceField,
+              files: evidence,
+              config: created.config,
+            });
+          }
+        } catch (uploadError) {
+          console.warn('Background evidence upload failed', uploadError);
+          sendToast('Incident saved, but some images failed to attach. You can re-add them from the registry.', 'warning');
+        } finally {
+          void refetchData();
+        }
+      })();
     } catch (error: any) {
       setSubmitStatus('error');
       setErrorMessage(error.message || "Cloud link lost.");

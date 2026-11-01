@@ -126,6 +126,11 @@ export const TrainingManagement: React.FC<TrainingManagementProps> = ({ appTheme
     }
     setIsSubmitting(true);
     try {
+      const persistedImages: TrainingSessionData['images'] = trainingImages.map((image) => {
+        const status: TrainingSessionData['images'][number]['status'] =
+          image.status === 'success' ? 'success' : image.status === 'error' ? 'failed' : 'pending';
+        return { serverUrl: image.serverUrl || '', status };
+      });
       const trainingData = {
         projectName,
         locationText: location,
@@ -134,7 +139,7 @@ export const TrainingManagement: React.FC<TrainingManagementProps> = ({ appTheme
         conductedBy,
         conductorSignature: conductedBy,
         trainees,
-        images: trainingImages
+        images: persistedImages
       };
       const successfulImages = trainingImages
         .filter(img => img.status === 'success' && img.serverUrl)
@@ -240,7 +245,7 @@ export const TrainingManagement: React.FC<TrainingManagementProps> = ({ appTheme
                       <h4 className="text-[10px] font-black text-blue-500 uppercase tracking-widest px-2">Evidence Photos</h4>
                       <div className="grid grid-cols-3 gap-3">
                          {selectedSession.images.map((img, i) => (
-                           <a key={i} href={img.serverUrl} target="_blank" className="aspect-square rounded-2xl overflow-hidden border-2 border-white/5 hover:border-blue-500 transition-all shadow-xl">
+                           <a key={i} href={img.serverUrl} target="_blank" rel="noreferrer" className="aspect-square rounded-2xl overflow-hidden border-2 border-white/5 hover:border-blue-500 transition-all shadow-xl">
                               <img src={img.serverUrl} className="w-full h-full object-cover" alt="Evidence" />
                            </a>
                          ))}

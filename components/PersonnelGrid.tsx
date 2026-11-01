@@ -1,7 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { UserProfile, FetchedObservation } from '../types';
-import { AUTHORIZED_ADMIN_ROLES } from '../constants';
+import { can } from '../services/permissions';
 import { useAppContext } from '../context/AppContext';
 
 interface PersonnelGridProps {
@@ -146,7 +145,7 @@ export const PersonnelGrid: React.FC<PersonnelGridProps> = ({ onBack, appTheme =
   }, [personnel, searchTerm, filterRole]);
 
   const getClearance = (role: string) => {
-    return AUTHORIZED_ADMIN_ROLES.includes(role.toLowerCase()) ? 'Level 2' : 'Level 1';
+    return can(role, 'review-report') ? 'Level 2' : 'Level 1';
   };
 
   const handleEmailClick = (e: React.MouseEvent, email?: string) => {

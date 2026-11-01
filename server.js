@@ -36,7 +36,7 @@ app.get('/auth', (req, res) => {
 
 // Handle Callback
 app.get('/callback', async (req, res) => {
-  const { code, state, error } = req.query;
+  const { code, error } = req.query;
 
   if (error) {
     return res.status(400).send(`Error from Airtable: ${error}`);
